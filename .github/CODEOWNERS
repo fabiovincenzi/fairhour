@@ -1,0 +1,16 @@
+# Code owners are requested for review automatically.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*                               @fabiovincenzi
+
+# Tax engine and packs: changes need the pack steward (see MAINTAINERS.md)
+/packages/tax-core/             @fabiovincenzi
+/packages/tax-pack-it/          @fabiovincenzi
+/packages/tax-pack-generic/     @fabiovincenzi
+/docs/tax-packs/                @fabiovincenzi
+
+# Automation, security and governance
+/.github/                       @fabiovincenzi
+/SECURITY.md                    @fabiovincenzi
+/GOVERNANCE.md                  @fabiovincenzi
+/LICENSE                        @fabiovincenzi

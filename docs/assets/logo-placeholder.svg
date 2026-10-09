@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">Fairhour logo placeholder</title>
+  <rect width="96" height="96" rx="22" fill="#0f766e"/>
+  <circle cx="48" cy="50" r="28" fill="none" stroke="#ecfeff" stroke-width="6"/>
+  <path d="M48 32v18l12 8" fill="none" stroke="#ecfeff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 14h16" stroke="#ecfeff" stroke-width="6" stroke-linecap="round"/>
+</svg>

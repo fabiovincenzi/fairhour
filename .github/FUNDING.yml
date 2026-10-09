@@ -1,0 +1,8 @@
+# Funding options shown in the "Sponsor" button.
+# Uncomment and fill in once a funding channel exists.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# github: [fabiovincenzi]
+# open_collective: fairhour
+# liberapay: fairhour
+# custom: ["https://fabiovincenzi.github.io/fairhour/sponsor/"]

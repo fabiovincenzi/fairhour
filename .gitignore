@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+out/
+.turbo/
+.astro/
+*.tsbuildinfo
+next-env.d.ts
+
+# tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.vitest-cache/
+
+# desktop
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# env and secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# os / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# claude code local state
+.claude/settings.local.json
