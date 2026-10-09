@@ -1,0 +1,4 @@
+{
+  "extends": "@fairhour/config/tsconfig/library.json",
+  "include": ["src", "test", "fixtures", "vitest.config.ts", "tsdown.config.js", "eslint.config.js"]
+}
