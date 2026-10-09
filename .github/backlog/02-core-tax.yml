@@ -202,6 +202,7 @@ items:
       - "Checks metadata, config schema (valid and invalid samples), parameter timeline, sources on every rule, wording in English"
       - "Property-based invariants: reconciliation, determinism, non-negative amounts, currency consistency, rounding to minor units"
       - "Runs the pack's golden fixtures"
+      - "A license-boundary check proves MIT packages depend only on MIT workspace packages and permissively licensed third-party packages (ADR-0002)"
 
   - id: TAX-004
     title: "tax-pack-it: regime forfettario"

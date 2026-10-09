@@ -7,7 +7,8 @@ items:
     priority: P1
     size: XL
     status: ready
-    children: [WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009, WEB-010]
+    children:
+      [WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009, WEB-010, WEB-011]
     body: |
       Phase 4. The first usable version of the web app: manage clients and projects, track time,
       review entries and compute an invoice, in English and Italian.
@@ -152,3 +153,22 @@ items:
     acceptance:
       - "Progress bar with accessible text alternative"
       - "Toast when a new entry crosses a threshold"
+
+  - id: WEB-011
+    title: "Source code link for AGPL-3.0 section 13 compliance"
+    type: feature
+    areas: [web]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [WEB-002]
+    body: |
+      Operators who modify and host Fairhour must offer their users the corresponding source
+      (AGPL-3.0 §13). The app shows a "Source code" link in the footer and the about dialog,
+      pointing to a configurable URL (`SOURCE_CODE_URL`) that defaults to the upstream repository
+      plus the running version or commit. See docs/adr/0002-licensing.md.
+    acceptance:
+      - 'The "Source code" link is visible to every signed-in user and on public pages'
+      - "`SOURCE_CODE_URL` overrides the link and is documented in `.env.example`"
+      - "Default is `https://github.com/fabiovincenzi/fairhour/tree/<version>`"
+      - "Covered by a component test"

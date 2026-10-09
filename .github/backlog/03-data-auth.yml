@@ -95,6 +95,7 @@ items:
       - "Magic link sign-in works end to end in dev with Mailpit"
       - "OAuth providers enabled only when their env vars are set"
       - "Sessions in Postgres, secure cookies, CSRF protection"
+      - "The env schema rejects placeholder secrets from `.env.example` (values starting with `replace-me`) and secrets shorter than 32 characters in production"
 
   - id: DATA-007
     title: "Passkeys (WebAuthn)"

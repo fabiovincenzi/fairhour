@@ -7,6 +7,7 @@ items:
     priority: P1
     size: XL
     status: ready
+    state: done
     children: [FND-002, FND-003, FND-004, FND-005, FND-006, FND-007, FND-008]
     body: |
       Phase 1. A monorepo where every package builds, lints, typechecks and tests the same way,
@@ -22,6 +23,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     body: |
       Set up `pnpm-workspace.yaml`, `turbo.json` pipelines (build, lint, typecheck, test,
       test:integration, test:e2e, dev) and `@fairhour/config` with shared tsconfig, eslint,
@@ -39,6 +41,7 @@ items:
     priority: P1
     size: S
     status: ready
+    state: done
     depends_on: [FND-002]
     body: |
       `strict`, `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` everywhere, ESLint flat
@@ -55,6 +58,7 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     depends_on: [FND-003]
     body: |
       Fast local feedback: format and lint staged files on commit, validate the commit message
@@ -71,6 +75,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [FND-002]
     body: |
       `ci.yml` mirrors the local commands, caches pnpm and Turbo, runs integration tests against
@@ -88,6 +93,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [FND-002]
     body: |
       `apps/docs` built with Starlight, deployed to `https://fabiovincenzi.github.io/fairhour/`
@@ -104,6 +110,7 @@ items:
     priority: P1
     size: S
     status: ready
+    state: done
     body: |
       Record the technology stack and the licensing split (AGPL apps, MIT libraries) with
       context, decision, consequences and alternatives.
@@ -118,6 +125,7 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     depends_on: [FND-002]
     body: |
       `docker-compose.yml` for local Postgres + Mailpit, Changesets for versioning, knip for
