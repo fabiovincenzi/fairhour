@@ -1,0 +1,19 @@
+{
+  "name": "@fairhour/i18n-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Locale completeness checks for Fairhour.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "check": "node check-locales.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

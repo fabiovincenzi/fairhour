@@ -1,0 +1,25 @@
+{
+  "name": "@fairhour/github-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Repository automation for Fairhour: backlog sync, DCO check.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "backlog:validate": "node src/cli/validate-backlog.ts",
+    "backlog:sync": "node src/cli/sync-backlog.ts",
+    "dco:check": "node src/cli/check-dco.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

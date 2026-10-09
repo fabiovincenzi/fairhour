@@ -1,0 +1,26 @@
+{
+  "name": "fairhour",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source time tracking that tells you exactly what to invoice. Every hour, fairly billed.",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fabiovincenzi/fairhour.git"
+  },
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:integration": "pnpm -r --if-present test:integration",
+    "test:e2e": "pnpm -r --if-present test:e2e",
+    "i18n:check": "node scripts/i18n/check-locales.ts",
+    "backlog:validate": "pnpm --filter @fairhour/github-scripts backlog:validate"
+  }
+}
