@@ -1,0 +1,35 @@
+name: DCO
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: github.event_name == 'pull_request'
+        with:
+          node-version-file: .nvmrc
+      - name: Check that every commit is signed off
+        if: github.event_name == 'pull_request'
+        # The check script has no dependencies and runs with Node's built-in TypeScript support.
+        env:
+          DCO_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DCO_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/github/src/cli/check-dco.ts
+      - name: Merge queue
+        if: github.event_name == 'merge_group'
+        # Commits were checked on the pull request; the queue only adds GitHub-made merge commits.
+        run: echo "DCO was verified on the pull request."

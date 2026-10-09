@@ -1,0 +1,70 @@
+name: Docs
+
+# Builds the documentation site on every PR that touches it and deploys it to GitHub Pages
+# (https://fabiovincenzi.github.io/fairhour/) from main. Pages must use "GitHub Actions" as
+# its source (see docs/maintainers/repo-settings.md).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/docs/**"
+      - "docs/**"
+      - "packages/tax-*/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "apps/docs/**"
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Detect docs site
+        id: site
+        run: |
+          if [ -f apps/docs/package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No docs site yet; skipping." >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: ./.github/actions/setup
+        if: steps.site.outputs.present == 'true'
+      - name: Build
+        if: steps.site.outputs.present == 'true'
+        run: pnpm turbo run build --filter=@fairhour/docs
+      - name: Upload Pages artifact
+        if: steps.site.outputs.present == 'true' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: apps/docs/dist
+    outputs:
+      present: ${{ steps.site.outputs.present }}
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

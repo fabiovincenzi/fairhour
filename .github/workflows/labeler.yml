@@ -1,0 +1,22 @@
+name: Labeler
+
+on:
+  # pull_request_target so labels can be applied to PRs from forks. The workflow never checks
+  # out or runs PR code; the labeler only reads the list of changed files.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  label:
+    name: Label by changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          configuration-path: .github/labeler.yml
+          sync-labels: false

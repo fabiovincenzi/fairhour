@@ -1,0 +1,67 @@
+# Path-based labels for pull requests (actions/labeler). Label names come from labels.yml.
+
+"area: web":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/web/**"]
+
+"area: desktop":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/desktop/**"]
+
+"area: api":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/api/**"]
+
+"area: db":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/db/**"]
+
+"area: core":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/core/**", "packages/money/**"]
+
+"area: tax-core":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/tax-core/**"]
+
+"area: tax-pack-it":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/tax-pack-it/**", "docs/tax-packs/it.md"]
+
+"area: tax-packs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/tax-pack-*/**"
+          - "!packages/tax-pack-it/**"
+          - "docs/tax-packs/**"
+
+"area: ui":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/ui/**"]
+
+"area: reports":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/pdf/**", "apps/web/src/app/**/reports/**"]
+
+"area: i18n":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/*/messages/**", "apps/docs/src/content/docs/it/**"]
+
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/docs/**", "docs/**", "*.md"]
+
+"area: infra":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "Dockerfile"
+          - "docker-compose*.yml"
+          - "deploy/**"
+          - "turbo.json"
+          - "renovate.json"
+          - "scripts/**"
+
+"dependencies":
+  - changed-files:
+      - any-glob-to-any-file: ["pnpm-lock.yaml"]

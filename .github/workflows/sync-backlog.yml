@@ -1,0 +1,49 @@
+name: Sync backlog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/backlog/**"
+      - ".github/labels.yml"
+      - ".github/milestones.yml"
+      - "scripts/github/**"
+      - ".github/workflows/sync-backlog.yml"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only print what would change
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: sync-backlog
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync labels, milestones and issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          install: "false"
+      - name: Install script dependencies
+        run: pnpm install --frozen-lockfile --filter @fairhour/github-scripts
+      - name: Validate backlog
+        run: pnpm --filter @fairhour/github-scripts backlog:validate
+      - name: Sync to GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: pnpm --filter @fairhour/github-scripts backlog:sync $DRY_RUN --branch "$DEFAULT_BRANCH"

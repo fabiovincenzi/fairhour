@@ -1,0 +1,37 @@
+name: i18n
+
+# Fails when a locale is missing keys present in English (the source locale) and reports the
+# translation coverage of every locale in the job summary.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/*/messages/**"
+      - "scripts/i18n/**"
+      - ".github/workflows/i18n.yml"
+  pull_request:
+    paths:
+      - "apps/*/messages/**"
+      - "scripts/i18n/**"
+      - ".github/workflows/i18n.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Locale completeness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Check locales
+        # Dependency-free script, runs with Node's built-in TypeScript support.
+        run: node scripts/i18n/check-locales.ts

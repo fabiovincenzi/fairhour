@@ -1,0 +1,99 @@
+name: Release
+
+# Changesets opens a "Version packages" PR on main. Merging it tags the new versions, creates
+# GitHub Releases with the changelog, then:
+#   - builds and pushes multi-arch Docker images to ghcr.io/fabiovincenzi/fairhour (+ SBOM),
+#   - builds the desktop app (desktop-release.yml) when @fairhour/desktop was released,
+#   - publishes @fairhour/* libraries to npm ONLY when the NPM_TOKEN secret exists and the
+#     package is not private (all packages are private for now).
+# See docs/maintainers/release-process.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  changesets:
+    name: Version PR or release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # push tags, create releases
+      pull-requests: write # open the version PR
+      id-token: write # npm provenance
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      web-version: ${{ steps.released.outputs.web-version }}
+      desktop-version: ${{ steps.released.outputs.desktop-version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Detect npm publishing
+        id: npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo "enabled=${NPM_TOKEN:+true}" >> "$GITHUB_OUTPUT"
+      - name: Configure npm authentication
+        if: steps.npm.outputs.enabled == 'true'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$HOME/.npmrc"
+      - name: Create version PR or release
+        id: changesets
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          version-script: pnpm release:version
+          publish-script: pnpm release:publish
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+          create-github-releases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_PUBLISH_ENABLED: ${{ steps.npm.outputs.enabled }}
+          NPM_CONFIG_PROVENANCE: "true"
+      - name: Find released apps
+        id: released
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED: ${{ steps.changesets.outputs.published-packages }}
+        run: |
+          web=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "@fairhour/web") | .version')
+          desktop=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "@fairhour/desktop") | .version')
+          # Only build artifacts whose build definitions exist.
+          [ -f Dockerfile ] || web=""
+          [ -f apps/desktop/src-tauri/tauri.conf.json ] || desktop=""
+          echo "web-version=${web}" >> "$GITHUB_OUTPUT"
+          echo "desktop-version=${desktop}" >> "$GITHUB_OUTPUT"
+
+  docker:
+    name: Docker image
+    needs: changesets
+    if: needs.changesets.outputs.web-version != ''
+    uses: ./.github/workflows/docker.yml
+    permissions:
+      contents: write # attach the SBOM to the release
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      version: ${{ needs.changesets.outputs.web-version }}
+
+  desktop:
+    name: Desktop app
+    needs: changesets
+    if: needs.changesets.outputs.desktop-version != ''
+    uses: ./.github/workflows/desktop-release.yml
+    permissions:
+      contents: write
+    with:
+      version: ${{ needs.changesets.outputs.desktop-version }}
+    secrets: inherit

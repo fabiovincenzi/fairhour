@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Lint and format check
+        run: pnpm lint
+      - name: Unused code and dependencies (knip)
+        if: hashFiles('knip.json') != ''
+        run: pnpm knip
+      - name: Backlog is valid
+        run: pnpm backlog:validate
+      - name: Workflows (actionlint)
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  unit:
+    name: Unit tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # The money and tax engines rely on bigint/Intl behaviour: test the supported LTS lines.
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+      - run: pnpm test
+      - name: Check for a Codecov token
+        id: codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: echo "enabled=${CODECOV_TOKEN:+true}" >> "$GITHUB_OUTPUT"
+      - name: Upload coverage to Codecov
+        if: matrix.node == '22' && steps.codecov.outputs.enabled == 'true'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unit
+          fail_ci_if_error: false
+
+  integration:
+    name: Integration tests (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fairhour
+          POSTGRES_PASSWORD: fairhour
+          POSTGRES_DB: fairhour_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fairhour"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://fairhour:fairhour@localhost:5432/fairhour_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm test:integration
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fairhour
+          POSTGRES_PASSWORD: fairhour
+          POSTGRES_DB: fairhour_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fairhour"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://fairhour:fairhour@localhost:5432/fairhour_e2e
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Detect E2E suite
+        id: suite
+        run: |
+          if [ -f apps/web/playwright.config.ts ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "No E2E suite yet; skipping." >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: ./.github/actions/setup
+        if: steps.suite.outputs.present == 'true'
+      - name: Install Playwright browsers
+        if: steps.suite.outputs.present == 'true'
+        run: pnpm --filter @fairhour/web exec playwright install --with-deps chromium
+      - name: Run E2E tests
+        if: steps.suite.outputs.present == 'true'
+        run: pnpm test:e2e
+      - name: Upload Playwright report
+        if: failure() && steps.suite.outputs.present == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+
+  # Single required check for branch protection.
+  ci-ok:
+    name: CI OK
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint, typecheck, unit, integration, e2e, build]
+    steps:
+      - name: All jobs passed (or were skipped)
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              exit 1
+            fi
+          done

@@ -1,0 +1,28 @@
+name: 📚 Documentation
+description: Report missing, unclear or wrong documentation.
+title: "docs: "
+labels: ["type: docs", "area: docs", "status: triage"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page or file
+      placeholder: "https://fabiovincenzi.github.io/fairhour/self-hosting/ or CONTRIBUTING.md"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing or wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I would like to open a PR for this.

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    "helpers:pinGitHubActionDigests",
+    ":maintainLockFilesMonthly",
+    ":enableVulnerabilityAlertsWithLabel(type: security)"
+  ],
+  "timezone": "Europe/Rome",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies", "type: chore"],
+  "rangeStrategy": "bump",
+  "prConcurrentLimit": 8,
+  "prHourlyLimit": 4,
+  "minimumReleaseAge": "3 days",
+  "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
+  "platformAutomerge": true,
+  "postUpdateOptions": ["pnpmDedupe"],
+  "packageRules": [
+    {
+      "description": "Automerge patch updates of dev dependencies once CI passes",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "GitHub Actions in one weekly PR; digests automerge after CI",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true,
+      "matchUpdateTypes": ["digest", "patch", "minor", "pin"]
+    },
+    {
+      "description": "Lint and formatting toolchain",
+      "matchPackageNames": ["eslint", "/^@eslint\\//", "typescript-eslint", "/^eslint-/", "prettier", "/^prettier-/", "knip", "lefthook", "/^@commitlint\\//"],
+      "groupName": "lint toolchain"
+    },
+    {
+      "description": "Test toolchain",
+      "matchPackageNames": ["vitest", "/^@vitest\\//", "fast-check", "@playwright/test", "playwright", "@axe-core/playwright"],
+      "groupName": "test toolchain"
+    },
+    {
+      "description": "Next.js and React move together",
+      "matchPackageNames": ["next", "react", "react-dom", "@types/react", "@types/react-dom", "eslint-config-next"],
+      "groupName": "Next.js and React"
+    },
+    {
+      "description": "Drizzle ORM and kit",
+      "matchPackageNames": ["drizzle-orm", "drizzle-kit"],
+      "groupName": "Drizzle"
+    },
+    {
+      "description": "Tauri crates and JS packages",
+      "matchPackageNames": ["/^@tauri-apps\\//", "/^tauri/"],
+      "groupName": "Tauri"
+    },
+    {
+      "description": "Astro and Starlight docs site",
+      "matchPackageNames": ["astro", "/^@astrojs\\//"],
+      "groupName": "docs site"
+    },
+    {
+      "description": "TypeScript is pinned below 6.1 until typescript-eslint supports newer versions (ADR-0001)",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "Major updates need a human review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "type: chore", "status: triage"]
+    }
+  ]
+}

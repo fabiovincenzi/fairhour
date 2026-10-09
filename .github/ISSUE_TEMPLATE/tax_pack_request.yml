@@ -1,0 +1,53 @@
+name: 🧮 Tax pack request
+description: Propose or request support for a country or tax regime.
+title: "tax-pack: <country> – <regime>"
+labels: ["tax-pack-request", "area: tax-packs", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tax packs turn tracked time into invoice amounts for a country. Read the
+        [tax pack guide](https://github.com/fabiovincenzi/fairhour/blob/main/docs/contributing/tax-packs.md)
+        and check the [generic pack](https://github.com/fabiovincenzi/fairhour/blob/main/docs/tax-packs/generic.md):
+        it may already cover simple VAT cases.
+  - type: input
+    id: country
+    attributes:
+      label: Country (ISO 3166-1 alpha-2)
+      placeholder: "DE"
+    validations:
+      required: true
+  - type: textarea
+    id: regimes
+    attributes:
+      label: Regimes and who uses them
+      description: Which regimes should the pack support (e.g. small-business exemption, standard VAT)? Which freelancers use each one?
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: Rules on an invoice
+      description: Taxes, contributions, withholdings, stamp duties, thresholds and mandatory wording, with how each amount is computed.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Official sources
+      description: Laws, tax authority pages or guides for each rule (links preferred).
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Worked example
+      description: One realistic invoice with the expected amounts.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I can help implement or review this pack.
+        - label: I understand that Fairhour's figures are informational and not tax advice.
+          required: true

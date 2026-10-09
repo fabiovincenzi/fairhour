@@ -1,0 +1,38 @@
+name: Welcome
+
+on:
+  issues:
+    types: [opened]
+  # pull_request_target to be able to comment on PRs from forks; no PR code is checked out.
+  pull_request_target:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  welcome:
+    name: Greet first-time contributors
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_message: |
+            👋 Welcome to Fairhour, and thanks for opening your first issue!
+
+            A maintainer will triage it soon. In the meantime:
+            - make sure you removed any personal data or secrets from the report,
+            - questions and ideas are also welcome in [Discussions](https://github.com/fabiovincenzi/fairhour/discussions),
+            - want to fix it yourself? See [CONTRIBUTING.md](https://github.com/fabiovincenzi/fairhour/blob/main/CONTRIBUTING.md).
+          pr_message: |
+            🎉 Thanks for your first pull request to Fairhour!
+
+            A few things that help it get merged quickly:
+            - the PR title follows [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): …`),
+            - every commit is signed off (`git commit -s`, see the [DCO section](https://github.com/fabiovincenzi/fairhour/blob/main/CONTRIBUTING.md#developer-certificate-of-origin-dco)),
+            - the checklist in the PR template is filled in.
+
+            A maintainer will review it soon. Welcome aboard!

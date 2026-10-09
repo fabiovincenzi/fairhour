@@ -1,0 +1,45 @@
+name: Stale
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  stale:
+    name: Mark and close stale issues and PRs
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          # Conservative: roadmap work (milestones, priorities, ready items) is never marked stale.
+          days-before-issue-stale: 90
+          days-before-issue-close: 30
+          days-before-pr-stale: 60
+          days-before-pr-close: 30
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: "P0,P1,pinned,type: security,security,status: ready,status: in-progress,good first issue,help wanted"
+          exempt-pr-labels: "P0,P1,pinned,type: security,security"
+          exempt-all-milestones: true
+          exempt-all-assignees: true
+          exempt-draft-pr: true
+          remove-stale-when-updated: true
+          close-issue-reason: not_planned
+          operations-per-run: 60
+          stale-issue-message: |
+            This issue has had no activity for 90 days. It will be closed in 30 days unless there
+            is new activity. If it is still relevant, leave a comment and it stays open. Thank you!
+          close-issue-message: |
+            Closed after 120 days without activity. Feel free to reopen it with more details.
+          stale-pr-message: |
+            This pull request has had no activity for 60 days. It will be closed in 30 days unless
+            it is updated. Need help getting it over the line? Ask in a comment!
+          close-pr-message: |
+            Closed after 90 days without activity. You are welcome to reopen it at any time.

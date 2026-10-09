@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions and ideas
+    url: https://github.com/fabiovincenzi/fairhour/discussions
+    about: Ask questions, share ideas and show what you built in GitHub Discussions.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/fabiovincenzi/fairhour/security/advisories/new
+    about: Please report vulnerabilities privately. Never open a public issue for them.
+  - name: 📚 Documentation
+    url: https://fabiovincenzi.github.io/fairhour/
+    about: Guides for users, self-hosters and contributors.

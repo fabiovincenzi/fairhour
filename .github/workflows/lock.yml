@@ -1,0 +1,33 @@
+name: Lock threads
+
+on:
+  schedule:
+    - cron: "41 4 * * *" # daily, 04:41 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: lock-threads
+
+jobs:
+  lock:
+    name: Lock long-closed issues and PRs
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: dessant/lock-threads@89ae32b08ed1a541efecbab17912962a5e38981c # v6.0.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-inactive-days: 180
+          pr-inactive-days: 180
+          exclude-any-issue-labels: pinned
+          issue-comment: |
+            This issue has been locked because it was closed more than 180 days ago. Please open a
+            new issue that links to this one if you are seeing something related.
+          pr-comment: ""
+          issue-lock-reason: resolved
+          pr-lock-reason: resolved
+          process-only: "issues, prs"
