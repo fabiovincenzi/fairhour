@@ -1,0 +1,39 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/**",
+        "$TURBO_ROOT$/CONTRIBUTING.md",
+        "$TURBO_ROOT$/GOVERNANCE.md",
+        "$TURBO_ROOT$/SECURITY.md",
+        "$TURBO_ROOT$/.env.example"
+      ]
+    },
+    "typecheck": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/**",
+        "$TURBO_ROOT$/CONTRIBUTING.md",
+        "$TURBO_ROOT$/GOVERNANCE.md",
+        "$TURBO_ROOT$/SECURITY.md",
+        "$TURBO_ROOT$/.env.example"
+      ]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/**",
+        "$TURBO_ROOT$/CONTRIBUTING.md",
+        "$TURBO_ROOT$/GOVERNANCE.md",
+        "$TURBO_ROOT$/SECURITY.md",
+        "$TURBO_ROOT$/.env.example",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/.github/backlog/*.yml",
+        "$TURBO_ROOT$/packages/config/tailwind/theme.css"
+      ]
+    }
+  }
+}

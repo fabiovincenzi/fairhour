@@ -1,0 +1,72 @@
+---
+title: Time tracking che ti dice cosa fatturare
+description: Time tracking open source e self-hostable che ti dice esattamente cosa mettere in fattura.
+template: splash
+hero:
+  title: Fairhour
+  tagline: Ogni ora, fatturata correttamente.
+  image:
+    file: ../../../assets/logo.svg
+    alt: Logo di Fairhour
+  actions:
+    - text: Inizia da qui
+      link: /fairhour/it/getting-started/introduction/
+      icon: right-arrow
+    - text: Vedi su GitHub
+      link: https://github.com/fabiovincenzi/fairhour
+      icon: external
+      variant: minimal
+---
+
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+
+I time tracker ti dicono quante ore hai lavorato. **Fairhour ti dice anche cosa fatturare.** Un
+motore fiscale a pacchetti, specifico per ogni paese, trasforma il tempo registrato negli importi
+esatti della fattura (imponibile, contributi, IVA, ritenuta, imposta di bollo, totale e netto a
+pagare) e spiega ogni passaggio citando la norma. L'Italia è il paese di riferimento; gli altri li
+aggiunge la community.
+
+<CardGrid stagger>
+  <Card title="Registrazione del tempo" icon="clock">
+    Un timer con un clic che sopravvive al ricaricamento della pagina, registrazioni manuali,
+    inserimento rapido (`2h design Acme ieri`), arrotondamento per progetto e rilevamento delle
+    sovrapposizioni. L'app web arriva nella v0.4.
+  </Card>
+  <Card title="Motore fiscale con traccia della spiegazione" icon="puzzle">
+    I pacchetti fiscali calcolano ogni importo in modo esatto e mostrano ogni passaggio con la norma
+    che lo prevede. Arrivano prima l'Italia (forfettario e ordinario) e un pacchetto IVA generico,
+    nella v0.2.
+  </Card>
+  <Card title="Report" icon="analytics">
+    Dashboard e grafici per cliente, progetto, attività e tag, fogli ore in PDF, esportazione CSV e
+    link di condivisione firmati per i clienti. In arrivo nella v0.5.
+  </Card>
+  <Card title="App desktop" icon="laptop">
+    Un timer nella barra di sistema, rilevamento dell'inattività e suggerimenti di attività privati
+    e facoltativi che non lasciano mai il tuo dispositivo. In arrivo nella v0.9.
+  </Card>
+  <Card title="API pubblica" icon="external">
+    Un'API REST versionata descritta da OpenAPI, token di accesso personali e webhook firmati. In
+    arrivo nella v0.7.
+  </Card>
+  <Card title="Self-hosting al primo posto" icon="server">
+    Un solo `docker compose up`, PostgreSQL, variabili d'ambiente documentate e nessuna telemetria
+    se non la attivi tu. In arrivo nella v0.8.
+  </Card>
+</CardGrid>
+
+<Aside type="caution" title="Importi indicativi">
+  Fairhour è in sviluppo iniziale. Gli importi fiscali sono **indicativi**: verificali sempre con il
+  tuo commercialista prima di emettere una fattura. Fairhour non fornisce consulenza fiscale o
+  legale.
+</Aside>
+
+## Da dove continuare
+
+- Sei nuovo? Leggi l'[introduzione](/fairhour/it/getting-started/introduction/) e guarda cosa
+  esiste già nella [roadmap](/fairhour/it/getting-started/introduction/#roadmap).
+- Vuoi far partire il codice? Segui la
+  [guida rapida](/fairhour/it/getting-started/quickstart/) (disponibile in inglese).
+- Vuoi aggiungere il tuo paese o la tua lingua? Vedi le
+  [guide per contribuire](/fairhour/it/contributing/) (in inglese) e i
+  [pacchetti fiscali](/fairhour/it/tax-packs/).

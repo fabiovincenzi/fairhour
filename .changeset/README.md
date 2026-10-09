@@ -18,10 +18,10 @@ pnpm changeset            # pick the packages, the bump type and write a short s
 
 ## What is not released
 
-The tooling packages are listed under `ignore` in [`config.json`](./config.json):
-`@fairhour/config`, `@fairhour/github-scripts` and `@fairhour/i18n-scripts`. They are never
-versioned or tagged, so they stay out of changelogs and GitHub Releases. Add every new
-internal-only package (for example `@fairhour/docs`) to that list.
+The tooling packages and the documentation site are listed under `ignore` in
+[`config.json`](./config.json): `@fairhour/config`, `@fairhour/docs`, `@fairhour/github-scripts` and
+`@fairhour/i18n-scripts`. They are never versioned or tagged, so they stay out of changelogs and
+GitHub Releases. Add every new internal-only package to that list.
 
 Because of that, **a changeset must not mix ignored and released packages**: Changesets rejects it
 ("Mixed changesets..."). Write two changesets, or leave the ignored package out.

@@ -1,0 +1,12 @@
+{
+  "extends": ["astro/tsconfigs/base", "@fairhour/config/tsconfig/base.json"],
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noImplicitReturns": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false
+  },
+  "include": [".astro/types.d.ts", "src", "test", "vitest.config.ts"],
+  "exclude": ["dist"]
+}

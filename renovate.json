@@ -84,7 +84,7 @@
     },
     {
       "description": "Astro and Starlight docs site",
-      "matchPackageNames": ["astro", "/^@astrojs\\//"],
+      "matchPackageNames": ["astro", "/^@astrojs\\//", "starlight-links-validator"],
       "groupName": "docs site"
     },
     {

@@ -12,7 +12,12 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@fairhour/config", "@fairhour/github-scripts", "@fairhour/i18n-scripts"],
+  "ignore": [
+    "@fairhour/config",
+    "@fairhour/docs",
+    "@fairhour/github-scripts",
+    "@fairhour/i18n-scripts"
+  ],
   "privatePackages": {
     "version": true,
     "tag": true

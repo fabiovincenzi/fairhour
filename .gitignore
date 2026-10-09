@@ -12,6 +12,17 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# docs site: pages generated from the repository's Markdown by apps/docs/scripts/sync-content.ts
+# (keep in sync with DIRECTORIES, FILES and HANDWRITTEN in apps/docs/scripts/lib/sources.ts)
+apps/docs/src/content/docs/adr/
+apps/docs/src/content/docs/contributing/
+apps/docs/src/content/docs/design/
+apps/docs/src/content/docs/maintainers/
+apps/docs/src/content/docs/self-hosting/*
+!apps/docs/src/content/docs/self-hosting/index.md
+apps/docs/src/content/docs/tax-packs/*
+!apps/docs/src/content/docs/tax-packs/index.md
+
 # tests
 coverage/
 playwright-report/

@@ -29,7 +29,8 @@ Create a ruleset targeting the default branch:
 
 Settings → Pages → Build and deployment → Source: **GitHub Actions**. The `docs.yml` workflow
 deploys `apps/docs` to `https://fabiovincenzi.github.io/fairhour/`. For a custom domain later,
-set it here and change `site`/`base` in `apps/docs/astro.config.mjs`.
+set it here and change `SITE`/`BASE` in `apps/docs/scripts/lib/site.ts` (hand-written pages link
+with the `/fairhour/` base path, so search and replace it there too).
 
 ## Code security
 

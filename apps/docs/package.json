@@ -1,0 +1,34 @@
+{
+  "name": "@fairhour/docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Fairhour documentation site (Starlight), published on GitHub Pages.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-content.ts",
+    "predev": "node scripts/sync-content.ts",
+    "dev": "astro dev",
+    "prebuild": "node scripts/sync-content.ts",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "node scripts/sync-content.ts && tsc -p scripts/tsconfig.json --noEmit && astro check && tsc --noEmit",
+    "lint": "astro sync && eslint . --max-warnings=0",
+    "test": "vitest run --coverage",
+    "clean": "node scripts/sync-content.ts --clean && node --eval \"for (const d of ['dist', '.astro', 'coverage']) fs.rmSync(d, { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.6",
+    "astro": "^7.3.8",
+    "starlight-links-validator": "^0.27.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@fairhour/config": "workspace:*",
+    "@types/node": "^22.20.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.12.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

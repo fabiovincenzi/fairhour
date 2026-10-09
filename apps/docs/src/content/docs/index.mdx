@@ -1,0 +1,68 @@
+---
+title: Time tracking that tells you what to invoice
+description: Open-source, self-hostable time tracking that tells you exactly what to put on your invoice.
+template: splash
+hero:
+  title: Fairhour
+  tagline: Every hour, fairly billed.
+  image:
+    file: ../../assets/logo.svg
+    alt: Fairhour logo
+  actions:
+    - text: Get started
+      link: /fairhour/getting-started/introduction/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/fabiovincenzi/fairhour
+      icon: external
+      variant: minimal
+---
+
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+
+Time trackers tell you how many hours you worked. **Fairhour also tells you what to invoice.** A
+pluggable, country-specific tax engine turns tracked time into the exact amounts on the invoice
+(taxable base, contributions, VAT, withholding, stamp duty, total and net payable) and explains
+every step with its legal source. Italy is the reference country; the community adds the others.
+
+<CardGrid stagger>
+  <Card title="Time tracking" icon="clock">
+    A one-click timer that survives reloads, manual entries, quick add (`2h design Acme yesterday`),
+    rounding per project and overlap detection. The web app is coming in v0.4.
+  </Card>
+  <Card title="Tax engine with an explanation trace" icon="puzzle">
+    Country packs compute every amount exactly and show each step with the law behind it. Italy
+    (forfettario and ordinario) and a generic VAT pack come first, in v0.2.
+  </Card>
+  <Card title="Reports" icon="analytics">
+    Dashboards and charts by client, project, task and tag, PDF timesheets, CSV export and signed
+    share links for clients. Coming in v0.5.
+  </Card>
+  <Card title="Desktop companion" icon="laptop">
+    A tray timer, idle detection and private, opt-in activity suggestions that never leave your
+    device. Coming in v0.9.
+  </Card>
+  <Card title="Public API" icon="external">
+    A versioned REST API described by OpenAPI, personal access tokens and signed webhooks. Coming in
+    v0.7.
+  </Card>
+  <Card title="Self-hosting first" icon="server">
+    One `docker compose up`, PostgreSQL, documented environment variables and no telemetry unless
+    you turn it on. Coming in v0.8.
+  </Card>
+</CardGrid>
+
+<Aside type="caution" title="Informational figures">
+  Fairhour is in early development. Tax figures are **informational**: always verify them with your
+  accountant before issuing an invoice. Fairhour does not provide tax or legal advice.
+</Aside>
+
+## Where to go next
+
+- New here? Read the [introduction](/fairhour/getting-started/introduction/) and see what exists
+  today in the [roadmap](/fairhour/getting-started/introduction/#roadmap).
+- Want to run the code? Follow the [quickstart](/fairhour/getting-started/quickstart/).
+- Want to add your country or your language? See the
+  [contributing guides](/fairhour/contributing/) and the [tax packs](/fairhour/tax-packs/).
+- Wondering why things are the way they are? The [architecture decision
+  records](/fairhour/adr/) explain it.

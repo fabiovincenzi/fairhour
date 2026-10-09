@@ -1,0 +1,27 @@
+/*
+ * Fairhour brand colours for Starlight.
+ *
+ * The teal scale is copied from `--color-brand-*` in packages/config/tailwind/theme.css (the docs
+ * site does not use Tailwind); `brand.test.ts` fails when the two drift apart.
+ */
+:root {
+  --fh-brand-100: #ccfbf1;
+  --fh-brand-300: #5eead4;
+  --fh-brand-500: #14b8a6;
+  --fh-brand-700: #0f766e;
+  --fh-brand-900: #134e4a;
+}
+
+/* Dark theme (Starlight's default): accent-high is the link and button colour. */
+:root {
+  --sl-color-accent-low: var(--fh-brand-900);
+  --sl-color-accent: var(--fh-brand-500);
+  --sl-color-accent-high: var(--fh-brand-300);
+}
+
+/* Light theme: accent is the link and button colour (5.5:1 on white). */
+:root[data-theme="light"] {
+  --sl-color-accent-low: var(--fh-brand-100);
+  --sl-color-accent: var(--fh-brand-700);
+  --sl-color-accent-high: var(--fh-brand-900);
+}

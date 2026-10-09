@@ -11,11 +11,19 @@ on:
       - "apps/docs/**"
       - "docs/**"
       - "packages/tax-*/**"
+      - "CONTRIBUTING.md"
+      - "GOVERNANCE.md"
+      - "SECURITY.md"
+      - ".env.example"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
       - "apps/docs/**"
       - "docs/**"
+      - "CONTRIBUTING.md"
+      - "GOVERNANCE.md"
+      - "SECURITY.md"
+      - ".env.example"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
