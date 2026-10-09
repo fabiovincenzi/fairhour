@@ -7,7 +7,8 @@ items:
     priority: P1
     size: XL
     status: ready
-    children: [DATA-002, DATA-003, DATA-004, DATA-005, DATA-006, DATA-007, DATA-008, DATA-009, DATA-010]
+    children:
+      [DATA-002, DATA-003, DATA-004, DATA-005, DATA-006, DATA-007, DATA-008, DATA-009, DATA-010]
     body: |
       Phase 3. PostgreSQL schema, migrations, a realistic seed, authentication, workspaces with
       roles, and proof that one workspace can never see another's data.

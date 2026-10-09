@@ -10,21 +10,20 @@ const { values } = parseArgs({
   },
 });
 
-const base = values.base ?? process.env["DCO_BASE_SHA"];
-const head = process.env["DCO_HEAD_SHA"] ?? values.head;
+const base = values.base ?? process.env.DCO_BASE_SHA;
+const head = process.env.DCO_HEAD_SHA ?? values.head;
 if (!base) {
   console.error("Pass --base <sha> or set DCO_BASE_SHA.");
   process.exit(1);
 }
 
-const output = execFileSync(
-  "git",
-  ["log", `--format=${GIT_LOG_FORMAT}`, `${base}..${head}`],
-  { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-);
+const output = execFileSync("git", ["log", `--format=${GIT_LOG_FORMAT}`, `${base}..${head}`], {
+  encoding: "utf8",
+  maxBuffer: 64 * 1024 * 1024,
+});
 const result = checkDco(parseGitLog(output));
 const message = formatDcoResult(result);
 console.log(message);
-const summaryFile = process.env["GITHUB_STEP_SUMMARY"];
+const summaryFile = process.env.GITHUB_STEP_SUMMARY;
 if (summaryFile) await appendFile(summaryFile, `${message}\n`);
 if (!result.ok) process.exit(1);

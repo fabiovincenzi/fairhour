@@ -35,17 +35,41 @@
     },
     {
       "description": "Lint and formatting toolchain",
-      "matchPackageNames": ["eslint", "/^@eslint\\//", "typescript-eslint", "/^eslint-/", "prettier", "/^prettier-/", "knip", "lefthook", "/^@commitlint\\//"],
+      "matchPackageNames": [
+        "eslint",
+        "/^@eslint\\//",
+        "typescript-eslint",
+        "/^eslint-/",
+        "prettier",
+        "/^prettier-/",
+        "knip",
+        "lefthook",
+        "/^@commitlint\\//"
+      ],
       "groupName": "lint toolchain"
     },
     {
       "description": "Test toolchain",
-      "matchPackageNames": ["vitest", "/^@vitest\\//", "fast-check", "@playwright/test", "playwright", "@axe-core/playwright"],
+      "matchPackageNames": [
+        "vitest",
+        "/^@vitest\\//",
+        "fast-check",
+        "@playwright/test",
+        "playwright",
+        "@axe-core/playwright"
+      ],
       "groupName": "test toolchain"
     },
     {
       "description": "Next.js and React move together",
-      "matchPackageNames": ["next", "react", "react-dom", "@types/react", "@types/react-dom", "eslint-config-next"],
+      "matchPackageNames": [
+        "next",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom",
+        "eslint-config-next"
+      ],
       "groupName": "Next.js and React"
     },
     {

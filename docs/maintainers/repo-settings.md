@@ -47,13 +47,13 @@ set it here and change `site`/`base` in `apps/docs/astro.config.mjs`.
 
 ## Secrets and variables (all optional)
 
-| Name | Kind | Used by | Purpose |
-|---|---|---|---|
-| `CODECOV_TOKEN` | secret | `ci.yml` | Upload coverage; skipped when absent |
-| `NPM_TOKEN` | secret | `release.yml` | Publish non-private `@fairhour/*` libraries; skipped when absent |
-| `PROJECT_TOKEN` | secret | `add-to-project.yml` | PAT with `project` scope for the roadmap board |
-| `PROJECT_URL` | variable | `add-to-project.yml` | URL of the Projects v2 board |
-| `APPLE_*`, `WINDOWS_*`, `TAURI_SIGNING_*` | secrets | `desktop-release.yml` | Desktop code signing (see release-process.md) |
+| Name                                      | Kind     | Used by               | Purpose                                                          |
+| ----------------------------------------- | -------- | --------------------- | ---------------------------------------------------------------- |
+| `CODECOV_TOKEN`                           | secret   | `ci.yml`              | Upload coverage; skipped when absent                             |
+| `NPM_TOKEN`                               | secret   | `release.yml`         | Publish non-private `@fairhour/*` libraries; skipped when absent |
+| `PROJECT_TOKEN`                           | secret   | `add-to-project.yml`  | PAT with `project` scope for the roadmap board                   |
+| `PROJECT_URL`                             | variable | `add-to-project.yml`  | URL of the Projects v2 board                                     |
+| `APPLE_*`, `WINDOWS_*`, `TAURI_SIGNING_*` | secrets  | `desktop-release.yml` | Desktop code signing (see release-process.md)                    |
 
 `GITHUB_TOKEN` covers everything else (backlog sync, labels, releases, GHCR images).
 

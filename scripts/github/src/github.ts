@@ -104,7 +104,7 @@ function toIssue(raw: RawIssue): GitHubIssue {
 function nextLink(header: string | null): string | undefined {
   if (!header) return undefined;
   for (const part of header.split(",")) {
-    const match = part.match(/<([^>]+)>;\s*rel="next"/);
+    const match = /<([^>]+)>;\s*rel="next"/.exec(part);
     if (match?.[1]) return match[1];
   }
   return undefined;
@@ -133,11 +133,7 @@ export class RestGitHubClient implements GitHubApi {
     this.maxRetries = options.maxRetries ?? 5;
   }
 
-  private async request(
-    method: string,
-    url: string,
-    body?: unknown,
-  ): Promise<Response> {
+  private async request(method: string, url: string, body?: unknown): Promise<Response> {
     const fullUrl = url.startsWith("http") ? url : `${this.apiUrl}${url}`;
     for (let attempt = 0; ; attempt++) {
       const init: RequestInit = {
@@ -209,17 +205,15 @@ export class RestGitHubClient implements GitHubApi {
   }
 
   async updateLabel(currentName: string, label: LabelDef): Promise<void> {
-    await this.request(
-      "PATCH",
-      `${this.repoPath}/labels/${encodeURIComponent(currentName)}`,
-      { new_name: label.name, color: label.color, description: label.description },
-    );
+    await this.request("PATCH", `${this.repoPath}/labels/${encodeURIComponent(currentName)}`, {
+      new_name: label.name,
+      color: label.color,
+      description: label.description,
+    });
   }
 
   listMilestones(): Promise<GitHubMilestone[]> {
-    return this.paginate<GitHubMilestone>(
-      `${this.repoPath}/milestones?state=all&per_page=100`,
-    );
+    return this.paginate<GitHubMilestone>(`${this.repoPath}/milestones?state=all&per_page=100`);
   }
 
   createMilestone(milestone: MilestoneDef): Promise<GitHubMilestone> {
@@ -238,9 +232,7 @@ export class RestGitHubClient implements GitHubApi {
   }
 
   async listIssues(): Promise<GitHubIssue[]> {
-    const raw = await this.paginate<RawIssue>(
-      `${this.repoPath}/issues?state=all&per_page=100`,
-    );
+    const raw = await this.paginate<RawIssue>(`${this.repoPath}/issues?state=all&per_page=100`);
     return raw.filter((issue) => issue.pull_request === undefined).map(toIssue);
   }
 

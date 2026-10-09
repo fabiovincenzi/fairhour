@@ -269,7 +269,9 @@ export async function syncBacklog(
     const plan = planIssuePatch(item, issue, renderIssueBody(item, context()), milestone);
     if (plan.bodySkipped) {
       report.bodiesSkipped.push(item.id);
-      log(`warning: body of #${String(issue.number)} (${item.id}) was edited on GitHub; not overwritten`);
+      log(
+        `warning: body of #${String(issue.number)} (${item.id}) was edited on GitHub; not overwritten`,
+      );
     }
     if (!plan.patch) continue;
     const created = report.issuesCreated.includes(item.id);

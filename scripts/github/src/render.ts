@@ -38,7 +38,7 @@ export function extractBacklogId(body: string | null | undefined): string | unde
  * on GitHub. Bodies without a hash are treated as edited (never overwrite unknown content).
  */
 export function isUntouchedSinceSync(body: string): boolean {
-  const match = body.match(SYNC_MARKER);
+  const match = SYNC_MARKER.exec(body);
   if (!match?.[1]) return false;
   const content = body.slice(0, match.index);
   return contentHash(content) === match[1];
@@ -84,11 +84,7 @@ export function renderIssueBody(item: ResolvedItem, ctx: RenderContext): string 
 
   if (item.dependsOn.length > 0) {
     sections.push(
-      [
-        "### Depends on",
-        "",
-        ...item.dependsOn.map((dep) => `- ${reference(dep, ctx)}`),
-      ].join("\n"),
+      ["### Depends on", "", ...item.dependsOn.map((dep) => `- ${reference(dep, ctx)}`)].join("\n"),
     );
   }
 

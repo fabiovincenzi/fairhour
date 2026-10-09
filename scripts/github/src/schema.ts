@@ -1,16 +1,12 @@
 import { z } from "zod";
 
 /** Backlog IDs look like `CORE-012` or `LAUNCH-003`. */
-export const backlogIdSchema = z
-  .string()
-  .regex(/^[A-Z]+-\d{3}$/, "backlog IDs look like CORE-012");
+export const backlogIdSchema = z.string().regex(/^[A-Z]+-\d{3}$/, "backlog IDs look like CORE-012");
 
 export const labelSchema = z
   .object({
     name: z.string().min(1).max(50),
-    color: z
-      .string()
-      .regex(/^[0-9a-fA-F]{6}$/, "color is a 6-digit hex value without #"),
+    color: z.string().regex(/^[0-9a-fA-F]{6}$/, "color is a 6-digit hex value without #"),
     description: z.string().max(100).default(""),
   })
   .strict();
@@ -69,7 +65,6 @@ export const backlogFileSchema = z
 export type LabelDef = z.infer<typeof labelSchema>;
 export type MilestoneDef = z.infer<typeof milestoneSchema>;
 export type BacklogItemDef = z.infer<typeof backlogItemSchema>;
-export type BacklogFile = z.infer<typeof backlogFileSchema>;
 
 /** A backlog item with its labels and milestone resolved, ready to sync. */
 export interface ResolvedItem {

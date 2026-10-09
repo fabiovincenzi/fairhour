@@ -44,7 +44,7 @@ items:
       rounding, budgets and client currency.
     acceptance:
       - "Create, edit, archive and delete (with undo) for clients, projects and tasks"
-      - "Rate inheritance is visible (\"inherited from client: €60/h\")"
+      - 'Rate inheritance is visible ("inherited from client: €60/h")'
 
   - id: WEB-004
     title: "Timer: optimistic start/stop, cross-tab and cross-device sync"

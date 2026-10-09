@@ -51,7 +51,9 @@ describe("renderIssueBody", () => {
 
   it("renders epics' children as a task list using issue numbers when known", () => {
     const body = renderIssueBody(item("CORE-001"), context([["CORE-002", 7]]));
-    expect(body).toContain("### Sub-issues\n\n- [x] #7 (`CORE-002`)\n- [ ] `CORE-003` Rounding rules");
+    expect(body).toContain(
+      "### Sub-issues\n\n- [x] #7 (`CORE-002`)\n- [ ] `CORE-003` Rounding rules",
+    );
   });
 
   it("falls back to the ID for references to unknown items", () => {

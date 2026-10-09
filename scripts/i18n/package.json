@@ -8,11 +8,15 @@
   "scripts": {
     "check": "node check-locales.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "clean": "node --eval \"fs.rmSync('coverage', { recursive: true, force: true })\"",
+    "lint": "eslint . --max-warnings=0"
   },
   "devDependencies": {
+    "@fairhour/config": "workspace:*",
     "@types/node": "^22.20.5",
     "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.12.0",
     "typescript": "~6.0.3",
     "vitest": "^5.0.3"
   }

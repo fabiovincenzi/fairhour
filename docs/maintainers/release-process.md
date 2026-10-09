@@ -28,11 +28,11 @@ and the changelog wording.
 
 ## 3. Artifacts built from a release
 
-| Released package | Artifact | Workflow |
-|---|---|---|
-| `@fairhour/web` | `ghcr.io/fabiovincenzi/fairhour:<version>`, `:<major>.<minor>`, `:latest` for linux/amd64 + linux/arm64, SPDX SBOM attached to the release, build provenance | `docker.yml` (called by `release.yml`) |
-| `@fairhour/desktop` | macOS (arm64, x64), Windows, Linux bundles attached to the release | `desktop-release.yml` (called by `release.yml`) |
-| `@fairhour/money`, `@fairhour/tax-core`, `@fairhour/tax-pack-*` | npm packages (**disabled by default**) | `release.yml` |
+| Released package                                                | Artifact                                                                                                                                                     | Workflow                                        |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `@fairhour/web`                                                 | `ghcr.io/fabiovincenzi/fairhour:<version>`, `:<major>.<minor>`, `:latest` for linux/amd64 + linux/arm64, SPDX SBOM attached to the release, build provenance | `docker.yml` (called by `release.yml`)          |
+| `@fairhour/desktop`                                             | macOS (arm64, x64), Windows, Linux bundles attached to the release                                                                                           | `desktop-release.yml` (called by `release.yml`) |
+| `@fairhour/money`, `@fairhour/tax-core`, `@fairhour/tax-pack-*` | npm packages (**disabled by default**)                                                                                                                       | `release.yml`                                   |
 
 A manual run of `docker.yml` publishes an `edge` image from the selected branch.
 
@@ -51,7 +51,8 @@ Before the first real release, or after changing the pipeline:
 
 ```bash
 pnpm changeset status --verbose          # what would be released
-pnpm release:version                     # apply versions locally (do not commit)
+GITHUB_TOKEN=$(gh auth token) pnpm release:version   # apply versions locally (do not commit)
+pnpm release:publish --dry-run           # shows whether it would publish to npm or only tag
 git diff --stat && git checkout -- .     # inspect, then discard
 docker build -t fairhour:dry-run .       # the production image builds
 ```

@@ -51,7 +51,9 @@ describe("RestGitHubClient", () => {
   it("follows pagination links and sends auth headers", async () => {
     const { api, calls } = client([
       json([{ name: "a", color: "000000", description: null }], {
-        headers: { link: '<https://api.github.com/repos/acme/fairhour/labels?page=2>; rel="next", <https://x>; rel="last"' },
+        headers: {
+          link: '<https://api.github.com/repos/acme/fairhour/labels?page=2>; rel="next", <https://x>; rel="last"',
+        },
       }),
       json([{ name: "b", color: "ffffff", description: "B" }]),
     ]);
@@ -59,14 +61,29 @@ describe("RestGitHubClient", () => {
     expect(labels.map((l) => l.name)).toEqual(["a", "b"]);
     expect(calls[0]?.url).toBe("https://api.github.com/repos/acme/fairhour/labels?per_page=100");
     expect(calls[1]?.url).toBe("https://api.github.com/repos/acme/fairhour/labels?page=2");
-    expect(calls[0]?.headers["authorization"]).toBe("Bearer t0k3n");
+    expect(calls[0]?.headers.authorization).toBe("Bearer t0k3n");
   });
 
   it("excludes pull requests and normalizes issue labels and milestones", async () => {
     const { api } = client([
       json([
-        { number: 1, title: "i", body: null, state: "open", labels: [{ name: "P1" }, "raw", {}], milestone: { title: "v1" } },
-        { number: 2, title: "pr", body: null, state: "open", labels: [], milestone: null, pull_request: {} },
+        {
+          number: 1,
+          title: "i",
+          body: null,
+          state: "open",
+          labels: [{ name: "P1" }, "raw", {}],
+          milestone: { title: "v1" },
+        },
+        {
+          number: 2,
+          title: "pr",
+          body: null,
+          state: "open",
+          labels: [],
+          milestone: null,
+          pull_request: {},
+        },
       ]),
     ]);
     expect(await api.listIssues()).toEqual([
@@ -90,7 +107,10 @@ describe("RestGitHubClient", () => {
       [
         new Response("slow down", { status: 403, headers: { "retry-after": "3" } }),
         new Response("busy", { status: 502 }),
-        json({ number: 9, title: "t", body: "b", state: "open", labels: [], milestone: null }, { status: 201 }),
+        json(
+          { number: 9, title: "t", body: "b", state: "open", labels: [], milestone: null },
+          { status: 201 },
+        ),
       ],
       sleeps,
     );
@@ -136,16 +156,25 @@ describe("RestGitHubClient", () => {
 
   it("creates and updates milestones with due dates", async () => {
     const { api, calls } = client([
-      json({ number: 3, title: "v1", description: "d", state: "open", due_on: null }, { status: 201 }),
+      json(
+        { number: 3, title: "v1", description: "d", state: "open", due_on: null },
+        { status: 201 },
+      ),
       new Response(null, { status: 200 }),
       new Response(null, { status: 200 }),
       json({ number: 1, title: "t", body: "", state: "closed", labels: [], milestone: null }),
     ]);
-    expect((await api.createMilestone({ title: "v1", description: "d", due_on: "2026-12-31" })).number).toBe(3);
+    expect(
+      (await api.createMilestone({ title: "v1", description: "d", due_on: "2026-12-31" })).number,
+    ).toBe(3);
     await api.updateMilestone(3, { title: "v1", description: "e", due_on: "2027-01-31" });
     await api.updateMilestone(3, { title: "v1", description: "f" });
     await api.updateIssue(1, { state: "closed", state_reason: "completed" });
-    expect(calls[0]?.body).toEqual({ title: "v1", description: "d", due_on: "2026-12-31T23:59:59Z" });
+    expect(calls[0]?.body).toEqual({
+      title: "v1",
+      description: "d",
+      due_on: "2026-12-31T23:59:59Z",
+    });
     expect(calls[1]?.body).toEqual({ description: "e", due_on: "2027-01-31T23:59:59Z" });
     expect(calls[2]?.body).toEqual({ description: "f" });
     expect(calls[3]?.url).toBe("https://api.github.com/repos/acme/fairhour/issues/1");

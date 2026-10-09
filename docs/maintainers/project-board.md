@@ -5,7 +5,7 @@ Projects v2 board is an optional, nicer view of the same data.
 
 ## Create the board
 
-1. Go to <https://github.com/users/fabiovincenzi/projects> → **New project** → *Roadmap* template.
+1. Go to <https://github.com/users/fabiovincenzi/projects> → **New project** → _Roadmap_ template.
 2. Name it "Fairhour roadmap" and make it public.
 3. Add fields: **Status** (Triage, Ready, In progress, Done), **Priority** (P0–P3), **Size**
    (S, M, L, XL), and group the roadmap view by **Milestone**.

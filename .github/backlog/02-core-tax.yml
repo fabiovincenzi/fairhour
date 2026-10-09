@@ -158,7 +158,8 @@ items:
     priority: P1
     size: XL
     status: ready
-    children: [TAX-002, TAX-003, TAX-004, TAX-005, TAX-006, TAX-007, TAX-008, TAX-009, TAX-010, TAX-011]
+    children:
+      [TAX-002, TAX-003, TAX-004, TAX-005, TAX-006, TAX-007, TAX-008, TAX-009, TAX-010, TAX-011]
     body: |
       The differentiator: country packs that turn tracked time into the exact amounts to put on
       an invoice, with a human-readable explanation of every step and its legal source.

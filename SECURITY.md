@@ -7,11 +7,11 @@ seriously. Thank you for helping keep users safe.
 
 Fairhour is pre-1.0. Only the latest minor release receives security fixes.
 
-| Version | Supported |
-|---|---|
-| latest `0.x` release | ✅ |
-| older `0.x` releases | ❌ (please upgrade) |
-| `main` branch | ✅ (fixes land here first) |
+| Version              | Supported                  |
+| -------------------- | -------------------------- |
+| latest `0.x` release | ✅                         |
+| older `0.x` releases | ❌ (please upgrade)        |
+| `main` branch        | ✅ (fixes land here first) |
 
 After 1.0, the latest minor of the current major and the previous major (for 6 months) will be supported.
 
@@ -21,7 +21,7 @@ After 1.0, the latest minor of the current major and the previous major (for 6 m
 
 Report privately through GitHub:
 [**Report a vulnerability**](https://github.com/fabiovincenzi/fairhour/security/advisories/new)
-(Security tab → *Report a vulnerability*). Include:
+(Security tab → _Report a vulnerability_). Include:
 
 - a description of the issue and its impact,
 - steps to reproduce or a proof of concept,

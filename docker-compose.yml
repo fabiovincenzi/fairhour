@@ -1,0 +1,52 @@
+# Local development services: PostgreSQL 16 and Mailpit (catches every outgoing email).
+#
+#   docker compose up -d          # start
+#   docker compose down           # stop (data is kept in the `postgres-data` volume)
+#   docker compose down -v        # stop and wipe the data (init scripts run again on next start)
+#
+# Postgres: localhost:5432, user/password/database `fairhour`; also `fairhour_test` (integration
+# tests) and `fairhour_e2e` (Playwright), created by docker/postgres/initdb/.
+# Mailpit:  SMTP on localhost:1025, web UI on http://localhost:8025.
+#
+# These credentials are for local development only. Self-hosting uses deploy/docker-compose.yml.
+
+name: fairhour
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fairhour
+      POSTGRES_PASSWORD: fairhour
+      POSTGRES_DB: fairhour
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fairhour -d fairhour"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mailpit:
+    image: axllent/mailpit:v1.31
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "500"
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # web UI and API
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

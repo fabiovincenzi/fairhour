@@ -4,7 +4,7 @@ import { sources } from "../test/fixtures.ts";
 import type { GitHubIssue } from "./github.ts";
 import { parseBacklog } from "./load.ts";
 import { extractBacklogId, renderIssueBody } from "./render.ts";
-import type { Backlog, ResolvedItem } from "./schema.ts";
+import type { Backlog } from "./schema.ts";
 import {
   formatReport,
   planIssuePatch,
@@ -53,7 +53,10 @@ describe("planLabels", () => {
     expect(plan.create.map((l) => l.name)).toEqual(["New"]);
     expect(plan.update).toEqual([
       { currentName: "p1", label: { name: "P1", color: "d93f0b", description: "High" } },
-      { currentName: "type: bug", label: { name: "type: bug", color: "d73a4a", description: "Bug" } },
+      {
+        currentName: "type: bug",
+        label: { name: "type: bug", color: "d73a4a", description: "Bug" },
+      },
       { currentName: "same", label: { name: "Same", color: "ABCDEF", description: "" } },
     ]);
   });
@@ -72,7 +75,13 @@ describe("planMilestones", () => {
       [
         { number: 2, title: "B", description: "b", state: "open", due_on: null },
         { number: 3, title: "C", description: "c", state: "open", due_on: null },
-        { number: 4, title: "D", description: "d", state: "closed", due_on: "2026-12-31T23:59:59Z" },
+        {
+          number: 4,
+          title: "D",
+          description: "d",
+          state: "closed",
+          due_on: "2026-12-31T23:59:59Z",
+        },
         { number: 5, title: "E", description: null, state: "open", due_on: null },
       ],
     );
@@ -89,7 +98,7 @@ describe("planIssuePatch", () => {
     issueNumbers: new Map<string, number>(),
     items: new Map(backlog.items.map((i) => [i.id, i])),
   };
-  const rounding = backlog.items.find((i) => i.id === "CORE-003") as ResolvedItem;
+  const rounding = backlog.items.find((i) => i.id === "CORE-003")!;
   const body = renderIssueBody(rounding, ctx);
   const synced: GitHubIssue = {
     number: 3,
@@ -117,7 +126,11 @@ describe("planIssuePatch", () => {
     );
     expect(plan.patch?.title).toBe(rounding.title);
     expect(plan.patch?.milestone).toBe(2);
-    expect(plan.patch?.labels).toEqual(["manual", "P2", ...rounding.labels.filter((l) => l !== "P2")]);
+    expect(plan.patch?.labels).toEqual([
+      "manual",
+      "P2",
+      ...rounding.labels.filter((l) => l !== "P2"),
+    ]);
   });
 
   it("overwrites a body untouched since the last sync", () => {
@@ -133,7 +146,11 @@ describe("planIssuePatch", () => {
   });
 
   it("closes open issues of done items and drops their status labels", () => {
-    const done = { ...rounding, done: true, labels: rounding.labels.filter((l) => !l.startsWith("status:")) };
+    const done = {
+      ...rounding,
+      done: true,
+      labels: rounding.labels.filter((l) => !l.startsWith("status:")),
+    };
     const plan = planIssuePatch(done, synced, body, 2);
     expect(plan.closes).toBe(true);
     expect(plan.patch?.state).toBe("closed");

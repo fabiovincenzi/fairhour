@@ -1,0 +1,15 @@
+# Git hooks (installed by `pnpm install` through the root `prepare` script).
+# Skip them in an emergency with `LEFTHOOK=0 git commit ...`.
+
+pre-commit:
+  skip:
+    - merge
+    - rebase
+  jobs:
+    - name: lint-staged
+      run: pnpm exec lint-staged
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}

@@ -17,20 +17,20 @@ of every phase. Resume with `/resume`.
 
 ## Phase status
 
-| Phase | Status |
-|---|---|
-| 0. Project bootstrap | ✅ done |
-| 1. Foundation | ⏳ next |
-| 2. Core + tax engine | ⬜ |
-| 3. Data & auth | ⬜ |
-| 4. Web MVP | ⬜ |
-| 5. Reports | ⬜ |
-| 6. Hardening | ⬜ |
-| 7. Public API & webhooks | ⬜ |
-| 8. Self-hosting & releases | ⬜ |
-| 9. Desktop companion | ⬜ |
-| 10. FatturaPA XML | ⬜ |
-| 11. Launch polish | ⬜ |
+| Phase                      | Status  |
+| -------------------------- | ------- |
+| 0. Project bootstrap       | ✅ done |
+| 1. Foundation              | ⏳ next |
+| 2. Core + tax engine       | ⬜      |
+| 3. Data & auth             | ⬜      |
+| 4. Web MVP                 | ⬜      |
+| 5. Reports                 | ⬜      |
+| 6. Hardening               | ⬜      |
+| 7. Public API & webhooks   | ⬜      |
+| 8. Self-hosting & releases | ⬜      |
+| 9. Desktop companion       | ⬜      |
+| 10. FatturaPA XML          | ⬜      |
+| 11. Launch polish          | ⬜      |
 
 ## Done
 

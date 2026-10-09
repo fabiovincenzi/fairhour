@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["*.config.js"],
+      "project": ["*.js"]
+    },
+    "packages/config": {
+      "project": ["*.js", "test/**/*.ts"],
+      "ignore": ["test/fixtures/**"]
+    },
+    "scripts/github": {
+      "entry": ["src/cli/*.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "scripts/i18n": {
+      "project": ["*.ts", "src/**/*.ts"]
+    }
+  }
+}

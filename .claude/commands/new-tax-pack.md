@@ -4,7 +4,7 @@ argument-hint: <ISO-3166 alpha-2 country code, e.g. de>
 ---
 
 Create a tax pack for country `$ARGUMENTS`. This work belongs to the `architect` subagent
-end to end (design *and* implementation); do not use `explorer`, `i18n` or `triage` for it.
+end to end (design _and_ implementation); do not use `explorer`, `i18n` or `triage` for it.
 
 1. Ask `architect` to research the regime(s) for `$ARGUMENTS` and write the design first:
    regimes in scope, configuration schema, rule pipeline, parameters by effective date,

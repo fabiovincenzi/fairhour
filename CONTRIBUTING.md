@@ -10,7 +10,7 @@ to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development setup
 
-Requirements: Node.js ≥ 22.12, pnpm (`corepack enable`), Docker (Postgres + Mailpit), and
+Requirements: Node.js ≥ 22.18, pnpm (`corepack enable`), Docker (Postgres + Mailpit), and
 optionally Rust stable for the desktop app.
 
 ```bash
@@ -25,16 +25,16 @@ pnpm dev
 
 Useful commands:
 
-| Command | What it does |
-|---|---|
-| `pnpm lint` / `pnpm format` | ESLint (strict type-checked) and Prettier |
-| `pnpm typecheck` | `tsc --noEmit` in every package |
-| `pnpm test` | Unit tests (Vitest) with coverage thresholds |
-| `pnpm test:integration` | Integration tests against Postgres |
-| `pnpm test:e2e` | Playwright E2E on desktop and mobile viewports, with axe checks |
-| `pnpm i18n:check` | Every locale has every English key |
-| `pnpm knip` | Unused files, exports and dependencies |
-| `pnpm changeset` | Describe a user-facing change for the changelog |
+| Command                     | What it does                                                    |
+| --------------------------- | --------------------------------------------------------------- |
+| `pnpm lint` / `pnpm format` | ESLint (strict type-checked) and Prettier                       |
+| `pnpm typecheck`            | `tsc --noEmit` in every package                                 |
+| `pnpm test`                 | Unit tests (Vitest) with coverage thresholds                    |
+| `pnpm test:integration`     | Integration tests against Postgres                              |
+| `pnpm test:e2e`             | Playwright E2E on desktop and mobile viewports, with axe checks |
+| `pnpm i18n:check`           | Every locale has every English key                              |
+| `pnpm knip`                 | Unused files, exports and dependencies                          |
+| `pnpm changeset`            | Describe a user-facing change for the changelog                 |
 
 ## Workflow
 

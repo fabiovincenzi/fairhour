@@ -35,7 +35,10 @@ describe("placeholders", () => {
     ["{date, date, short} at {time}", ["date", "time"]],
     ["<b>bold</b> and <link>x</link>", ["<b>", "<link>"]],
     ["{count, plural, one {item} other {items}}", ["count"]],
-    ["{n, plural, offset:1 =0 {nobody} one {{who} alone} other {{who} and # others}}", ["n", "who"]],
+    [
+      "{n, plural, offset:1 =0 {nobody} one {{who} alone} other {{who} and # others}}",
+      ["n", "who"],
+    ],
     ["{gender, select, female {she} male {he} other {they}} came", ["gender"]],
     ["{amount, number, ::currency/EUR}", ["amount"]],
     ["It''s '{literal}' {real}", ["real"]],

@@ -81,7 +81,9 @@ items:
       - Rounds
 `;
 
-export function sources(overrides: Partial<Record<"labels" | "milestones" | "backlog", string>> = {}): BacklogSources {
+export function sources(
+  overrides: Partial<Record<"labels" | "milestones" | "backlog", string>> = {},
+): BacklogSources {
   return {
     labels: { path: ".github/labels.yml", content: overrides.labels ?? labelsYaml },
     milestones: { path: ".github/milestones.yml", content: overrides.milestones ?? milestonesYaml },

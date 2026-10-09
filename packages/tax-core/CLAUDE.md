@@ -20,7 +20,7 @@ from an architect-written test plan. Never use `explorer`, `i18n` or `triage` he
 
 ## Rounding
 
-- Each pack declares a `roundingPolicy` (mode, step, and *where* rounding happens: per line,
+- Each pack declares a `roundingPolicy` (mode, step, and _where_ rounding happens: per line,
   per component, per document) and documents it in `docs/tax-packs/<country>.md`.
 - Round once per legally relevant amount, then derive totals by addition so the document
   reconciles exactly (`total = Σ components`, `netPayable = total − withholdings`).
@@ -43,7 +43,7 @@ from an architect-written test plan. Never use `explorer`, `i18n` or `triage` he
 
 1. Table-driven unit tests for each rule.
 2. Golden fixtures in `fixtures/invoices/*.json` (input, config, expected computation). A
-   behaviour change updates the fixture *deliberately* in the same commit, with the reason.
+   behaviour change updates the fixture _deliberately_ in the same commit, with the reason.
 3. Property-based tests (fast-check): totals reconcile, no amount is negative for non-credit
    invoices, scaling invariants, rounding within one minor unit of the exact value.
 4. The shared conformance suite: `defineConformanceSuite(pack, options)` from

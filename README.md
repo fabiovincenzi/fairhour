@@ -7,7 +7,7 @@
 
 **Every hour, fairly billed.**
 
-Open-source, self-hostable time tracking that tells you *exactly* what to put on your invoice:
+Open-source, self-hostable time tracking that tells you _exactly_ what to put on your invoice:
 taxable base, contributions, VAT, withholding, stamp duty, total and net payable, country by country.
 
 [![CI](https://github.com/fabiovincenzi/fairhour/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fabiovincenzi/fairhour/actions/workflows/ci.yml)
@@ -17,6 +17,7 @@ taxable base, contributions, VAT, withholding, stamp duty, total and net payable
 [![Discussions](https://img.shields.io/github/discussions/fabiovincenzi/fairhour)](https://github.com/fabiovincenzi/fairhour/discussions)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/fabiovincenzi/fairhour/badge)](https://scorecard.dev/viewer/?uri=github.com/fabiovincenzi/fairhour)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+
 [![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
@@ -34,9 +35,9 @@ taxable base, contributions, VAT, withholding, stamp duty, total and net payable
 ## Why Fairhour?
 
 Time trackers tell you how many hours you worked. Fairhour also tells you what to invoice.
-For a freelancer in Italy under the *regime forfettario*, 40 hours at €50/h is not simply
-"€2,000": it is €2,000 + 4% INPS *rivalsa* + €2 stamp duty, with the exemption wording the law
-requires. Under the *regime ordinario* it becomes VAT on top and a 20% *ritenuta d'acconto*
+For a freelancer in Italy under the _regime forfettario_, 40 hours at €50/h is not simply
+"€2,000": it is €2,000 + 4% INPS _rivalsa_ + €2 stamp duty, with the exemption wording the law
+requires. Under the _regime ordinario_ it becomes VAT on top and a 20% _ritenuta d'acconto_
 deducted from what the client pays you. Fairhour does that math for you, explains every step
 with its legal source, and lets the community add other countries.
 
@@ -56,7 +57,7 @@ with its legal source, and lets the community add other countries.
 - 📊 **Reports**: dashboards by day/week/month, client, project, task and tag; charts for hours,
   revenue, effective hourly rate and budget burn; PDF timesheets, CSV export and signed,
   expiring share links for clients.
-- 🎯 **Budgets** with 80%/100% alerts and the *effective hourly rate* of fixed-price work.
+- 🎯 **Budgets** with 80%/100% alerts and the _effective hourly rate_ of fixed-price work.
 - 🖥️ **Desktop companion** (Tauri): tray timer, idle detection and private, opt-in activity
   suggestions that never leave your device.
 - 🔌 **Public REST API** with OpenAPI spec, personal access tokens and webhooks.
@@ -65,13 +66,13 @@ with its legal source, and lets the community add other countries.
 
 ## Screenshots
 
-| Timer | Invoice computation | Reports |
-|---|---|---|
-| _coming soon_ | _coming soon_ | _coming soon_ |
+| Timer         | Invoice computation | Reports       |
+| ------------- | ------------------- | ------------- |
+| _coming soon_ | _coming soon_       | _coming soon_ |
 
 ## Quickstart (development)
 
-Requirements: Node.js ≥ 22.12, pnpm (via `corepack enable`), Docker (for Postgres and Mailpit).
+Requirements: Node.js ≥ 22.18, pnpm (via `corepack enable`), Docker (for Postgres and Mailpit).
 
 ```bash
 git clone https://github.com/fabiovincenzi/fairhour.git
@@ -98,11 +99,11 @@ environment variables, backups and upgrades.
 
 ## Tax packs
 
-| Pack | Status | Regimes |
-|---|---|---|
-| `@fairhour/tax-pack-it` | 🟢 reference | Regime forfettario, regime ordinario (VAT, ritenuta, INPS rivalsa, casse, stamp duty) |
-| `@fairhour/tax-pack-generic` | 🟢 stable | Configurable VAT/GST or no-VAT, optional withholding |
-| Your country? | 🙋 [help wanted](https://github.com/fabiovincenzi/fairhour/issues?q=is%3Aissue+is%3Aopen+label%3Atax-pack-request) | [How to add a tax pack](docs/contributing/tax-packs.md) |
+| Pack                         | Status                                                                                                             | Regimes                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `@fairhour/tax-pack-it`      | 🟢 reference                                                                                                       | Regime forfettario, regime ordinario (VAT, ritenuta, INPS rivalsa, casse, stamp duty) |
+| `@fairhour/tax-pack-generic` | 🟢 stable                                                                                                          | Configurable VAT/GST or no-VAT, optional withholding                                  |
+| Your country?                | 🙋 [help wanted](https://github.com/fabiovincenzi/fairhour/issues?q=is%3Aissue+is%3Aopen+label%3Atax-pack-request) | [How to add a tax pack](docs/contributing/tax-packs.md)                               |
 
 ## Roadmap
 
@@ -136,4 +137,5 @@ All commits must be signed off ([DCO](https://developercertificate.org/)).
 
 The Fairhour applications are licensed under the [GNU AGPL-3.0](LICENSE). The reusable
 libraries `@fairhour/money`, `@fairhour/tax-core` and `@fairhour/tax-pack-*` are MIT-licensed
-so that anyone can embed the tax engine. See [ADR-0002](docs/adr/0002-licensing.md).
+so that anyone can embed the tax engine. Documentation is licensed under
+[CC BY 4.0](docs/LICENSE). See [ADR-0002](docs/adr/0002-licensing.md).

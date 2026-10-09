@@ -22,6 +22,7 @@ You own `packages/tax-*` end to end and every decision that crosses package boun
 ## Rules for packages/tax-*
 
 Read `packages/tax-core/CLAUDE.md` first. In short:
+
 - Money is `@fairhour/money` (`bigint` minor units). Never use floats, `Number()` on amounts or `toFixed`.
 - Every rounding is explicit (mode + step) and documented in the pack's rounding policy.
 - Every rule cites its legal source (`sources`) in code and in `docs/tax-packs/<country>.md`.

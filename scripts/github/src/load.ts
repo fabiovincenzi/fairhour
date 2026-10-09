@@ -38,11 +38,7 @@ function formatZodError(file: string, error: z.ZodError): string[] {
   });
 }
 
-function parseFile<T>(
-  file: SourceFile,
-  schema: z.ZodType<T>,
-  errors: string[],
-): T | undefined {
+function parseFile<T>(file: SourceFile, schema: z.ZodType<T>, errors: string[]): T | undefined {
   let raw: unknown;
   try {
     raw = parseYaml(file.content);
@@ -72,9 +68,7 @@ export function resolveItemLabels(item: BacklogItemDef): string[] {
   return [...new Set(labels)];
 }
 
-function findCycle(
-  items: ReadonlyMap<string, BacklogItemDef>,
-): string[] | undefined {
+function findCycle(items: ReadonlyMap<string, BacklogItemDef>): string[] | undefined {
   const visiting = new Set<string>();
   const visited = new Set<string>();
   const stack: string[] = [];
@@ -118,8 +112,7 @@ function checkUnique(
 /** Parses and cross-validates the backlog. Pure: does not touch the file system. */
 export function parseBacklog(sources: BacklogSources): LoadResult {
   const errors: string[] = [];
-  const labels: readonly LabelDef[] =
-    parseFile(sources.labels, labelsFileSchema, errors) ?? [];
+  const labels: readonly LabelDef[] = parseFile(sources.labels, labelsFileSchema, errors) ?? [];
   const milestones: readonly MilestoneDef[] =
     parseFile(sources.milestones, milestonesFileSchema, errors) ?? [];
 
@@ -172,10 +165,7 @@ export function parseBacklog(sources: BacklogSources): LoadResult {
       if (item.type !== "epic" && item.children.length > 0) {
         errors.push(`${where}: only epics can have children`);
       }
-      if (
-        itemLabels.includes(GOOD_FIRST_ISSUE) &&
-        (item.size === "L" || item.size === "XL")
-      ) {
+      if (itemLabels.includes(GOOD_FIRST_ISSUE) && (item.size === "L" || item.size === "XL")) {
         errors.push(`${where}: a good first issue must be size S or M`);
       }
 
@@ -218,9 +208,7 @@ export function parseBacklog(sources: BacklogSources): LoadResult {
 }
 
 /** Reads `.github/labels.yml`, `.github/milestones.yml` and `.github/backlog/*.yml`. */
-export async function readBacklogSources(
-  repoRoot: string,
-): Promise<BacklogSources> {
+export async function readBacklogSources(repoRoot: string): Promise<BacklogSources> {
   const read = async (relative: string): Promise<SourceFile> => ({
     path: relative,
     content: await readFile(path.join(repoRoot, relative), "utf8"),
@@ -232,8 +220,6 @@ export async function readBacklogSources(
   return {
     labels: await read(".github/labels.yml"),
     milestones: await read(".github/milestones.yml"),
-    backlog: await Promise.all(
-      names.map((name) => read(`.github/backlog/${name}`)),
-    ),
+    backlog: await Promise.all(names.map((name) => read(`.github/backlog/${name}`))),
   };
 }

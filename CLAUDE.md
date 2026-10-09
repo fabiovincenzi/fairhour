@@ -2,36 +2,36 @@
 
 Fairhour is an open-source, self-hostable time tracker that turns tracked time into
 **the exact amounts to put on an invoice** through a pluggable, country-specific tax
-engine (Italy is the reference pack). Tagline: *Every hour, fairly billed.*
+engine (Italy is the reference pack). Tagline: _Every hour, fairly billed._
 
 `PROGRESS.md` is the source of truth for what is done and what comes next. Read it first.
 
 ## Repo map
 
-| Path | What lives there |
-|---|---|
-| `apps/web` | Next.js (App Router) web app + PWA, tRPC client, next-intl (en, it) |
-| `apps/desktop` | Tauri 2 companion (tray timer, idle detection, activity suggestions) |
-| `apps/docs` | Starlight documentation site (GitHub Pages, base `/fairhour/`) |
-| `packages/money` | Exact money/decimal arithmetic on `bigint` minor units (MIT) |
-| `packages/core` | Time math, rounding, overlaps, rates, budgets, quick-add parser |
-| `packages/tax-core` | Pure tax engine: `TaxPack` interface, pipeline, trace, conformance suite (MIT) |
-| `packages/tax-pack-it` | Italy: forfettario + ordinario (MIT) |
-| `packages/tax-pack-generic` | Configurable VAT/no-VAT pack for any country (MIT) |
-| `packages/tax-pack-template` | Copy-me template for new country packs (MIT) |
-| `packages/db` | PostgreSQL + Drizzle schema, migrations, seed, tenant-scoped repositories |
-| `packages/api` | tRPC routers for the app + zod → OpenAPI public REST |
-| `packages/ui` | Accessible design system (shadcn/ui based, light/dark) |
-| `packages/pdf` | PDF timesheets and invoice previews |
-| `packages/config` | Shared tsconfig / eslint / prettier / tailwind presets |
-| `scripts/github` | Backlog sync, DCO check, repo automation (tested TypeScript) |
-| `.github/backlog` | The product backlog as code (synced to GitHub issues) |
-| `docs/adr` | Architecture Decision Records. Every non-obvious decision gets one |
+| Path                         | What lives there                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| `apps/web`                   | Next.js (App Router) web app + PWA, tRPC client, next-intl (en, it)            |
+| `apps/desktop`               | Tauri 2 companion (tray timer, idle detection, activity suggestions)           |
+| `apps/docs`                  | Starlight documentation site (GitHub Pages, base `/fairhour/`)                 |
+| `packages/money`             | Exact money/decimal arithmetic on `bigint` minor units (MIT)                   |
+| `packages/core`              | Time math, rounding, overlaps, rates, budgets, quick-add parser                |
+| `packages/tax-core`          | Pure tax engine: `TaxPack` interface, pipeline, trace, conformance suite (MIT) |
+| `packages/tax-pack-it`       | Italy: forfettario + ordinario (MIT)                                           |
+| `packages/tax-pack-generic`  | Configurable VAT/no-VAT pack for any country (MIT)                             |
+| `packages/tax-pack-template` | Copy-me template for new country packs (MIT)                                   |
+| `packages/db`                | PostgreSQL + Drizzle schema, migrations, seed, tenant-scoped repositories      |
+| `packages/api`               | tRPC routers for the app + zod → OpenAPI public REST                           |
+| `packages/ui`                | Accessible design system (shadcn/ui based, light/dark)                         |
+| `packages/pdf`               | PDF timesheets and invoice previews                                            |
+| `packages/config`            | Shared tsconfig / eslint / prettier / tailwind presets                         |
+| `scripts/github`             | Backlog sync, DCO check, repo automation (tested TypeScript)                   |
+| `.github/backlog`            | The product backlog as code (synced to GitHub issues)                          |
+| `docs/adr`                   | Architecture Decision Records. Every non-obvious decision gets one             |
 
 ## Commands
 
 ```bash
-pnpm install                 # install (Node >= 22.12, pnpm via corepack)
+pnpm install                 # install (Node >= 22.18, pnpm via corepack)
 pnpm dev                     # start everything (run `docker compose up -d` first for Postgres + Mailpit)
 pnpm build                   # turbo build
 pnpm lint                    # eslint (strict-type-checked) + prettier check
@@ -83,17 +83,18 @@ pnpm --filter @fairhour/<pkg> <script>   # run a script in one package
 The main session **plans, splits the work and integrates the results**; it delegates by
 default. Independent tasks run as parallel subagents.
 
-| Work | Delegate to |
-|---|---|
-| Architecture, cross-package design, ADRs, data model changes, anything in `packages/tax-*` (design *and* implementation) | `architect` |
-| Feature implementation in apps/packages (except `tax-*`), refactors, bug fixes | `implementer` |
-| Writing/extending unit, integration, property-based and E2E tests | `test-writer` |
-| Reviewing every change before it is committed or a PR is opened | `reviewer` (mandatory) |
-| Finding code, mapping how something works, reading many files | `explorer` |
-| Translations, locale files, copy and docs typos | `i18n` |
-| Labels, backlog YAML, issue/PR text, changelog entries | `triage` |
+| Work                                                                                                                     | Delegate to            |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Architecture, cross-package design, ADRs, data model changes, anything in `packages/tax-*` (design _and_ implementation) | `architect`            |
+| Feature implementation in apps/packages (except `tax-*`), refactors, bug fixes                                           | `implementer`          |
+| Writing/extending unit, integration, property-based and E2E tests                                                        | `test-writer`          |
+| Reviewing every change before it is committed or a PR is opened                                                          | `reviewer` (mandatory) |
+| Finding code, mapping how something works, reading many files                                                            | `explorer`             |
+| Translations, locale files, copy and docs typos                                                                          | `i18n`                 |
+| Labels, backlog YAML, issue/PR text, changelog entries                                                                   | `triage`               |
 
 Rules:
+
 - Never use `explorer`, `i18n` or `triage` for anything touching `packages/tax-*`.
 - `test-writer` may add tests in `packages/tax-*` only from a test plan written by `architect`.
 - A change is done only after `reviewer` approves it **and** all checks pass.

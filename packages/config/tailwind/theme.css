@@ -1,0 +1,271 @@
+/*
+ * Fairhour design tokens for Tailwind CSS v4 (CSS-first configuration).
+ *
+ * In an app stylesheet, import Tailwind first and this theme second:
+ *
+ *   @import "tailwindcss";
+ *   @import "@fairhour/config/tailwind/theme.css";
+ *
+ * Layers of tokens:
+ *   1. Palettes (`--color-brand-*`, `--color-neutral-*`, `--color-success-*`, ...): raw scales.
+ *   2. Semantic variables (`--background`, `--primary`, `--success`, ...): what components use.
+ *      Light values live on `:root`, dark values on `.dark` (set the class on <html>, e.g. with
+ *      next-themes). The names follow shadcn/ui so its components work unchanged.
+ *   3. `@theme inline` maps the semantic variables to utilities: `bg-background`,
+ *      `text-muted-foreground`, `border-border`, `bg-success-subtle`, `rounded-lg`, ...
+ *
+ * Contrast (WCAG 2.2 AA) of every foreground/background pair is checked by the config tests.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 1. Palettes. `static` always emits the variables, because the semantic layer reads them. */
+@theme static {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+
+  /* Brand: teal. 700 is the brand colour (#0f766e). */
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+  --color-brand-950: #042f2e;
+
+  /* Neutrals: a cool slate that sits well next to the teal. Replaces Tailwind's `neutral`. */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* Success: green. */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+  --color-success-950: #052e16;
+
+  /* Warning: amber. */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  --color-warning-950: #451a03;
+
+  /* Danger: red. */
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+  --color-danger-950: #450a0a;
+
+  /* Info: sky. */
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-200: #bae6fd;
+  --color-info-300: #7dd3fc;
+  --color-info-400: #38bdf8;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+  --color-info-700: #0369a1;
+  --color-info-800: #075985;
+  --color-info-900: #0c4a6e;
+  --color-info-950: #082f49;
+}
+
+/* 2. Semantic variables, light. */
+:root {
+  color-scheme: light;
+
+  --radius: 0.5rem;
+
+  --background: #ffffff;
+  --foreground: var(--color-neutral-900);
+  --card: #ffffff;
+  --card-foreground: var(--color-neutral-900);
+  --popover: #ffffff;
+  --popover-foreground: var(--color-neutral-900);
+
+  --primary: var(--color-brand-700);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-neutral-100);
+  --secondary-foreground: var(--color-neutral-900);
+  --muted: var(--color-neutral-100);
+  --muted-foreground: var(--color-neutral-600);
+  --accent: var(--color-brand-50);
+  --accent-foreground: var(--color-brand-900);
+
+  /* Decorative separators can be subtle; form-control borders must reach 3:1 (WCAG 1.4.11). */
+  --border: var(--color-neutral-200);
+  --input: var(--color-neutral-500);
+  --ring: var(--color-brand-600);
+
+  --success: var(--color-success-700);
+  --success-foreground: #ffffff;
+  --success-subtle: var(--color-success-50);
+  --success-subtle-foreground: var(--color-success-800);
+
+  --warning: var(--color-warning-700);
+  --warning-foreground: #ffffff;
+  --warning-subtle: var(--color-warning-50);
+  --warning-subtle-foreground: var(--color-warning-900);
+
+  --danger: var(--color-danger-700);
+  --danger-foreground: #ffffff;
+  --danger-subtle: var(--color-danger-50);
+  --danger-subtle-foreground: var(--color-danger-800);
+
+  --info: var(--color-info-700);
+  --info-foreground: #ffffff;
+  --info-subtle: var(--color-info-50);
+  --info-subtle-foreground: var(--color-info-800);
+
+  /* shadcn/ui calls the danger colour "destructive". */
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+}
+
+/* 2. Semantic variables, dark. */
+.dark {
+  color-scheme: dark;
+
+  --background: var(--color-neutral-950);
+  --foreground: var(--color-neutral-50);
+  --card: var(--color-neutral-900);
+  --card-foreground: var(--color-neutral-50);
+  --popover: var(--color-neutral-900);
+  --popover-foreground: var(--color-neutral-50);
+
+  --primary: var(--color-brand-400);
+  --primary-foreground: var(--color-neutral-950);
+  --secondary: var(--color-neutral-800);
+  --secondary-foreground: var(--color-neutral-50);
+  --muted: var(--color-neutral-800);
+  --muted-foreground: var(--color-neutral-400);
+  --accent: var(--color-brand-900);
+  --accent-foreground: var(--color-brand-50);
+
+  --border: var(--color-neutral-800);
+  --input: var(--color-neutral-500);
+  --ring: var(--color-brand-400);
+
+  --success: var(--color-success-400);
+  --success-foreground: var(--color-neutral-950);
+  --success-subtle: var(--color-success-950);
+  --success-subtle-foreground: var(--color-success-300);
+
+  --warning: var(--color-warning-400);
+  --warning-foreground: var(--color-neutral-950);
+  --warning-subtle: var(--color-warning-950);
+  --warning-subtle-foreground: var(--color-warning-300);
+
+  --danger: var(--color-danger-400);
+  --danger-foreground: var(--color-neutral-950);
+  --danger-subtle: var(--color-danger-950);
+  --danger-subtle-foreground: var(--color-danger-300);
+
+  --info: var(--color-info-400);
+  --info-foreground: var(--color-neutral-950);
+  --info-subtle: var(--color-info-950);
+  --info-subtle-foreground: var(--color-info-300);
+
+  /* Re-declared (not inherited) so a nested `.dark` subtree resolves them with dark values. */
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+}
+
+/* 3. Utilities. `inline` makes them read the semantic variable, so `.dark` switches them. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-subtle-foreground: var(--success-subtle-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-subtle-foreground: var(--warning-subtle-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-danger-subtle-foreground: var(--danger-subtle-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
+  --color-info-subtle-foreground: var(--info-subtle-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  /* A visible focus indicator everywhere (WCAG 2.4.7, 2.4.11). Zero specificity: components win. */
+  :where(:focus-visible) {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

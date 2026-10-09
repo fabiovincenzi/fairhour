@@ -32,18 +32,66 @@ describe("parseBacklog", () => {
   it.each([
     ["invalid YAML", { backlog: "items: [" }, /invalid YAML/],
     ["schema violation", { backlog: replace("priority: P2", "priority: P9") }, /priority/],
-    ["unknown field", { backlog: replace("    body: Rounding.", "    owner: me\n    body: Rounding.") }, /owner|Unrecognized/i],
-    ["unknown label", { backlog: replace('labels: ["good first issue"]', 'labels: ["nope"]') }, /unknown label "nope"/],
-    ["unknown milestone", { backlog: replace('milestone: "v0.2 Core"', 'milestone: "v9"') }, /unknown milestone "v9"/],
-    ["missing milestone", { backlog: replace('milestone: "v0.1 Foundation"\n', "") }, /CORE-001: no milestone/],
-    ["unknown reference", { backlog: replace("depends_on: [CORE-002]", "depends_on: [CORE-099]") }, /unknown reference CORE-099/],
-    ["self reference", { backlog: replace("depends_on: [CORE-002]", "depends_on: [CORE-003]") }, /refers to itself/],
-    ["epic without children", { backlog: replace("children: [CORE-002, CORE-003]", "children: []") }, /epics need at least one child/],
-    ["children on a non-epic", { backlog: replace("depends_on: [CORE-002]", "children: [CORE-002]") }, /only epics can have children/],
-    ["large good first issue", { backlog: replace("size: S", "size: L") }, /good first issue must be size S or M/],
-    ["bad label color", { labels: labelsYaml.replace('color: "a2eeef"', 'color: "#a2eeef"') }, /color/],
-    ["duplicate label", { labels: `${labelsYaml}\n- name: P1\n  color: ffffff\n` }, /duplicate label "P1"/],
-    ["duplicate milestone", { milestones: `${milestonesYaml}\n- title: "v0.2 Core"\n` }, /duplicate milestone/],
+    [
+      "unknown field",
+      { backlog: replace("    body: Rounding.", "    owner: me\n    body: Rounding.") },
+      /owner|Unrecognized/i,
+    ],
+    [
+      "unknown label",
+      { backlog: replace('labels: ["good first issue"]', 'labels: ["nope"]') },
+      /unknown label "nope"/,
+    ],
+    [
+      "unknown milestone",
+      { backlog: replace('milestone: "v0.2 Core"', 'milestone: "v9"') },
+      /unknown milestone "v9"/,
+    ],
+    [
+      "missing milestone",
+      { backlog: replace('milestone: "v0.1 Foundation"\n', "") },
+      /CORE-001: no milestone/,
+    ],
+    [
+      "unknown reference",
+      { backlog: replace("depends_on: [CORE-002]", "depends_on: [CORE-099]") },
+      /unknown reference CORE-099/,
+    ],
+    [
+      "self reference",
+      { backlog: replace("depends_on: [CORE-002]", "depends_on: [CORE-003]") },
+      /refers to itself/,
+    ],
+    [
+      "epic without children",
+      { backlog: replace("children: [CORE-002, CORE-003]", "children: []") },
+      /epics need at least one child/,
+    ],
+    [
+      "children on a non-epic",
+      { backlog: replace("depends_on: [CORE-002]", "children: [CORE-002]") },
+      /only epics can have children/,
+    ],
+    [
+      "large good first issue",
+      { backlog: replace("size: S", "size: L") },
+      /good first issue must be size S or M/,
+    ],
+    [
+      "bad label color",
+      { labels: labelsYaml.replace('color: "a2eeef"', 'color: "#a2eeef"') },
+      /color/,
+    ],
+    [
+      "duplicate label",
+      { labels: `${labelsYaml}\n- name: P1\n  color: ffffff\n` },
+      /duplicate label "P1"/,
+    ],
+    [
+      "duplicate milestone",
+      { milestones: `${milestonesYaml}\n- title: "v0.2 Core"\n` },
+      /duplicate milestone/,
+    ],
   ])("reports %s", (_name, overrides, pattern) => {
     expect(errorsOf(overrides).join("\n")).toMatch(pattern);
   });
@@ -55,7 +103,8 @@ describe("parseBacklog", () => {
       backlog: [...base.backlog, { path: ".github/backlog/02.yml", content: backlogYaml }],
     });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.errors.join("\n")).toMatch(/02\.yml: CORE-001: duplicate backlog ID/);
+    if (!result.ok)
+      expect(result.errors.join("\n")).toMatch(/02\.yml: CORE-001: duplicate backlog ID/);
   });
 
   it("reports a child listed under two epics", () => {
@@ -84,7 +133,9 @@ items:
 
   it("detects dependency cycles", () => {
     const yaml = replace("    state: done\n", "    state: done\n    depends_on: [CORE-003]\n");
-    expect(errorsOf({ backlog: yaml }).join("\n")).toMatch(/dependency cycle: CORE-00\d → CORE-00\d → CORE-00\d/);
+    expect(errorsOf({ backlog: yaml }).join("\n")).toMatch(
+      /dependency cycle: CORE-00\d → CORE-00\d → CORE-00\d/,
+    );
   });
 });
 

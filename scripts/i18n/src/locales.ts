@@ -4,7 +4,9 @@
  * with plain Node.
  */
 
-export type Messages = { readonly [key: string]: string | Messages };
+export interface Messages {
+  readonly [key: string]: string | Messages;
+}
 
 export interface LocaleReport {
   readonly locale: string;
@@ -120,11 +122,7 @@ function comparablePlaceholders(message: string): string {
   return placeholders(message).join(",");
 }
 
-export function compareLocale(
-  locale: string,
-  source: Messages,
-  target: Messages,
-): LocaleReport {
+export function compareLocale(locale: string, source: Messages, target: Messages): LocaleReport {
   const english = flatten(source);
   const translated = flatten(target);
   const missing: string[] = [];
@@ -165,7 +163,12 @@ export function formatReports(reports: readonly AppReport[]): string {
   if (reports.length === 0) return "No `apps/*/messages/en.json` found yet; nothing to check.\n";
   const lines = ["## Translation coverage", ""];
   for (const app of reports) {
-    lines.push(`### ${app.app}`, "", "| Locale | Coverage | Missing | Placeholder issues | Same as English | Stale keys |", "|---|---|---|---|---|---|");
+    lines.push(
+      `### ${app.app}`,
+      "",
+      "| Locale | Coverage | Missing | Placeholder issues | Same as English | Stale keys |",
+      "|---|---|---|---|---|---|",
+    );
     for (const r of app.locales) {
       const status = isFailing(r) ? "❌" : "✅";
       lines.push(

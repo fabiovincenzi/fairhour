@@ -24,7 +24,11 @@ for (const app of (await readdir(appsDir).catch(() => [])).sort()) {
   const locales = [];
   for (const file of files.filter((f) => f.endsWith(".json") && f !== "en.json").sort()) {
     locales.push(
-      compareLocale(file.replace(/\.json$/, ""), english, await readJson(path.join(messagesDir, file))),
+      compareLocale(
+        file.replace(/\.json$/, ""),
+        english,
+        await readJson(path.join(messagesDir, file)),
+      ),
     );
   }
   reports.push({ app, locales });
@@ -32,7 +36,7 @@ for (const app of (await readdir(appsDir).catch(() => [])).sort()) {
 
 const summary = formatReports(reports);
 console.log(summary);
-const summaryFile = process.env["GITHUB_STEP_SUMMARY"];
+const summaryFile = process.env.GITHUB_STEP_SUMMARY;
 if (summaryFile) await appendFile(summaryFile, summary);
 if (reports.some((app) => app.locales.some(isFailing))) {
   console.error("Some locales are missing keys or have mismatched placeholders.");

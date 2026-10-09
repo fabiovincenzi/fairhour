@@ -19,12 +19,12 @@ Discussions.
 
 ## Priorities
 
-| Priority | Meaning | Response |
-|---|---|---|
-| `P0` | Data loss, security, broken `main`, wrong tax figures in a released pack | Drop everything |
-| `P1` | Needed for the current milestone | This milestone |
-| `P2` | Important, not urgent | Next milestones |
-| `P3` | Nice to have | Community welcome |
+| Priority | Meaning                                                                  | Response          |
+| -------- | ------------------------------------------------------------------------ | ----------------- |
+| `P0`     | Data loss, security, broken `main`, wrong tax figures in a released pack | Drop everything   |
+| `P1`     | Needed for the current milestone                                         | This milestone    |
+| `P2`     | Important, not urgent                                                    | Next milestones   |
+| `P3`     | Nice to have                                                             | Community welcome |
 
 Wrong tax computations in a released pack are always `P0` or `P1`, with a regression golden
 fixture in the fix.
