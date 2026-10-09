@@ -1,0 +1,35 @@
+{
+  "name": "error-before-first-version",
+  "description": "No parameter version is in force before 2020-01-01.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2019-12-31",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Old work",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "10"
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "parameters-not-found"
+  }
+}

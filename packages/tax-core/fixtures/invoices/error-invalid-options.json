@@ -1,0 +1,29 @@
+{
+  "name": "error-invalid-options",
+  "description": "Per-invoice options are validated by the pack's options schema.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Withholding Act of XX",
+      "citation": "art. 25"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2025-01-10",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [],
+    "options": {
+      "skipWithholding": "yes"
+    }
+  },
+  "expectedError": {
+    "code": "invalid-options",
+    "issueCodes": ["invalid_type"]
+  }
+}

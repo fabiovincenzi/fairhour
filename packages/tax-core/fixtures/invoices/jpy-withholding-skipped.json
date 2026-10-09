@@ -1,0 +1,61 @@
+{
+  "name": "jpy-withholding-skipped",
+  "description": "Yen (no minor unit): 3 x 3333 = 9999; contribution 999.9 -> 1000; tax 20% of 10999 = 2199.8 -> 2200; the withholding is disabled by the per-invoice option. Total 13199.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    },
+    {
+      "title": "Fictional Contribution Regulation of XX",
+      "citation": "art. 3"
+    },
+    {
+      "title": "Fictional Withholding Act of XX",
+      "citation": "art. 25"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2025-07-01",
+    "currency": "JPY",
+    "client": {
+      "country": "JP",
+      "kind": "business",
+      "isWithholdingAgent": true
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Translation",
+        "quantity": "3",
+        "unit": "item",
+        "unitPrice": "3333"
+      }
+    ],
+    "options": {
+      "skipWithholding": true
+    }
+  },
+  "expected": {
+    "subtotal": "9999",
+    "components": [
+      {
+        "id": "xx.contribution",
+        "amount": "1000"
+      },
+      {
+        "id": "xx.tax",
+        "base": "10999",
+        "amount": "2200"
+      }
+    ],
+    "total": "13199",
+    "withholdingTotal": "0",
+    "netPayable": "13199",
+    "legalNotes": []
+  }
+}

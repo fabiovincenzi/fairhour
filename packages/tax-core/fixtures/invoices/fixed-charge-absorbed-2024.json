@@ -1,0 +1,78 @@
+{
+  "name": "fixed-charge-absorbed-2024",
+  "description": "2024 parameters: 100.00 of exempt fees + 10.00 contribution = 110.00 untaxed > 77.47, fixed charge 2.00 absorbed by the supplier (informational, with a warning); no tax.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Fixed Charge Guide of XX",
+      "citation": "§ 13"
+    },
+    {
+      "title": "Fictional Contribution Regulation of XX",
+      "citation": "art. 3"
+    }
+  ],
+  "config": {
+    "fixedCharge": "absorb"
+  },
+  "input": {
+    "issueDate": "2024-03-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Exempt training",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "exempt"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2024-01-01",
+    "components": [
+      {
+        "id": "xx.contribution",
+        "amount": "10.00"
+      },
+      {
+        "id": "xx.fixed-charge",
+        "kind": "stamp-duty",
+        "effect": "informational",
+        "base": "110.00",
+        "amount": "2.00"
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "exempt",
+        "treatment": "exempt",
+        "base": "110.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxTotal": "0.00",
+    "total": "110.00",
+    "netPayable": "110.00",
+    "legalNotes": ["xx.note.exempt", "xx.note.fixed-charge"],
+    "warnings": ["xx.fixed-charge.absorbed"],
+    "traceRuleIds": [
+      "core",
+      "xx.classify-lines",
+      "xx.contribution",
+      "xx.tax",
+      "xx.withholding",
+      "xx.fixed-charge",
+      "core"
+    ]
+  }
+}

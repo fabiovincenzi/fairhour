@@ -1,0 +1,47 @@
+{
+  "name": "credit-note",
+  "description": "A credit note for the basic invoice: positive magnitudes (the document kind gives the direction) and an informational warning.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    },
+    {
+      "title": "Fictional Contribution Regulation of XX",
+      "citation": "art. 3"
+    },
+    {
+      "title": "Fictional Withholding Act of XX",
+      "citation": "art. 25"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2023-05-20",
+    "documentKind": "credit-note",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting (credited)",
+        "quantity": "10",
+        "unit": "hour",
+        "unitPrice": "100"
+      }
+    ]
+  },
+  "expected": {
+    "total": "1320.00",
+    "withholdingTotal": "110.00",
+    "netPayable": "1210.00",
+    "warnings": ["xx.credit-note"]
+  }
+}

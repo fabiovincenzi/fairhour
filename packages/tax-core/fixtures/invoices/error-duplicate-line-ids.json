@@ -1,0 +1,44 @@
+{
+  "name": "error-duplicate-line-ids",
+  "description": "Line ids must be unique.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2025-01-10",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "A",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "10"
+      },
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "B",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "20"
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "invalid-input",
+    "issueCodes": ["duplicate-line-id"]
+  }
+}

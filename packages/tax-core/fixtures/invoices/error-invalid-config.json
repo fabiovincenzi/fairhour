@@ -1,0 +1,29 @@
+{
+  "name": "error-invalid-config",
+  "description": "An unknown tax scope is rejected by the configuration schema.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    }
+  ],
+  "config": {
+    "taxScope": "per-invoice"
+  },
+  "input": {
+    "issueDate": "2025-01-10",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": []
+  },
+  "expectedError": {
+    "code": "invalid-config",
+    "issueCodes": ["invalid_value"]
+  }
+}

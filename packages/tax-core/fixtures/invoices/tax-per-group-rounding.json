@@ -1,0 +1,75 @@
+{
+  "name": "tax-per-group-rounding",
+  "description": "Three lines of 0.05 at 10%, no contribution: the tax is rounded once on the group, 10% of 0.15 = 0.015 -> 0.02 (halfUp).",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    }
+  ],
+  "config": {
+    "taxScope": "per-group",
+    "contribution": false
+  },
+  "input": {
+    "issueDate": "2025-02-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Item A",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.05",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      },
+      {
+        "id": "l2",
+        "kind": "service",
+        "description": "Item B",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.05",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "service",
+        "description": "Item C",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.05",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "xx.tax",
+        "base": "0.15",
+        "rate": "10",
+        "amount": "0.02"
+      }
+    ],
+    "total": "0.17",
+    "netPayable": "0.17"
+  }
+}

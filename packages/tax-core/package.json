@@ -1,0 +1,75 @@
+{
+  "name": "@fairhour/tax-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pure, I/O-free tax engine: TaxPack interface, rule pipeline, versioned parameters and explanation trace.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fabiovincenzi/fairhour.git",
+    "directory": "packages/tax-core"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./conformance": {
+      "types": "./src/conformance/index.ts",
+      "default": "./src/conformance/index.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./conformance": {
+        "types": "./dist/conformance/index.d.ts",
+        "default": "./dist/conformance/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "clean": "node --eval \"for (const d of ['dist','coverage']) fs.rmSync(d, { recursive: true, force: true })\"",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@fairhour/money": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "vitest": "^5.0.3",
+    "fast-check": "^4.10.2"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    },
+    "fast-check": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@fairhour/config": "workspace:*",
+    "@types/node": "^22.20.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.12.0",
+    "fast-check": "^4.10.2",
+    "tsdown": "^0.23.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

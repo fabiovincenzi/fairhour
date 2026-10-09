@@ -1,0 +1,75 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`conformance: xx > parameters.snapshot 1`] = `
+[
+  {
+    "changes": [
+      "Initial version.",
+    ],
+    "effectiveFrom": "2020-01-01",
+    "effectiveUntil": "2023-12-31",
+    "id": "xx-2020-01-01",
+    "params": {
+      "contributionRate": "10",
+      "fixedCharge": "1.50",
+      "fixedChargeThreshold": "50.00",
+      "revenueCeiling": "10000.00",
+      "standardRate": "20",
+      "withholdingRate": "10",
+    },
+    "sources": [
+      {
+        "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+        "id": "xx.tax-act.art-1",
+        "kind": "statute",
+        "title": "Fictional Tax Act of XX",
+        "url": "https://example.com/xx/tax-act",
+        "verification": {
+          "against": "primary-text",
+          "on": "2026-10-09",
+          "status": "verified",
+        },
+      },
+      {
+        "citation": "§ 13",
+        "id": "xx.charge-act.art-13",
+        "kind": "guidance",
+        "title": "Fictional Fixed Charge Guide of XX",
+        "verification": {
+          "against": "secondary",
+          "on": "2026-10-09",
+          "status": "verified",
+        },
+      },
+    ],
+  },
+  {
+    "changes": [
+      "Fixed charge 2.00 above 77.47 of untaxed amounts.",
+    ],
+    "effectiveFrom": "2024-01-01",
+    "id": "xx-2024-01-01",
+    "params": {
+      "contributionRate": "10",
+      "fixedCharge": "2.00",
+      "fixedChargeThreshold": "77.47",
+      "revenueCeiling": "10000.00",
+      "standardRate": "20",
+      "withholdingRate": "10",
+    },
+    "sources": [
+      {
+        "citation": "§ 13",
+        "id": "xx.charge-act.art-13",
+        "kind": "guidance",
+        "title": "Fictional Fixed Charge Guide of XX",
+        "verification": {
+          "against": "secondary",
+          "on": "2026-10-09",
+          "status": "verified",
+        },
+      },
+    ],
+  },
+]
+`;

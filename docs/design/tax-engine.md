@@ -1731,6 +1731,84 @@ Finally, `src/conformance.test.ts` runs `defineConformanceSuite(testPack, ...)`,
 parameters, rule without sources, non-idempotent config schema, non-deterministic rule) to prove
 that each check fails when it should.
 
+### 4.15 Changes during implementation (TAX-002, TAX-011)
+
+Recorded while implementing `packages/tax-core`. Every signature above is unchanged; these are
+additions, clarifications and the few places where the text above was ambiguous.
+
+- **Additional exports.** `isJsonValue`, `SOURCE_KINDS`, `sourceProblems` (structural check of a
+  `SourceRef`), `coreMessages`, `MAX_MESSAGE_DEPTH`, `MessageParamType`, the input constants
+  (`LINE_KINDS`, `LINE_UNITS`, `LINE_TREATMENT_KINDS`, `CLIENT_KINDS`, `DOCUMENT_KINDS`,
+  `LINE_ID_PATTERN`, `VAT_ID_PATTERN`, `MAX_INVOICE_LINES`, `MAX_INPUT_SCALE`, `MAX_RATE_SCALE`),
+  `PACK_ID_PATTERN`, `GROUP_ID_PATTERN`, `TAX_TREATMENT_KINDS`, `COMPONENT_KINDS`,
+  `COMPONENT_EFFECTS`, `roundingPolicyProblems`, `ENGINE_NAME`, `REVENUE_STATUS_ORDER`,
+  `RuleContractReason` and `GoldenFixtureJson` (the input type of `GoldenFixtureSchema`).
+- **Primitives (4.2).** `countryCode()` throws `InvalidInputError` with one `invalid-country`
+  issue. `addDays` throws `InvalidIsoDateError` when the result leaves 1900-9999 and `RangeError`
+  for a non-integer offset. `daysBetweenInclusive` returns 0 when `to` is before `from`.
+  `RuleId | "core"` is spelled `RuleId` in the code (the same type; the linter rejects the
+  redundant union), with a doc comment saying that `"core"` marks engine steps.
+- **Messages (4.4).** `parseMessage(text, key?)` takes an optional key that only labels errors.
+  An apostrophe directly before `{`, `}` or another apostrophe is a `MessageFormatError`: ICU
+  would read it as quoting, so the same string would mean something else there (write the
+  typographic ’, as the Italian catalogs do). Locale fallback lower-cases the language subtag
+  (`"IT"` finds `"it"`). Money and price parameters inside a computation must be in the invoice
+  currency, and money must not be negative: this follows from G8/G9 (the JSON form writes them as
+  bare decimal strings) and is enforced by the merge contract and R7. The core catalog
+  (`core.line`, `core.subtotal`, `core.total`, `core.deductions`, `core.net-payable`,
+  `core.no-lines`) also has `core.formula.percentage` ("{rate} × {base} = {amount}") for packs to
+  reuse. `core.no-lines` has severity `warning`.
+- **Input (4.5).** The optional properties of `InvoiceInputJson` also accept an explicit
+  `undefined` (what zod's `.optional()` accepts; otherwise `InvoiceInputJsonSchema` cannot have
+  the declared type under `exactOptionalPropertyTypes`). The JSON form is strict (unknown keys are
+  rejected). Shape errors keep zod's issue codes (`invalid_type`, `unrecognized_keys`,
+  `too_small`, `invalid_union`, ...); a decimal string that does not parse is `invalid-decimal`;
+  the semantic codes of the table are custom zod issues with `params.code`, which
+  `parseInvoiceInput` reports as the issue code. `reference` is 1..500 characters, an exchange
+  `source` 1..200. `validateInvoiceInput` returns a normalized, deeply frozen copy (unknown keys
+  dropped, its own `Decimal`/`Price` objects), so the engine never freezes caller-owned objects.
+- **Pack contract (4.6).** `toPackHandle(...).configJsonSchema` is
+  `z.toJSONSchema(configSchema, { io: "input" })`, so fields with defaults are optional in the
+  generated settings form. Packs should freeze their data (meta, parameters, catalogs) but not the
+  pack object as a whole: zod schemas keep lazy internal caches.
+- **Merge contract (4.7).** Additional `RuleContractError` reasons: `invalid-output` (the output,
+  one of its array fields or `appliesTo`'s result has the wrong shape), `invalid-legal-note`,
+  `invalid-warning`, `invalid-trace` (bad message or formula, a negative or foreign amount, a
+  `componentId` that does not exist), `invalid-fact` (a value that is not a `FactValue`, or Money
+  in another currency), `invalid-sources` (a rule's own sources are checked before it runs, G10),
+  and, with rule id `"core"`, `unassigned-line` and `invalid-rounding-policy`. A component's
+  `allocations` may be omitted or empty when it does not add to the total; two allocations to the
+  same group are `invalid-allocations`. A component `rate` must be ≥ 0 (no upper bound; a group's
+  rate stays within 0..100). Everything a rule returns is copied, never kept or frozen; sources
+  are copied with their keys in type order.
+- **Computation (4.8).** R2 also rejects summary rows without lines or allocations and tax on a
+  non-taxable row; R5 also checks `withholdingTotal = Σ withholding amounts`; R6 also requires
+  unique summary rows; R7 also covers unit prices and message parameters, and R7 failures are
+  reported alone (the other identities cannot be evaluated on amounts in a wrong currency). In
+  the JSON form a component's keys are `id, ruleId, kind, label, effect, base, rate?, amount,
+allocations, exportCodes?, sources`.
+- **Engine (4.9).** The parsed configuration and options are deep-copied and frozen before rules
+  see them, and the context is frozen. The rounding policy is validated
+  (`RuleContractError("core", "invalid-rounding-policy")`) and copied. Exceptions thrown by
+  `appliesTo` also become `RuleExecutionError`; a non-boolean result is `invalid-output`.
+  `core.deductions` is added when at least one component is deducted from the amount payable.
+  `resolveParameters` does not depend on the order of the versions, and `listParameters` sorts
+  them. `ParameterNotFoundError.firstEffectiveFrom` is `IsoDate | undefined` (undefined only for a
+  pack without parameter versions). `toJsonValue` writes a bare `bigint` as a decimal string and
+  throws `TypeError` for values JSON cannot represent.
+- **Formatting and JSON (4.10).** `InvoiceComputationJson` is written
+  `Readonly<Record<string, JsonValue>>` (the same type). `computationFromJson` reports semantic
+  problems with the codes `invalid-amount` (not an amount of the currency, or negative),
+  `invalid-decimal`, `invalid-date`, `invalid-currency` and `invalid-country`, and returns a
+  deeply frozen computation. `formatTrace` leaves `ruleTitle` out for rules that are no longer in
+  the pack (an older computation).
+- **Helpers (4.11).** `groupBase(state, groupId, currency?)` takes an optional currency: an empty
+  computation has no amount to take it from (`ctx.currency` is the natural argument).
+  `groupOf` throws a plain `Error` for an unassigned line (a rule-ordering bug, reported as
+  `RuleExecutionError`). `basesByGroup` ignores listed components that do not exist (their rule
+  did not apply). `proRata` requires `part` and `whole` in the same currency
+  (`CurrencyMismatchError`) and returns `amount`'s currency.
+
 ---
 
 ## 5. Conformance suite
@@ -1858,6 +1936,37 @@ Checks registered (`ConformanceCheckId`), all mandatory; there is no option to s
 | `property.json`            | `computationFromJson(computationToJson(c))` deep-equals `c`                                                                                                                                                                                                                                                                                                  |
 | `property.invalid-input`   | malformed inputs (negative quantity, foreign-currency price, duplicate line id) throw `InvalidInputError`, never another error                                                                                                                                                                                                                               |
 | `thresholds.contract`      | when `annualThresholds` exists: zero receipts give `ok` (or `not-applicable`), adding receipts never lowers the status, `countableRevenue ≤ total`                                                                                                                                                                                                           |
+
+#### Changes during implementation (TAX-003)
+
+- `ConformanceCheckResult` has a fourth field, `notes: readonly string[]`: informational findings
+  that are not failures (sources still `to-be-verified`, "no annualThresholds capability").
+  `defineConformanceSuite` attaches them to their test as vitest annotations.
+  `CONFORMANCE_CHECK_IDS` (the ids in table order) is exported.
+- Property checks skip generated inputs the pack refuses with `UnsupportedInputError`
+  (`fc.pre`); if fast-check gives up because almost every input is refused, the check fails.
+  Failures report the fast-check seed, the shrunk path and the input in JSON form.
+- `property.rounding-bounds`: the bound is ½ minor unit for half modes and strictly less than one
+  minor unit for directed modes (`up`, `down`, `ceiling`, `floor`), taking the mode from the
+  rounding policy by component kind (tax, withholding, contribution/surcharge; other kinds use the
+  directed bound). The "times the number of items" factor applies to `per-line` taxes as written.
+- `property.permutation` compares totals, line nets, component amounts and allocations, and
+  summary rows by id, not by position: a pack may register groups in line order.
+- `property.trace` also runs `formatTrace` and `formatComputation` in every locale.
+- `config.json-schema` converts both the input and the output side of each schema.
+- `messages.complete` also reports catalogs that are not listed in `meta.locales` and non-string
+  entries; `meta.disclaimer` also formats the disclaimer in every locale.
+- `parameters.resolution` skips the "before the first version" sub-check when the first version
+  starts on 1900-01-01 (no valid earlier date exists).
+- Defaults: client countries for `countries: "any"` are US, GB, DE, IT and JP; the date range is
+  the first `effectiveFrom` to two years after the last one; `thresholds.contract` evaluates the
+  year of `dateRange.from` with receipts in the first configured currency.
+- `invoiceInputArbitrary` generates quantities up to 1000 (3 decimals), unit prices up to 5000
+  (4 decimals), common and random line rates, and sometimes an exchange record; `priceArbitrary`
+  defaults to `max: "10000"` and `maxScale: 4`.
+- The conformance entry point reads fixtures with `node:fs`/`node:path`; tsdown keeps `node:*`
+  external, and `src/purity.test.ts` checks that the main entry point never imports them (nor
+  vitest or fast-check) and uses no clock, randomness or environment.
 
 ---
 
@@ -2052,6 +2161,16 @@ Example (`packages/tax-pack-it/fixtures/invoices/forfettario-rivalsa-bollo-charg
   }
 }
 ```
+
+#### Changes during implementation (TAX-011)
+
+- `expected.lines` is a subset matched by line id (not exhaustive); `expected.components` without
+  `componentsExhaustive: false` must list exactly the computed component ids in order.
+- Rates (`rate` of components and summary rows) compare by value (`"4"` equals `"4.00"`);
+  amounts compare as strings, as stated above. A computed component without `exportCodes`
+  compares as `{}`.
+- `expectedError.issueCodes` compares as a set with the distinct issue codes of the error.
+- `GoldenFixtureJson` (`z.input<typeof GoldenFixtureSchema>`) is exported for tooling.
 
 ---
 

@@ -1,0 +1,36 @@
+{
+  "name": "error-unsupported-currency",
+  "description": "The pack refuses currencies it does not model.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2025-01-10",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Work",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "10"
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["xx.currency-not-supported"]
+  }
+}

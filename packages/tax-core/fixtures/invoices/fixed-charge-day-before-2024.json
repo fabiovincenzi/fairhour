@@ -1,0 +1,47 @@
+{
+  "name": "fixed-charge-day-before-2024",
+  "description": "The same invoice on 2023-12-31 uses the first version: 77.47 > 50.00, so the 1.50 fixed charge applies.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Fixed Charge Guide of XX",
+      "citation": "§ 13"
+    }
+  ],
+  "config": {
+    "contribution": false
+  },
+  "input": {
+    "issueDate": "2023-12-31",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Service abroad",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "77.47",
+        "treatment": {
+          "kind": "out-of-scope"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2020-01-01",
+    "components": [
+      {
+        "id": "xx.fixed-charge",
+        "amount": "1.50"
+      }
+    ],
+    "total": "78.97",
+    "netPayable": "78.97"
+  }
+}

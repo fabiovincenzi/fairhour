@@ -1,0 +1,82 @@
+{
+  "name": "tax-per-line-rounding",
+  "description": "The same three lines of 0.05 at 10% with per-line tax rounding: 0.005 -> 0.01 on each line, 0.03 in total (one cent more than per group).",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    }
+  ],
+  "config": {
+    "taxScope": "per-line",
+    "contribution": false
+  },
+  "input": {
+    "issueDate": "2025-02-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Item A",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.05",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      },
+      {
+        "id": "l2",
+        "kind": "service",
+        "description": "Item B",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.05",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "service",
+        "description": "Item C",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.05",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "xx.tax",
+        "base": "0.15",
+        "rate": "10",
+        "amount": "0.03",
+        "allocations": [
+          {
+            "groupId": "vat-10",
+            "base": "0.15",
+            "amount": "0.03"
+          }
+        ]
+      }
+    ],
+    "total": "0.18",
+    "netPayable": "0.18"
+  }
+}

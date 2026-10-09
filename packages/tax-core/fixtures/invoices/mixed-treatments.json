@@ -1,0 +1,236 @@
+{
+  "name": "mixed-treatments",
+  "description": "Every treatment on one invoice (2023, first parameter version). Contribution 10% per group of fees: 3.00 (rate 10), 10.00 (standard; goods are not fees), 4.00 (exempt), 42.53 x 10% = 4.253 -> 4.25 (out of scope). Tax per group: 10% of 33.00 = 3.30, 20% of 115.00 = 23.00. Untaxed 44.00 + 46.78 = 90.78 > 50.00, so the 1.50 fixed charge is charged in its own excluded group. Total 233.53 + 21.25 + 26.30 + 1.50 = 282.58.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    },
+    {
+      "title": "Fictional Contribution Regulation of XX",
+      "citation": "art. 3"
+    },
+    {
+      "title": "Fictional Fixed Charge Guide of XX",
+      "citation": "§ 13"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2023-06-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "2",
+        "unit": "hour",
+        "unitPrice": "50"
+      },
+      {
+        "id": "l2",
+        "kind": "expense",
+        "description": "Travel",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "30",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "service",
+        "description": "Training",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "40",
+        "treatment": {
+          "kind": "exempt",
+          "reference": "art. 10"
+        }
+      },
+      {
+        "id": "l4",
+        "kind": "mileage",
+        "description": "Mileage abroad",
+        "quantity": "100",
+        "unit": "km",
+        "unitPrice": "0.4253",
+        "treatment": {
+          "kind": "out-of-scope",
+          "reference": "art. 7"
+        }
+      },
+      {
+        "id": "l5",
+        "kind": "reimbursement",
+        "description": "Registry fee paid for the client",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "16"
+      },
+      {
+        "id": "l6",
+        "kind": "goods",
+        "description": "Cable",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "5"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2020-01-01",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "100.00",
+        "groupId": "vat-20"
+      },
+      {
+        "id": "l2",
+        "net": "30.00",
+        "groupId": "vat-10"
+      },
+      {
+        "id": "l3",
+        "net": "40.00",
+        "groupId": "exempt"
+      },
+      {
+        "id": "l4",
+        "net": "42.53",
+        "groupId": "out-of-scope"
+      },
+      {
+        "id": "l5",
+        "net": "16.00",
+        "groupId": "excluded"
+      },
+      {
+        "id": "l6",
+        "net": "5.00",
+        "groupId": "vat-20"
+      }
+    ],
+    "subtotal": "233.53",
+    "components": [
+      {
+        "id": "xx.contribution",
+        "base": "212.53",
+        "rate": "10",
+        "amount": "21.25",
+        "allocations": [
+          {
+            "groupId": "vat-10",
+            "base": "30.00",
+            "amount": "3.00"
+          },
+          {
+            "groupId": "vat-20",
+            "base": "100.00",
+            "amount": "10.00"
+          },
+          {
+            "groupId": "exempt",
+            "base": "40.00",
+            "amount": "4.00"
+          },
+          {
+            "groupId": "out-of-scope",
+            "base": "42.53",
+            "amount": "4.25"
+          }
+        ]
+      },
+      {
+        "id": "xx.tax",
+        "base": "148.00",
+        "amount": "26.30",
+        "allocations": [
+          {
+            "groupId": "vat-10",
+            "base": "33.00",
+            "amount": "3.30"
+          },
+          {
+            "groupId": "vat-20",
+            "base": "115.00",
+            "amount": "23.00"
+          }
+        ]
+      },
+      {
+        "id": "xx.fixed-charge",
+        "kind": "stamp-duty",
+        "effect": "adds-to-total",
+        "base": "90.78",
+        "amount": "1.50",
+        "allocations": [
+          {
+            "groupId": "charge",
+            "base": "90.78",
+            "amount": "1.50"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-10",
+        "treatment": "taxable",
+        "rate": "10",
+        "base": "33.00",
+        "tax": "3.30"
+      },
+      {
+        "groupId": "vat-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "115.00",
+        "tax": "23.00"
+      },
+      {
+        "groupId": "exempt",
+        "treatment": "exempt",
+        "base": "44.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "out-of-scope",
+        "treatment": "out-of-scope",
+        "base": "46.78",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "excluded",
+        "treatment": "excluded",
+        "base": "16.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "charge",
+        "treatment": "excluded",
+        "base": "1.50",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "238.78",
+    "taxTotal": "26.30",
+    "total": "282.58",
+    "withholdingTotal": "0.00",
+    "netPayable": "282.58",
+    "legalNotes": ["xx.note.exempt", "xx.note.out-of-scope", "xx.note.fixed-charge"],
+    "warnings": []
+  }
+}

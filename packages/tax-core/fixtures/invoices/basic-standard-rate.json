@@ -1,0 +1,119 @@
+{
+  "name": "basic-standard-rate",
+  "description": "10 h x 100.00 at the standard rate for a withholding agent: contribution 10% of 1000.00 = 100.00; tax 20% of 1100.00 = 220.00; withholding 10% of (1000.00 + 100.00) = 110.00; total 1320.00, net payable 1210.00.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    },
+    {
+      "title": "Fictional Contribution Regulation of XX",
+      "citation": "art. 3"
+    },
+    {
+      "title": "Fictional Withholding Act of XX",
+      "citation": "art. 25"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2023-05-10",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "10",
+        "unit": "hour",
+        "unitPrice": "100"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2020-01-01",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "1000.00",
+        "groupId": "vat-20"
+      }
+    ],
+    "subtotal": "1000.00",
+    "components": [
+      {
+        "id": "xx.contribution",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "10",
+        "amount": "100.00",
+        "allocations": [
+          {
+            "groupId": "vat-20",
+            "base": "1000.00",
+            "amount": "100.00"
+          }
+        ]
+      },
+      {
+        "id": "xx.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1100.00",
+        "rate": "20",
+        "amount": "220.00",
+        "allocations": [
+          {
+            "groupId": "vat-20",
+            "base": "1100.00",
+            "amount": "220.00"
+          }
+        ],
+        "exportCodes": {
+          "xx.Tax": "T1"
+        }
+      },
+      {
+        "id": "xx.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1100.00",
+        "rate": "10",
+        "amount": "110.00"
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "1100.00",
+        "tax": "220.00"
+      }
+    ],
+    "taxableBase": "1100.00",
+    "taxTotal": "220.00",
+    "total": "1320.00",
+    "withholdingTotal": "110.00",
+    "netPayable": "1210.00",
+    "legalNotes": ["xx.note.withholding"],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "xx.classify-lines",
+      "xx.contribution",
+      "xx.tax",
+      "xx.withholding",
+      "xx.fixed-charge",
+      "core"
+    ]
+  }
+}

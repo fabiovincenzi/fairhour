@@ -1,0 +1,42 @@
+{
+  "name": "fixed-charge-boundary-2024",
+  "description": "First day of the 2024 version: 77.47 of untaxed amounts does not exceed the 77.47 threshold, so there is no fixed charge.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Fixed Charge Guide of XX",
+      "citation": "§ 13"
+    }
+  ],
+  "config": {
+    "contribution": false
+  },
+  "input": {
+    "issueDate": "2024-01-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Service abroad",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "77.47",
+        "treatment": {
+          "kind": "out-of-scope"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2024-01-01",
+    "components": [],
+    "total": "77.47",
+    "legalNotes": ["xx.note.out-of-scope"]
+  }
+}

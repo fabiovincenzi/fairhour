@@ -1,0 +1,61 @@
+{
+  "name": "kwd-half-even",
+  "description": "Kuwaiti dinar (3 decimals) with halfEven: contribution 10% of 0.125 = 0.0125 -> 0.012 (tie to even); tax 20% of 0.137 = 0.0274 -> 0.027; withholding 10% of 0.137 = 0.0137 -> 0.014. Total 0.164, net payable 0.150.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Fictional Tax Act of XX",
+      "citation": "art. 1 (standard rate) and art. 10 (exemptions)",
+      "url": "https://example.com/xx/tax-act"
+    },
+    {
+      "title": "Fictional Contribution Regulation of XX",
+      "citation": "art. 3"
+    },
+    {
+      "title": "Fictional Withholding Act of XX",
+      "citation": "art. 25"
+    }
+  ],
+  "config": {
+    "rounding": "halfEven"
+  },
+  "input": {
+    "issueDate": "2025-07-01",
+    "currency": "KWD",
+    "client": {
+      "country": "KW",
+      "kind": "business",
+      "isWithholdingAgent": true
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Review",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "0.125"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "xx.contribution",
+        "amount": "0.012"
+      },
+      {
+        "id": "xx.tax",
+        "amount": "0.027"
+      },
+      {
+        "id": "xx.withholding",
+        "base": "0.137",
+        "amount": "0.014"
+      }
+    ],
+    "total": "0.164",
+    "netPayable": "0.150"
+  }
+}
