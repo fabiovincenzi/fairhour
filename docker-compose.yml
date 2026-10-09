@@ -27,9 +27,12 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      # `-h 127.0.0.1` matters: while the init scripts run, the image starts a temporary server
-      # that listens on the unix socket only, so a check without `-h` would report healthy too
-      # early. TCP on 127.0.0.1 answers only after the init scripts ran and the real server is up.
+      # `pg_isready` only asks whether the server accepts connections: it does not verify that the
+      # database named by `-d` exists. The guarantee comes from `-h 127.0.0.1`: while the init
+      # scripts run, the image starts a temporary server that listens on the unix socket only, so
+      # a check without `-h` would report healthy too early. TCP on 127.0.0.1 answers only after
+      # the init scripts ran (they create `fairhour_test` and `fairhour_e2e`) and the real server
+      # is up. `-d` is kept for documentation and does not change the result.
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U fairhour -d fairhour_e2e"]
       interval: 5s
       timeout: 5s

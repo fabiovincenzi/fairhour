@@ -54,22 +54,27 @@ function readToken(text: string, index: number, stop: RegExp): [string, number] 
 
 /**
  * Returns the index after the apostrophe (or quoted text) that starts at `index`, following the
- * ICU MessageFormat default, `ApostropheMode.DOUBLE_OPTIONAL`:
+ * ICU MessageFormat default, `ApostropheMode.DOUBLE_OPTIONAL`, as implemented by FormatJS
+ * (`@formatjs/icu-messageformat-parser`, which next-intl uses to render the messages):
  *
  * - `''` is a literal apostrophe.
- * - A single `'` starts quoted literal text only when it is immediately followed by `{`, `}` or,
- *   inside a `plural`/`selectordinal` branch, `#`. The text is quoted up to the next single `'`
- *   (`''` inside it is a literal apostrophe), or to the end of the message when there is none.
+ * - A single `'` starts quoted literal text only when it is immediately followed by `{`, `}`, `<`
+ *   or `>` (in every context) or, inside a `plural`/`selectordinal` branch, `#`. The text is
+ *   quoted up to the next single `'` (`''` inside it is a literal apostrophe), or to the end of
+ *   the message when there is none. Quoted text hides arguments and rich-text tags alike.
  * - Any other `'` is a literal apostrophe: `L'area {name}` has the argument `name`.
  *
  * (ICU also quotes `'|` inside a `choice` argument. This parser skips the style of `choice` as a
  * whole, so that case never reaches it.) Note the consequence for languages with elisions: in
- * `dell'{name}` the apostrophe is followed by `{`, so ICU quotes it; write `dell''{name}`.
+ * `dell'{name}` or `l'<link>area</link>` the apostrophe is followed by a quote starter, so the
+ * text is quoted; write `dell''{name}` or the typographic `’` instead.
  */
 function skipApostrophe(text: string, index: number, inPlural: boolean): number {
   const next = text[index + 1];
   if (next === "'") return index + 2;
-  if (next !== "{" && next !== "}" && !(inPlural && next === "#")) return index + 1;
+  const startsQuote =
+    next === "{" || next === "}" || next === "<" || next === ">" || (inPlural && next === "#");
+  if (!startsQuote) return index + 1;
   let i = index + 2;
   for (;;) {
     const end = text.indexOf("'", i);
@@ -79,10 +84,15 @@ function skipApostrophe(text: string, index: number, inPlural: boolean): number 
   }
 }
 
+/** A rich-text tag as FormatJS reads it: `<b>`, `</b>` or self-closing `<br/>`. */
+const TAG = /<\/?([A-Za-z][\w.-]*)\s*\/?>/y;
+
 /**
- * Parses message text until an unmatched `}` (returned index points at it) or the end.
- * `inPlural` is true in the branches of a `plural` or `selectordinal` argument, where `#` is the
- * number and `'#` therefore starts quoted text.
+ * Parses message text until an unmatched `}` (returned index points at it) or the end, adding the
+ * argument names and rich-text tags (`<link>`) it finds. Tags are collected here, not with a
+ * regular expression over the whole message, so that quoted text hides them like it hides
+ * arguments. `inPlural` is true in the branches of a `plural` or `selectordinal` argument, where
+ * `#` is the number and `'#` therefore starts quoted text.
  */
 function parseText(text: string, index: number, names: Set<string>, inPlural = false): number {
   let i = index;
@@ -94,6 +104,15 @@ function parseText(text: string, index: number, names: Set<string>, inPlural = f
       i = parseArgument(text, i + 1, names);
     } else if (char === "}") {
       return i;
+    } else if (char === "<") {
+      TAG.lastIndex = i;
+      const match = TAG.exec(text);
+      if (match?.[1] === undefined) {
+        i++;
+      } else {
+        names.add(`<${match[1]}>`);
+        i += match[0].length;
+      }
     } else {
       i++;
     }
@@ -132,8 +151,8 @@ function parseArgument(text: string, index: number, names: Set<string>): number 
 
 /**
  * Extracts ICU argument names (`{count}`, `{count, plural, …}`, `{date, date, short}`) and rich
- * text tags (`<link>`). Plural/select branches are parsed as text, so `{n}` inside `one {…}`
- * counts but the branch text itself does not.
+ * text tags (`<link>`), skipping quoted text. Plural/select branches are parsed as text, so `{n}`
+ * inside `one {…}` counts but the branch text itself does not.
  */
 export function placeholders(message: string): string[] {
   const names = new Set<string>();
@@ -141,9 +160,6 @@ export function placeholders(message: string): string[] {
   while (i < message.length) {
     // A stray `}` at the top level is literal text.
     i = parseText(message, i, names) + 1;
-  }
-  for (const match of message.matchAll(/<\/?([A-Za-z][\w-]*)>/g)) {
-    if (match[1]) names.add(`<${match[1]}>`);
   }
   return [...names].sort();
 }

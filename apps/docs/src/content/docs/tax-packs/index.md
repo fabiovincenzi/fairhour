@@ -6,6 +6,12 @@ sidebar:
   order: 0
 ---
 
+:::caution[In development]
+The tax engine and the packs ship in v0.2 (Core & Tax Engine). Until then they exist as designs
+and as the documentation pages of this section; there is no code to install yet. This page
+describes the planned behavior, which may change before the release.
+:::
+
 A **tax pack** is the part of Fairhour that knows the rules of one country. The engine hands it an
 invoice (lines, client, date, the freelancer's tax profile) and it returns the exact amounts to
 put on that invoice, each with an explanation and a legal source.

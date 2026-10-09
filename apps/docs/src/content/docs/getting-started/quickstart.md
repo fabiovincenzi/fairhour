@@ -52,18 +52,19 @@ same file.
 
 Run them from the repository root.
 
-| Command                     | What it does                                                 |
-| --------------------------- | ------------------------------------------------------------ |
-| `pnpm dev`                  | Starts every app in development mode                         |
-| `pnpm build`                | Builds everything (Turborepo)                                |
-| `pnpm lint` / `pnpm format` | ESLint (strict type-checked) with Prettier: check and fix    |
-| `pnpm typecheck`            | `tsc --noEmit` in every package                              |
-| `pnpm test`                 | Unit tests (Vitest) with coverage thresholds                 |
-| `pnpm test:integration`     | Integration tests against PostgreSQL (`DATABASE_URL`)        |
-| `pnpm test:e2e`             | Playwright end-to-end tests on desktop and mobile, with axe  |
-| `pnpm i18n:check`           | Every locale has every English key                           |
-| `pnpm knip`                 | Finds unused files, exports and dependencies                 |
-| `pnpm --filter <pkg> <cmd>` | Runs one script in one package, for example `@fairhour/docs` |
+| Command                     | What it does                                                  |
+| --------------------------- | ------------------------------------------------------------- |
+| `pnpm dev`                  | Starts every app in development mode                          |
+| `pnpm build`                | Builds everything (Turborepo)                                 |
+| `pnpm lint` / `pnpm format` | ESLint (strict type-checked) with Prettier: check and fix     |
+| `pnpm typecheck`            | `tsc --noEmit` in every package                               |
+| `pnpm test`                 | Unit tests (Vitest) with coverage thresholds                  |
+| `pnpm test:integration`     | Integration tests against PostgreSQL (`DATABASE_URL`)         |
+| `pnpm test:e2e`             | Playwright end-to-end tests on desktop and mobile, with axe   |
+| `pnpm i18n:check`           | Every locale has every English key                            |
+| `pnpm knip`                 | Finds unused files, exports and dependencies                  |
+| `pnpm license:check`        | MIT packages depend only on MIT or permissive code (ADR-0002) |
+| `pnpm --filter <pkg> <cmd>` | Runs one script in one package, for example `@fairhour/docs`  |
 
 ## Work on this documentation
 

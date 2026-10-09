@@ -1,9 +1,16 @@
 /**
  * Copies the repository's Markdown into the docs content collection, converting it on the way
  * (see `transform.ts`). This is the only module of the sync that touches the file system.
+ *
+ * The sync is safe to run while other tasks read the content (`astro sync`, `astro check`,
+ * `astro build`) and while other syncs run: a page is written to a temporary file next to its
+ * destination and renamed over it, so a reader sees the old or the new page and never a partial
+ * one; a page whose content did not change is not touched; and only files that are no longer
+ * generated are deleted. Nothing is emptied first.
  */
+import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { transformDocument } from "./transform.ts";
 import type { RepoInfo } from "./site.ts";
@@ -50,6 +57,9 @@ export interface SyncOptions {
   readonly handwritten?: readonly string[];
 }
 
+/** What the sync did to a generated file. */
+export type PageChange = "created" | "updated" | "unchanged";
+
 /** One generated page. */
 export interface SyncedPage {
   /** Repository-relative path of the source file. */
@@ -58,9 +68,11 @@ export interface SyncedPage {
   readonly route: string;
   /** Path of the generated file, relative to the content directory. */
   readonly output: string;
+  /** `unchanged` pages were not written: their content was already up to date. */
+  readonly change: PageChange;
 }
 
-interface PlannedPage extends SyncedPage {
+interface PlannedPage extends Omit<SyncedPage, "change"> {
   readonly order: number | undefined;
   readonly sidebarLabel: DirectorySource["sidebarLabel"];
   readonly render: FileSource["render"];
@@ -76,12 +88,26 @@ export function slugify(segment: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function isMissing(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
 /** The entries of a directory; a directory that does not exist is empty. */
 async function readDirectory(directory: string): Promise<Dirent[]> {
   try {
     return await readdir(directory, { withFileTypes: true });
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    if (isMissing(error)) return [];
+    throw error;
+  }
+}
+
+/** The text of a file, or `undefined` when it does not exist. */
+async function readIfExists(file: string): Promise<string | undefined> {
+  try {
+    return await readFile(file, "utf8");
+  } catch (error) {
+    if (isMissing(error)) return undefined;
     throw error;
   }
 }
@@ -144,9 +170,14 @@ function assertNoCollisions(pages: readonly PlannedPage[], handwritten: readonly
   }
 }
 
+/** Throws unless `folder` is a plain relative path that is safe to write into and clean. */
+function assertSafeFolder(folder: string): void {
+  if (!SAFE_PATH.test(folder)) throw new Error(`Refusing to clean "${folder}"`);
+}
+
 /** Empties a generated folder, keeping the hand-written pages inside it. */
 async function cleanFolder(contentDir: string, folder: string, handwritten: readonly string[]) {
-  if (!SAFE_PATH.test(folder)) throw new Error(`Refusing to clean "${folder}"`);
+  assertSafeFolder(folder);
   const absolute = path.join(contentDir, folder);
   for (const entry of await readDirectory(absolute)) {
     if (!handwritten.includes(`${folder}/${entry.name}`)) {
@@ -163,7 +194,10 @@ function generatedFolders(options: Pick<SyncOptions, "directories" | "files">): 
   ]);
 }
 
-/** Empties the generated folders, keeping the hand-written pages (`pnpm clean` uses it). */
+/**
+ * Empties the generated folders, keeping the hand-written pages (`pnpm clean` uses it). Unlike
+ * `syncContent` this is not safe while another task reads the content.
+ */
 export async function cleanContent(
   options: Pick<SyncOptions, "contentDir" | "directories" | "files" | "handwritten">,
 ): Promise<void> {
@@ -173,9 +207,84 @@ export async function cleanContent(
 }
 
 /**
- * Regenerates the synced part of the content collection from the repository's files.
- * Generated folders are emptied first (so deleted sources disappear), except for the
- * hand-written pages listed in `options.handwritten`.
+ * Temporary files are dot-files with a `.tmp` extension, so that no content loader picks them up.
+ * They are never deleted as stale: they may belong to a sync that is about to rename them (a
+ * crashed sync can leave one behind; `pnpm clean` removes it).
+ */
+const TEMPORARY = /^\..+\.\d+\.[0-9a-f]{8}\.tmp$/;
+
+function temporaryPath(destination: string): string {
+  const { dir, base } = path.parse(destination);
+  return path.join(dir, `.${base}.${String(process.pid)}.${randomBytes(4).toString("hex")}.tmp`);
+}
+
+/**
+ * Makes the file hold `text`: nothing happens when it already does, otherwise the text is written
+ * to a temporary file in the same directory and renamed over the destination (atomic on the same
+ * file system), so a concurrent reader never sees a half-written page.
+ */
+async function writeAtomically(destination: string, text: string): Promise<PageChange> {
+  const current = await readIfExists(destination);
+  if (current === text) return "unchanged";
+  await mkdir(path.dirname(destination), { recursive: true });
+  const temporary = temporaryPath(destination);
+  try {
+    await writeFile(temporary, text);
+    await rename(temporary, destination);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
+  return current === undefined ? "created" : "updated";
+}
+
+/** Paths (relative to the content directory, POSIX) that the sync generates or must not touch. */
+interface Keep {
+  readonly files: ReadonlySet<string>;
+  readonly directories: ReadonlySet<string>;
+  readonly handwritten: readonly string[];
+}
+
+function keepPaths(outputs: readonly string[], handwritten: readonly string[]): Keep {
+  const directories = new Set<string>();
+  for (const output of [...outputs, ...handwritten]) {
+    for (let dir = path.posix.dirname(output); dir !== "."; dir = path.posix.dirname(dir)) {
+      directories.add(dir);
+    }
+  }
+  return { files: new Set(outputs), directories, handwritten };
+}
+
+/**
+ * Deletes what is below `directory` and is no longer generated: stale files, and the directories
+ * that end up with nothing to keep. A directory that a page will be written into is never removed
+ * (a concurrent sync may be about to use it). Returns whether anything in `directory` is kept.
+ */
+async function removeStale(contentDir: string, directory: string, keep: Keep): Promise<boolean> {
+  let used = keep.directories.has(directory);
+  for (const entry of await readDirectory(path.join(contentDir, directory))) {
+    const relative = `${directory}/${entry.name}`;
+    const absolute = path.join(contentDir, relative);
+    if (keep.files.has(relative) || keep.handwritten.includes(relative)) {
+      used = true;
+    } else if (entry.isDirectory()) {
+      if (await removeStale(contentDir, relative, keep)) used = true;
+      else await rm(absolute, { recursive: true, force: true });
+    } else if (TEMPORARY.test(entry.name)) {
+      used = true;
+    } else {
+      await rm(absolute, { force: true });
+    }
+  }
+  return used;
+}
+
+/**
+ * Brings the synced part of the content collection in line with the repository's files, without
+ * ever emptying it: pages are written atomically and only when their content changed, then the
+ * files that are no longer generated are deleted (so removed sources disappear). The hand-written
+ * pages listed in `options.handwritten` are left alone. Safe to run concurrently with readers
+ * and with other syncs.
  */
 export async function syncContent(options: SyncOptions): Promise<readonly SyncedPage[]> {
   const handwritten = options.handwritten ?? [];
@@ -191,10 +300,11 @@ export async function syncContent(options: SyncOptions): Promise<readonly Synced
     planned.push(planFile(file));
   }
   assertNoCollisions(planned, handwritten);
+  const folders = generatedFolders(options);
+  for (const folder of folders) assertSafeFolder(folder);
 
   const routes = new Map(planned.map((page) => [page.source, page.route]));
-  await cleanContent(options);
-
+  const pages: SyncedPage[] = [];
   for (const page of planned) {
     const text = await readFile(path.join(options.repoRoot, page.source), "utf8");
     const converted = transformDocument(page.render?.(text) ?? text, {
@@ -205,9 +315,14 @@ export async function syncContent(options: SyncOptions): Promise<readonly Synced
       ...(page.order === undefined ? {} : { order: page.order }),
       ...(page.sidebarLabel === undefined ? {} : { sidebarLabel: page.sidebarLabel }),
     });
-    const destination = path.join(options.contentDir, page.output);
-    await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(destination, converted);
+    const change = await writeAtomically(path.join(options.contentDir, page.output), converted);
+    pages.push({ source: page.source, route: page.route, output: page.output, change });
   }
-  return planned.map(({ source, route, output }) => ({ source, route, output }));
+
+  const keep = keepPaths(
+    planned.map((page) => page.output),
+    handwritten,
+  );
+  for (const folder of folders) await removeStale(options.contentDir, folder, keep);
+  return pages;
 }

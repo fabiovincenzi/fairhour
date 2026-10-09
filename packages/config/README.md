@@ -103,7 +103,9 @@ config files (`eslint.config.js`, `vitest.config.ts`, `tsdown.config.js`, ...) m
 import `@fairhour/config`, which is a devDependency that is never shipped. The rule covers static
 imports, `import type`, `export ... from` and dynamic `import("...")`, in tests too. The error
 message cites ADR-0002. It checks the _source_; `pnpm license:check` checks the `package.json`
-dependencies and licenses.
+dependencies and licenses, and fails when `money`, `tax-core` or a `tax-pack-*` package does not
+write `mitLibrary: true` in its `eslint.config.js` (a plain text check outside comments, so spell
+the option out as above).
 
 ### `moneySafety: true`: no floats for money
 

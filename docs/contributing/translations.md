@@ -90,14 +90,24 @@ through [next-intl](https://next-intl.dev/docs/usage/messages).
   braces, never the argument name or the option names.
 - **Tags**, such as `<link>...</link>` or `<b>...</b>`: translate the text between them and keep the
   tags.
-- **Apostrophes**: both the typographic `’` and the straight `'` are fine, and `i18n:check`
-  understands both: `L’area di lavoro {name}` and `L'area di lavoro {name}` have the argument
-  `name`. In ICU a straight apostrophe is an ordinary character, with two exceptions. A double
-  `''` is one apostrophe, and a single `'` directly before `{`, `}` or (inside a plural) `#`
-  starts quoted text that runs up to the next single `'`. So when an elision comes right before
-  an argument, write `dell’{name}` (typographic) or `dell''{name}` (two straight apostrophes);
-  `dell'{name}` would show `{name}` literally. The typographic apostrophe is the better choice
-  for readers, as it is the correct character in running text.
+- **Apostrophes**: the typographic `’` is always safe and is the correct character in running
+  text, so prefer it. A straight `'` is an ordinary character too, with one exception. In ICU
+  (which the app reads through next-intl and FormatJS), an ASCII apostrophe **immediately before
+  `{`, `}`, `<` or `>`** (or before `#` inside a plural) starts quoted text. Everything up to the
+  next single `'`, or to the end of the message, is then shown literally: the argument or the tag
+  stops working. So write `’` (typographic) or `''` (two straight apostrophes, which ICU turns into
+  one) in those places, and a plain `'` is fine everywhere else:
+
+  | Write                                | Not                                  |
+  | ------------------------------------ | ------------------------------------ |
+  | `dell’{name}` or `dell''{name}`      | `dell'{name}`                        |
+  | `Apri l’<link>area di lavoro</link>` | `Apri l'<link>area di lavoro</link>` |
+
+  This includes a closing tag: in `<b>dell'</b> {name}` the apostrophe is followed by `<`, so
+  write `dell’` there. Texts such as `L'area {name}`, `un'ora fa` and `c'era` are fine as they are.
+
+  `i18n:check` reads apostrophes the same way, so it reports a placeholder mismatch when an
+  apostrophe quotes an argument or a tag away.
 
 ## Style
 

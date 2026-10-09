@@ -11,8 +11,8 @@ import { readTurboConfig } from "./turbo-json.ts";
 /** Cached tasks whose result depends on the source of the packages they import. */
 const SOURCE_DEPENDENT_TASKS = ["build", "lint", "typecheck", "test", "test:integration"] as const;
 
-describe("turbo.json transit task", () => {
-  const turbo = readTurboConfig();
+describe("turbo.json transit task", async () => {
+  const turbo = await readTurboConfig();
 
   it("links every package to the packages it depends on", () => {
     expect(turbo.tasks.transit?.dependsOn).toEqual(["^transit"]);

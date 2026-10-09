@@ -1,11 +1,23 @@
 /**
- * The license boundary of ADR-0002, checked mechanically for every MIT workspace package:
+ * The license boundary of ADR-0002, checked mechanically for every MIT workspace package: the
+ * packages that ADR-0002 designates as MIT by name (see {@link isDesignatedMit}) and any other
+ * package that declares `MIT`.
  *
  * 1. its `dependencies`, `peerDependencies` and `optionalDependencies` may name workspace packages
  *    only if those are MIT too (an MIT package never depends on an AGPL one);
  * 2. every third-party package among them must carry a permissive license (see
  *    {@link PERMISSIVE_LICENSES}), read from `node_modules/<name>/package.json`;
  * 3. it ships a `LICENSE` file whose first line says MIT.
+ *
+ * The designated packages (`@fairhour/money`, `@fairhour/tax-core`, every `@fairhour/tax-pack-*`)
+ * are held to two more rules, so that forgetting them is an error rather than a silent exemption:
+ *
+ * 4. the `license` field of their `package.json` is exactly the string `MIT` (a missing field, an
+ *    expression such as `MIT OR Apache-2.0`, another case or another type all fail);
+ * 5. their ESLint config (`eslint.config.js`, or the `.mjs`, `.cjs`, `.ts` variants) enables the
+ *    import guard with `mitLibrary: true`. This is a plain text check, not an evaluation of the
+ *    config: the text must contain `mitLibrary: true` outside comments, so the option has to be
+ *    written out literally (not behind a variable or a spread).
  *
  * `devDependencies` are ignored: they are neither distributed with the package nor compiled into
  * it. Only the direct dependencies are inspected, not their own dependencies.
@@ -35,6 +47,34 @@ export const PERMISSIVE_LICENSES: readonly string[] = [
 /** Where an MIT package keeps its license text. */
 export const LICENSE_FILE_NAMES: readonly string[] = ["LICENSE", "LICENSE.md", "LICENSE.txt"];
 
+/** The names under which an ESLint flat config may be written. */
+export const ESLINT_CONFIG_NAMES: readonly string[] = [
+  "eslint.config.js",
+  "eslint.config.mjs",
+  "eslint.config.cjs",
+  "eslint.config.ts",
+  "eslint.config.mts",
+  "eslint.config.cts",
+];
+
+/** The MIT packages ADR-0002 names one by one; the rest are the `tax-pack-*` packages. */
+export const MIT_PACKAGE_NAMES: readonly string[] = ["@fairhour/money", "@fairhour/tax-core"];
+
+/** Every package whose name starts with this prefix is a country pack, so MIT (ADR-0002). */
+export const MIT_PACKAGE_PREFIX = "@fairhour/tax-pack-";
+
+/**
+ * Whether ADR-0002 designates the package as MIT by its name: `@fairhour/money`,
+ * `@fairhour/tax-core` and every `@fairhour/tax-pack-*`. Such a package is checked, and must
+ * declare exactly `MIT`, whatever its `package.json` says.
+ */
+export function isDesignatedMit(name: string): boolean {
+  return (
+    MIT_PACKAGE_NAMES.includes(name) ||
+    (name.startsWith(MIT_PACKAGE_PREFIX) && name.length > MIT_PACKAGE_PREFIX.length)
+  );
+}
+
 const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"] as const;
 
 type DependencyField = (typeof DEPENDENCY_FIELDS)[number];
@@ -45,13 +85,20 @@ export interface WorkspacePackage {
   readonly dir: string;
   /** Normalised license text (an SPDX expression), or `undefined` when none is declared. */
   readonly license: string | undefined;
+  /** The `license` field exactly as written (`undefined` when the package omits it). */
+  readonly licenseField: unknown;
   readonly dependencies: Readonly<Record<DependencyField, Readonly<Record<string, string>>>>;
   /** Peer dependencies marked optional in `peerDependenciesMeta`. */
   readonly optionalPeers: ReadonlySet<string>;
 }
 
 export type ViolationKind =
-  "workspace-dependency" | "third-party-license" | "unresolved-dependency" | "license-file";
+  | "workspace-dependency"
+  | "third-party-license"
+  | "unresolved-dependency"
+  | "license-file"
+  | "license-declaration"
+  | "eslint-config";
 
 export interface Violation {
   readonly package: string;
@@ -62,7 +109,7 @@ export interface Violation {
 export interface LicenseBoundaryResult {
   /** Number of workspace packages found. */
   readonly packages: number;
-  /** Names of the MIT packages that were checked. */
+  /** Names of the MIT packages that were checked (the designated ones and those declaring MIT). */
   readonly mitPackages: readonly string[];
   readonly violations: readonly Violation[];
   /** Things skipped without failing, such as optional dependencies that are not installed. */
@@ -196,6 +243,7 @@ function toPackage(dir: string, manifest: Json): WorkspacePackage {
     name: typeof manifest.name === "string" ? manifest.name : dir,
     dir,
     license: declaredLicense(manifest),
+    licenseField: manifest.license,
     dependencies: {
       dependencies: stringMap(manifest.dependencies),
       peerDependencies: stringMap(manifest.peerDependencies),
@@ -319,18 +367,60 @@ async function licenseFileProblem(repoRoot: string, dir: string): Promise<string
   return `no LICENSE file (looked for ${LICENSE_FILE_NAMES.join(", ")})`;
 }
 
+/**
+ * Removes line and block comments, so that a commented-out option does not count. String and
+ * template literals are skipped over first, so that a `//` inside a URL does not start a comment.
+ */
+function stripComments(source: string): string {
+  const stringOrComment =
+    /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+  return source.replace(stringOrComment, (_match, text: string | undefined) => text ?? "");
+}
+
+/** What is wrong with the package's ESLint config, or `undefined` when it enables `mitLibrary`. */
+async function eslintConfigProblem(repoRoot: string, dir: string): Promise<string | undefined> {
+  for (const name of ESLINT_CONFIG_NAMES) {
+    let text: string;
+    try {
+      text = await readFile(path.join(repoRoot, dir, name), "utf8");
+    } catch {
+      continue;
+    }
+    return /\bmitLibrary\s*:\s*true\b/.test(stripComments(text))
+      ? undefined
+      : `${name} does not pass mitLibrary: true to createConfig (the import guard of ADR-0002, rule 2)`;
+  }
+  return `no ESLint config (looked for ${ESLINT_CONFIG_NAMES.join(", ")}); it must pass mitLibrary: true to createConfig`;
+}
+
+/** Why the `license` field is not exactly `MIT`, or `undefined` when it is. */
+function licenseDeclarationProblem(pkg: WorkspacePackage): string | undefined {
+  if (pkg.licenseField === "MIT") return undefined;
+  const found =
+    pkg.licenseField === undefined
+      ? 'omits the "license" field'
+      : `declares "license": ${JSON.stringify(pkg.licenseField)}`;
+  return `${pkg.dir}/package.json ${found}, but ADR-0002 designates ${pkg.name} as MIT: it must declare exactly "license": "MIT"`;
+}
+
 /** Runs the ADR-0002 checks over every MIT package of the workspace at `repoRoot`. */
 export async function checkLicenseBoundary(repoRoot: string): Promise<LicenseBoundaryResult> {
   const packages = await loadWorkspacePackages(repoRoot);
   const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
   const violations: Violation[] = [];
   const notes: string[] = [];
-  const mitPackages = packages.filter((pkg) => isMit(pkg.license));
+  const mitPackages = packages.filter((pkg) => isDesignatedMit(pkg.name) || isMit(pkg.license));
 
   for (const pkg of mitPackages) {
     const violate = (kind: ViolationKind, message: string): void => {
       violations.push({ package: pkg.name, kind, message });
     };
+    const designated = isDesignatedMit(pkg.name);
+
+    if (designated) {
+      const declaration = licenseDeclarationProblem(pkg);
+      if (declaration !== undefined) violate("license-declaration", declaration);
+    }
 
     for (const field of DEPENDENCY_FIELDS) {
       for (const [name, specifier] of Object.entries(pkg.dependencies[field])) {
@@ -383,6 +473,11 @@ export async function checkLicenseBoundary(repoRoot: string): Promise<LicenseBou
 
     const problem = await licenseFileProblem(repoRoot, pkg.dir);
     if (problem !== undefined) violate("license-file", `${pkg.dir}: ${problem}`);
+
+    if (designated) {
+      const eslint = await eslintConfigProblem(repoRoot, pkg.dir);
+      if (eslint !== undefined) violate("eslint-config", `${pkg.dir}: ${eslint}`);
+    }
   }
 
   return {

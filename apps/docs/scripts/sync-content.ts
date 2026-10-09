@@ -7,6 +7,10 @@
  * Runs on Node's native TypeScript support: `node scripts/sync-content.ts` (the `predev`,
  * `prebuild` and `typecheck` scripts do it); `--clean` only removes the generated pages. The
  * generated folders are gitignored.
+ *
+ * Plain runs are safe next to other tasks that read the content (`lint`, `typecheck` and `build`
+ * run in parallel under Turborepo): pages are written atomically, only when they changed, and
+ * only stale files are deleted. `--clean` is not: run it on its own.
  */
 import path from "node:path";
 import { BASE, REPO } from "./lib/site.ts";
@@ -29,5 +33,8 @@ if (process.argv.includes("--clean")) {
   console.log("Removed the generated pages from src/content/docs.");
 } else {
   const pages = await syncContent(options);
-  console.log(`Synced ${pages.length} files from the repository into src/content/docs.`);
+  const written = pages.filter((page) => page.change !== "unchanged").length;
+  console.log(
+    `Synced ${String(pages.length)} files from the repository into src/content/docs (${String(written)} written).`,
+  );
 }

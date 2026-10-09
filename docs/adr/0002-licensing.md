@@ -205,27 +205,41 @@ In place today:
   need an ADR.
 - The DCO workflow and the commitlint `Signed-off-by` rule check every commit.
 - The Docker image declares its license through the `org.opencontainers.image.licenses` label.
-- `pnpm license:check` (`scripts/github/src/license-boundary.ts`, run in the CI lint job) checks
-  every workspace package whose `license` is `MIT`: its `dependencies`, `peerDependencies` and
+- `pnpm license:check` (`scripts/github/src/license-boundary.ts`, the `License boundary` step of
+  the CI lint job) checks every MIT workspace package: the packages this ADR names (below) and
+  any other package whose `license` is `MIT`. Its `dependencies`, `peerDependencies` and
   `optionalDependencies` may name only MIT workspace packages, every third-party package among
   them must have a license from the allowlist in rule 2 (an SPDX `OR` expression passes when one
   alternative is allowed), and it must ship a `LICENSE` file whose first line mentions MIT. It
-  inspects direct dependencies only and ignores `devDependencies`.
+  inspects direct dependencies only (transitive dependencies are a follow-up, below) and ignores
+  `devDependencies`.
+- The same check enforces the license map **by name**, so that forgetting a declaration is an
+  error and not an exemption. `@fairhour/money`, `@fairhour/tax-core` and every
+  `@fairhour/tax-pack-*` must declare exactly `"license": "MIT"` (a missing field, an expression
+  such as `MIT OR Apache-2.0`, another case or another type fails), and their `eslint.config.js`
+  must pass `mitLibrary: true` to `createConfig`. That second check is a plain text check, not an
+  evaluation of the config: `mitLibrary: true` must appear in the file, written out literally and
+  outside comments. The named packages go through every other check even when they declare
+  another license.
 - `createConfig({ mitLibrary: true })` in `@fairhour/config` makes ESLint reject source that
   imports any `@fairhour/*` package other than `money`, `tax-core` and `tax-pack-*`. Every MIT
-  package must enable it in its `eslint.config.js`.
+  package must enable it in its `eslint.config.js`; for the named packages `pnpm license:check`
+  verifies that it does.
+- [`docs/LICENSE`](../LICENSE) and [`apps/docs/src/content/LICENSE`](../../apps/docs/src/content/LICENSE)
+  hold the CC BY 4.0 terms (with the MIT note for code samples) for the documentation and the
+  content of the docs site, and the README states the documentation license.
+- The web app's source link (rule 7) is a backlog item, `WEB-011`
+  ([`.github/backlog/04-web-mvp.yml`](../../.github/backlog/04-web-mvp.yml)): a "Source code"
+  link whose URL operators can override with `SOURCE_CODE_URL`.
 
 To be added (follow-up work, outside this ADR's PR):
 
-- When `money`, `tax-core` and the tax packs are scaffolded (FND-002, CORE-002, TAX-002,
-  TAX-009): an MIT `LICENSE` file and `"license": "MIT"` in each. `tax-pack-template` carries
-  both, so every new pack inherits them.
+- When the tax packs are scaffolded (TAX-002, TAX-009): an MIT `LICENSE` file and
+  `"license": "MIT"` in each. `tax-pack-template` carries both, so every new pack inherits them.
+  (`pnpm license:check` already fails for a pack that lacks them.)
 - Extend `pnpm license:check` so that it also fails when the `license` field and the `LICENSE`
   file of any package (not only an MIT one) disagree, and so that it follows transitive
   dependencies.
-- `docs/LICENSE` and a license file in the docs site's content directory (CC BY 4.0, with the MIT
-  note for code samples), and a mention of the documentation license in the README.
-- A backlog item for the web app's source link (rule 7).
 
 ## Links
 

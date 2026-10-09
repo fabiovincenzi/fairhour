@@ -3,7 +3,8 @@
  *
  * The repository's Markdown is the single source of truth: everything listed here is generated
  * into gitignored folders of `src/content/docs` and must never be edited there. Add a folder to
- * `.gitignore` (and the root `.prettierignore`) whenever a new `target` appears below.
+ * the root `.gitignore` whenever a new `target` appears below (a test checks it); Prettier 3 reads
+ * `.gitignore` too, so the generated pages are not formatted or checked.
  */
 import { renderEnvReference } from "./env.ts";
 import type { DirectorySource, FileSource } from "./sync.ts";

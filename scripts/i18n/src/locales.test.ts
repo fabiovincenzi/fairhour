@@ -48,14 +48,22 @@ describe("placeholders", () => {
     // Malformed: the type is not followed by a comma, so `{a}` is read as an argument.
     ["broken {x, plural one {a}}", ["a", "x"]],
     ["broken {x, number", ["x"]],
+    // Tags inside plural and select branches count; self-closing tags and spaces are read too.
+    ["{n, plural, one {<b>one</b>} other {<i>many</i>}}", ["<b>", "<i>", "n"]],
+    ["Line<br/>break <b >x</b>", ["<b>", "<br>"]],
+    // A `<` that does not open a tag is ordinary text.
+    ["1 < 2 and 3 <4 {x}", ["x"]],
+    ["<b not closed {x}", ["x"]],
   ])("%s", (message, expected) => {
     expect(placeholders(message)).toEqual(expected);
   });
 });
 
-// ICU MessageFormat apostrophes (ApostropheMode.DOUBLE_OPTIONAL, the ICU default): `''` is a
-// literal apostrophe, and a single `'` starts quoted text only before `{`, `}` or (in a plural)
-// `#`. Every other `'` is an ordinary character, which is what Italian and French elisions need.
+// ICU MessageFormat apostrophes (ApostropheMode.DOUBLE_OPTIONAL, the ICU default) as FormatJS
+// (`@formatjs/icu-messageformat-parser`, used by next-intl) reads them: `''` is a literal
+// apostrophe, and a single `'` starts quoted text only before `{`, `}`, `<` or `>` (and `#` in a
+// plural). Every other `'` is an ordinary character, which is what Italian and French elisions
+// need. Quoted text hides arguments and rich-text tags alike.
 describe("placeholders: apostrophes", () => {
   it.each([
     // Elisions: the apostrophe is literal, so the arguments after it are still seen.
@@ -95,6 +103,29 @@ describe("placeholders: apostrophes", () => {
     ["{n, plural, other {'# {hidden} ' {shown}}}", ["n", "shown"]],
     // An apostrophe that does not start a quote never hides later arguments.
     ["'unterminated quote {y}", ["y"]],
+    // `'` before `<` or `>` also starts quoted text, which hides the tag and the arguments.
+    ["l'<link>x</link> {name}", []],
+    ["Apri l'<link>area di lavoro</link> di {name}", []],
+    ["a '> b {x}", []],
+    ["'<b>' {x}", ["x"]],
+    ["'<b>x</b>' {n}", ["n"]],
+    // The same goes for an apostrophe right before a closing tag: `'</b>` quotes the rest.
+    ["<b>dell'</b> {n}", ["<b>"]],
+    ["<b>dell’</b> {n}", ["<b>", "n"]],
+    ["<b>l'a</b> {n}", ["<b>", "n"]],
+    // The quote ends at the next single apostrophe, so what follows it is seen again.
+    ["l'<link>x' <b>y</b> {name}", ["<b>", "name"]],
+    ["'<'<b>x</b>", ["<b>"]],
+    // `''` and the typographic apostrophe are literal, so tags and arguments stay visible.
+    ["l''<link>x</link>", ["<link>"]],
+    ["l''<link>x</link> {name}", ["<link>", "name"]],
+    ["dell’<b>x</b> {n}", ["<b>", "n"]],
+    ["l’<link>x</link> {name}", ["<link>", "name"]],
+    // Inside plural and select branches the quote also hides tags and arguments.
+    ["{n, plural, one {l'<b>x</b> {y}} other {z}}", ["n"]],
+    ["{n, plural, one {'<b>' {y}} other {z}}", ["n", "y"]],
+    ["{n, plural, one {l’<b>x</b> {y}} other {z}}", ["<b>", "n", "y"]],
+    ["{role, select, owner {l'<b>x</b>} other {{name}}}", ["role"]],
   ])("%s", (message, expected) => {
     expect(placeholders(message)).toEqual(expected);
   });
@@ -136,6 +167,20 @@ describe("compareLocale", () => {
   it("still reports a placeholder that an apostrophe quotes away", () => {
     const report = compareLocale("it", { a: "Hi {name}" }, { a: "Ciao dell'{name}" });
     expect(report.placeholderMismatches).toEqual(["a"]);
+  });
+
+  it("reports a tag and an argument that an apostrophe before a tag quotes away", () => {
+    const source = { a: "Open <link>the workspace</link> of {name}" };
+    const quoted = compareLocale("it", source, {
+      a: "Apri l'<link>area di lavoro</link> di {name}",
+    });
+    expect(quoted.placeholderMismatches).toEqual(["a"]);
+    for (const fixed of [
+      "Apri l’<link>area di lavoro</link> di {name}",
+      "Apri l''<link>area di lavoro</link> di {name}",
+    ]) {
+      expect(compareLocale("it", source, { a: fixed }).placeholderMismatches).toEqual([]);
+    }
   });
 
   it("reports missing keys, placeholder mismatches, identical and stale keys", () => {

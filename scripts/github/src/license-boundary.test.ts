@@ -4,11 +4,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  ESLINT_CONFIG_NAMES,
   PERMISSIVE_LICENSES,
   checkLicenseBoundary,
   declaredLicense,
   formatLicenseReport,
   isAllowedLicense,
+  isDesignatedMit,
   isMit,
   loadWorkspacePackages,
   parseWorkspacePatterns,
@@ -130,6 +132,25 @@ describe("isAllowedLicense", () => {
   it("uses the allowlist it is given", () => {
     expect(isAllowedLicense("MPL-2.0", ["MPL-2.0"])).toBe(true);
     expect(isAllowedLicense("MIT", ["MPL-2.0"])).toBe(false);
+  });
+});
+
+describe("isDesignatedMit", () => {
+  it.each([
+    ["@fairhour/money", true],
+    ["@fairhour/tax-core", true],
+    ["@fairhour/tax-pack-it", true],
+    ["@fairhour/tax-pack-generic", true],
+    ["@fairhour/tax-pack-template", true],
+    ["@fairhour/tax-pack-", false],
+    ["@fairhour/tax-packs", false],
+    ["@fairhour/core", false],
+    ["@fairhour/config", false],
+    ["@fairhour/money-extras", false],
+    ["@x/money", false],
+    ["money", false],
+  ])("%s is %s", (name, expected) => {
+    expect(isDesignatedMit(name)).toBe(expected);
   });
 });
 
@@ -488,6 +509,224 @@ describe("checkLicenseBoundary", () => {
   });
 });
 
+// The packages ADR-0002 names are held to more than the packages that merely declare MIT: they
+// must declare exactly `MIT`, and their ESLint config must enable the import guard.
+describe("designated MIT packages", () => {
+  const GUARDED =
+    'import { createConfig } from "@fairhour/config/eslint";\n' +
+    "export default createConfig({ tsconfigRootDir: import.meta.dirname, mitLibrary: true });\n";
+
+  /** A package that satisfies every rule for the designated packages. */
+  function designated(
+    dir: string,
+    name: string,
+    options: {
+      extra?: Record<string, unknown>;
+      eslint?: string | null;
+      eslintName?: string;
+    } = {},
+  ): Files {
+    const { extra = {}, eslint = GUARDED, eslintName = "eslint.config.js" } = options;
+    return {
+      ...mit(dir, name, extra),
+      ...(eslint === null ? {} : { [`${dir}/${eslintName}`]: eslint }),
+    };
+  }
+
+  /** The problems of one package, as `[kind, message]` pairs. */
+  async function problems(files: Files): Promise<[string, string][]> {
+    return (await checkLicenseBoundary(workspace(files))).violations.map((v) => [
+      v.kind,
+      v.message,
+    ]);
+  }
+
+  it("accepts money, tax-core and every tax-pack-* that declare MIT and enable the guard", async () => {
+    const root = workspace({
+      ...designated("packages/money", "@fairhour/money"),
+      ...designated("packages/tax-core", "@fairhour/tax-core", {
+        extra: { dependencies: { "@fairhour/money": "workspace:*" } },
+      }),
+      ...designated("packages/tax-pack-it", "@fairhour/tax-pack-it", {
+        extra: { dependencies: { "@fairhour/tax-core": "workspace:*" } },
+      }),
+      ...designated("packages/tax-pack-template", "@fairhour/tax-pack-template"),
+    });
+    const result = await checkLicenseBoundary(root);
+    expect(result.violations).toEqual([]);
+    expect(result.mitPackages).toEqual([
+      "@fairhour/money",
+      "@fairhour/tax-core",
+      "@fairhour/tax-pack-it",
+      "@fairhour/tax-pack-template",
+    ]);
+  });
+
+  describe('the "license" field', () => {
+    it("fails when the field is missing, even though a LICENSE file exists", async () => {
+      const files = designated("packages/money", "@fairhour/money");
+      files["packages/money/package.json"] = { name: "@fairhour/money", version: "0.0.0" };
+      expect(await problems(files)).toEqual([
+        [
+          "license-declaration",
+          expect.stringMatching(
+            /packages\/money\/package\.json omits the "license" field.*@fairhour\/money as MIT/,
+          ),
+        ],
+      ]);
+    });
+
+    it.each([
+      ["MIT OR Apache-2.0", '"MIT OR Apache-2.0"'],
+      ["(MIT)", '"(MIT)"'],
+      ["mit", '"mit"'],
+      [" MIT", '" MIT"'],
+      ["AGPL-3.0-only", '"AGPL-3.0-only"'],
+      ["Apache-2.0", '"Apache-2.0"'],
+      [{ type: "MIT" }, '{"type":"MIT"}'],
+      [42, "42"],
+    ])("fails when it is %j", async (license, shown) => {
+      const files = designated("packages/tax-pack-it", "@fairhour/tax-pack-it", {
+        extra: { license },
+      });
+      expect(await problems(files)).toEqual([
+        ["license-declaration", expect.stringContaining(`declares "license": ${shown}`)],
+      ]);
+    });
+
+    it("is not satisfied by the legacy `licenses` array", async () => {
+      const files = designated("packages/money", "@fairhour/money");
+      files["packages/money/package.json"] = {
+        name: "@fairhour/money",
+        licenses: [{ type: "MIT" }],
+      };
+      expect((await problems(files)).map(([kind]) => kind)).toEqual(["license-declaration"]);
+    });
+
+    it("is not required of packages that are not designated", async () => {
+      const root = workspace({
+        ...agpl("packages/core", "@fairhour/core"),
+        ...mit("packages/other", "@x/other", { license: "MIT" }),
+        "packages/other/eslint.config.js": "export default [];\n",
+      });
+      const result = await checkLicenseBoundary(root);
+      expect(result.violations).toEqual([]);
+      expect(result.mitPackages).toEqual(["@x/other"]);
+    });
+  });
+
+  it("still applies every other rule to a designated package that does not declare MIT", async () => {
+    const files = {
+      ...designated("packages/tax-core", "@fairhour/tax-core", {
+        extra: {
+          license: "AGPL-3.0-only",
+          dependencies: { "@fairhour/core": "workspace:*", dep: "1.0.0" },
+        },
+      }),
+      ...agpl("packages/core", "@fairhour/core"),
+      ...installed("packages/tax-core", "dep", "GPL-3.0-only"),
+    };
+    expect(await problems(files)).toEqual([
+      ["license-declaration", expect.stringContaining('declares "license": "AGPL-3.0-only"')],
+      ["workspace-dependency", expect.stringContaining("@fairhour/core")],
+      ["third-party-license", expect.stringContaining("dep is licensed GPL-3.0-only")],
+    ]);
+  });
+
+  describe("the ESLint config", () => {
+    it("must exist", async () => {
+      const files = designated("packages/money", "@fairhour/money", { eslint: null });
+      expect(await problems(files)).toEqual([
+        [
+          "eslint-config",
+          expect.stringMatching(/^packages\/money: no ESLint config .*mitLibrary: true/),
+        ],
+      ]);
+    });
+
+    it.each([
+      [
+        "without the option",
+        "export default createConfig({ tsconfigRootDir: import.meta.dirname });",
+      ],
+      ["with mitLibrary: false", "export default createConfig({ mitLibrary: false });"],
+      [
+        "with the option behind a variable",
+        "const mitLibrary = true;\nexport default createConfig({ mitLibrary });",
+      ],
+      [
+        "with the option in a line comment",
+        "export default createConfig({\n  // mitLibrary: true,\n});",
+      ],
+      [
+        "with the option in a block comment",
+        "export default createConfig({\n  /* mitLibrary: true */\n});",
+      ],
+      [
+        "with the option in a doc comment",
+        "/**\n * Enable mitLibrary: true later.\n */\nexport default createConfig({});",
+      ],
+      ["with a longer option name", "export default createConfig({ mitLibraryOnly: true });"],
+    ])("fails %s", async (_name, eslint) => {
+      const files = designated("packages/tax-pack-it", "@fairhour/tax-pack-it", { eslint });
+      expect(await problems(files)).toEqual([
+        [
+          "eslint-config",
+          expect.stringMatching(
+            /^packages\/tax-pack-it: eslint\.config\.js does not pass mitLibrary: true to createConfig/,
+          ),
+        ],
+      ]);
+    });
+
+    it.each([
+      ["no spaces", "createConfig({mitLibrary:true})"],
+      ["extra spaces and newlines", "createConfig({\n  mitLibrary   :\n    true,\n})"],
+      [
+        "other options around it",
+        "createConfig({ moneySafety: true, mitLibrary: true, ignores: [] })",
+      ],
+      [
+        "a URL before it on the same line",
+        'createConfig({ url: "https://example.com", mitLibrary: true })',
+      ],
+      ["a trailing comment", "createConfig({ mitLibrary: true }); // MIT only"],
+    ])("accepts %s", async (_name, eslint) => {
+      const files = designated("packages/money", "@fairhour/money", { eslint });
+      expect(await problems(files)).toEqual([]);
+    });
+
+    it.each(ESLINT_CONFIG_NAMES.map((name) => [name]))("is read from %s", async (eslintName) => {
+      const files = designated("packages/money", "@fairhour/money", { eslintName });
+      expect(await problems(files)).toEqual([]);
+      const unguarded = designated("packages/money", "@fairhour/money", {
+        eslintName,
+        eslint: "export default [];\n",
+      });
+      expect((await problems(unguarded)).map(([kind]) => kind)).toEqual(["eslint-config"]);
+      expect((await problems(unguarded))[0]?.[1]).toContain(`${eslintName} does not pass`);
+    });
+
+    it("is not required of packages that are not designated", async () => {
+      const root = workspace(mit("packages/other", "@x/other"));
+      expect((await checkLicenseBoundary(root)).violations).toEqual([]);
+    });
+  });
+
+  it("reports the declaration, the LICENSE file and the ESLint config together", async () => {
+    const files = designated("packages/tax-pack-it", "@fairhour/tax-pack-it", {
+      extra: { license: "MIT OR Apache-2.0" },
+      eslint: null,
+    });
+    delete files["packages/tax-pack-it/LICENSE"];
+    expect((await problems(files)).map(([kind]) => kind)).toEqual([
+      "license-declaration",
+      "license-file",
+      "eslint-config",
+    ]);
+  });
+});
+
 describe("formatLicenseReport", () => {
   it("says there is nothing to enforce without MIT packages", () => {
     const text = formatLicenseReport({ packages: 4, mitPackages: [], violations: [], notes: [] });
@@ -538,6 +777,17 @@ describe("check-license-boundary CLI", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("MIT: @x/money.");
     expect(result.stdout).toContain("OK: no violations.");
+  });
+
+  it("exits 1 when a designated package does not enable the import guard", () => {
+    const root = workspace({
+      ...mit("packages/money", "@fairhour/money"),
+      "packages/money/eslint.config.js": "export default [];\n",
+    });
+    const result = run(root);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("FAIL @fairhour/money");
+    expect(result.stdout).toContain("[eslint-config]");
   });
 
   it("exits 1 and names the violations otherwise", () => {
