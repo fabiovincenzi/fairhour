@@ -71,10 +71,11 @@ Rules:
 
 ## Index
 
-| ADR                              | Title                                                      | Status   | Date       |
-| -------------------------------- | ---------------------------------------------------------- | -------- | ---------- |
-| [0001](0001-technology-stack.md) | Technology stack                                           | Accepted | 2026-10-09 |
-| [0002](0002-licensing.md)        | Licensing: AGPL-3.0 for the product, MIT for the libraries | Accepted | 2026-10-09 |
+| ADR                                     | Title                                                                 | Status   | Date       |
+| --------------------------------------- | --------------------------------------------------------------------- | -------- | ---------- |
+| [0001](0001-technology-stack.md)        | Technology stack                                                      | Accepted | 2026-10-09 |
+| [0002](0002-licensing.md)               | Licensing: AGPL-3.0 for the product, MIT for the libraries            | Accepted | 2026-10-09 |
+| [0003](0003-money-representation.md)    | Money representation: bigint minor units and exact decimals           | Accepted | 2026-10-09 |
+| [0004](0004-tax-engine-architecture.md) | Tax engine architecture: pure rule pipeline with versioned parameters | Accepted | 2026-10-09 |
 
-Planned: the design of `@fairhour/money` (phase 2, CORE-002) and the zod to OpenAPI generator for
-the public REST API (phase 7, API-002).
+Planned: the zod to OpenAPI generator for the public REST API (phase 7, API-002).
