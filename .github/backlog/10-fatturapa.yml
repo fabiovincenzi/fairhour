@@ -1,0 +1,56 @@
+milestone: "v0.10 FatturaPA"
+items:
+  - id: FPA-001
+    title: "Epic: FatturaPA XML export"
+    type: epic
+    areas: [tax-pack-it]
+    priority: P2
+    size: XL
+    status: ready
+    children: [FPA-002, FPA-003, FPA-004]
+    body: |
+      Phase 10. Export Italian invoices as FatturaPA (FPR12) XML for the Sistema di Interscambio.
+    acceptance:
+      - All sub-issues are done
+
+  - id: FPA-002
+    title: "FatturaPA FPR12 XML generator"
+    type: feature
+    areas: [tax-pack-it]
+    priority: P2
+    size: L
+    status: ready
+    depends_on: [TAX-005]
+    body: |
+      Map an `InvoiceComputation` plus supplier/customer data to FatturaPA 1.2.x: DatiRitenuta,
+      DatiCassaPrevidenziale, DatiBollo, DatiRiepilogo with Natura codes (N2.2 for forfettario).
+    acceptance:
+      - "Pure function in `@fairhour/tax-pack-it/fatturapa`"
+      - "Golden XML fixtures for forfettario and ordinario invoices"
+
+  - id: FPA-003
+    title: "XSD validation of generated FatturaPA"
+    type: chore
+    areas: [tax-pack-it]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [FPA-002]
+    body: |
+      Validate every generated document against the official schema in tests.
+    acceptance:
+      - "Official XSD vendored with its source and version"
+      - "All golden fixtures validate; invalid documents are rejected"
+
+  - id: FPA-004
+    title: "Download FatturaPA from the invoice screen"
+    type: feature
+    areas: [web]
+    priority: P3
+    size: S
+    status: ready
+    depends_on: [FPA-002, WEB-007]
+    body: |
+      Button to download the XML with the SdI file naming convention.
+    acceptance:
+      - "Filename `IT<VAT>_<progressive>.xml`"

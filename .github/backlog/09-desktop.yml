@@ -1,0 +1,83 @@
+milestone: "v0.9 Desktop Companion"
+items:
+  - id: DESK-001
+    title: "Epic: desktop companion"
+    type: epic
+    areas: [desktop]
+    priority: P2
+    size: XL
+    status: ready
+    children: [DESK-002, DESK-003, DESK-004, DESK-005, DESK-006]
+    body: |
+      Phase 9. A Tauri 2 companion that keeps the timer one click away.
+    acceptance:
+      - All sub-issues are done
+
+  - id: DESK-002
+    title: "Tauri 2 + React scaffold reusing shared packages"
+    type: chore
+    areas: [desktop]
+    priority: P2
+    size: M
+    status: ready
+    body: |
+      `apps/desktop` with Tauri 2, React and Vite, sharing `@fairhour/core` and `@fairhour/ui`,
+      authenticating with a personal access token against any Fairhour server.
+    acceptance:
+      - "TypeScript side builds and tests in CI without a Rust toolchain"
+      - "`cargo check` runs in the desktop release workflow"
+
+  - id: DESK-003
+    title: "Tray/menubar timer"
+    type: feature
+    areas: [desktop]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [DESK-002]
+    body: |
+      Start/stop and switch projects from the tray; running time in the menubar title.
+    acceptance:
+      - "Works on macOS, Windows and Linux"
+
+  - id: DESK-004
+    title: "Idle detection"
+    type: feature
+    areas: [desktop]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [DESK-003]
+    body: |
+      "Idle for 12 min: keep or discard?" when the user returns while a timer runs.
+    acceptance:
+      - "Threshold configurable; discard trims the entry at the idle start"
+
+  - id: DESK-005
+    title: "Opt-in, private activity suggestions"
+    type: feature
+    areas: [desktop]
+    priority: P3
+    size: L
+    status: ready
+    depends_on: [DESK-002]
+    body: |
+      Detect the frontmost app (IDE, design tool, video editor) and propose time entries. Activity
+      data stays on the device unless the user confirms an entry.
+    acceptance:
+      - "Off by default; clear privacy explanation"
+      - "Local storage only; one-click wipe"
+
+  - id: DESK-006
+    title: "Desktop release workflow and signing documentation"
+    type: chore
+    areas: [desktop, infra]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [DESK-002]
+    body: |
+      Build macOS/Windows/Linux bundles on release; signing optional through secrets.
+    acceptance:
+      - "Unsigned builds attached when no signing secrets exist"
+      - "Signing and notarization documented"

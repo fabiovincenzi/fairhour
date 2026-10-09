@@ -1,0 +1,71 @@
+milestone: "v0.7 Public API & Webhooks"
+items:
+  - id: API-001
+    title: "Epic: public API and webhooks"
+    type: epic
+    areas: [api]
+    priority: P1
+    size: XL
+    status: ready
+    children: [API-002, API-003, API-004, API-005]
+    body: |
+      Phase 7. Let people integrate Fairhour with their tools.
+    acceptance:
+      - All sub-issues are done
+
+  - id: API-002
+    title: "Public REST API v1 with a generated OpenAPI spec"
+    type: feature
+    areas: [api]
+    priority: P1
+    size: L
+    status: ready
+    depends_on: [DATA-008]
+    body: |
+      `/api/v1` resources for clients, projects, tasks, time entries, reports and invoice
+      computations, generated from zod schemas into OpenAPI 3.1.
+    acceptance:
+      - "`/api/v1/openapi.json` served and committed snapshot tested"
+      - "Cursor pagination, consistent error format (RFC 9457 problem+json)"
+
+  - id: API-003
+    title: "Personal access tokens"
+    type: security
+    areas: [api, web]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [API-002]
+    body: |
+      Users create scoped tokens; only a hash is stored; tokens are shown once.
+    acceptance:
+      - "Prefix + random secret, SHA-256 hash at rest, last-used timestamp"
+      - "Scopes (read, write) and expiry"
+
+  - id: API-004
+    title: "Outgoing webhooks"
+    type: feature
+    areas: [api]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [API-002]
+    body: |
+      `time_entry.created`, `time_entry.updated`, `invoice.computed`, … delivered with HMAC
+      signatures and retries with backoff.
+    acceptance:
+      - "Signature header with timestamp, replay protection documented"
+      - "Delivery log with retries; SSRF protections (no private IPs)"
+
+  - id: API-005
+    title: "API reference on the docs site"
+    type: docs
+    areas: [api, docs]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [API-002]
+    body: |
+      Render the OpenAPI spec on the docs site with authentication and webhook guides.
+    acceptance:
+      - "Examples in curl and TypeScript"

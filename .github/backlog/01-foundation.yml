@@ -1,0 +1,129 @@
+milestone: "v0.1 Foundation"
+items:
+  - id: FND-001
+    title: "Epic: monorepo foundation"
+    type: epic
+    areas: [infra]
+    priority: P1
+    size: XL
+    status: ready
+    children: [FND-002, FND-003, FND-004, FND-005, FND-006, FND-007, FND-008]
+    body: |
+      Phase 1. A monorepo where every package builds, lints, typechecks and tests the same way,
+      with CI that mirrors local commands and a docs site from day one.
+    acceptance:
+      - All sub-issues are done
+      - "`pnpm install && pnpm lint && pnpm typecheck && pnpm test && pnpm build` is green locally and in CI"
+
+  - id: FND-002
+    title: "pnpm workspaces, Turborepo and the shared config package"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: M
+    status: ready
+    body: |
+      Set up `pnpm-workspace.yaml`, `turbo.json` pipelines (build, lint, typecheck, test,
+      test:integration, test:e2e, dev) and `@fairhour/config` with shared tsconfig, eslint,
+      prettier and tailwind presets.
+    acceptance:
+      - "`pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test` work from the root"
+      - "Turbo caches outputs and respects package dependencies"
+      - "Every package uses the `@fairhour/*` scope and is `private: true`"
+      - "`tax-core`/`tax-pack-*`/`money` have an exports map, types and a README (publish-ready)"
+
+  - id: FND-003
+    title: "Strict TypeScript, typescript-eslint strict-type-checked and Prettier"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: S
+    status: ready
+    depends_on: [FND-002]
+    body: |
+      `strict`, `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` everywhere, ESLint flat
+      config with `strictTypeChecked` + `stylisticTypeChecked`, and Prettier.
+    acceptance:
+      - "Base tsconfig enables the three strict flags; packages extend it"
+      - "ESLint flat config shared from `@fairhour/config`, zero warnings policy in CI"
+      - "`pnpm format` and `pnpm lint` (includes `prettier --check`) run from the root"
+
+  - id: FND-004
+    title: "Git hooks with lefthook, lint-staged style checks and commitlint"
+    type: chore
+    areas: [infra]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [FND-003]
+    body: |
+      Fast local feedback: format and lint staged files on commit, validate the commit message
+      (Conventional Commits) and require a DCO sign-off.
+    acceptance:
+      - "`lefthook.yml` runs prettier + eslint on staged files in pre-commit"
+      - "`commit-msg` hook runs commitlint (`@commitlint/config-conventional`) and checks `Signed-off-by`"
+      - "Hooks install automatically on `pnpm install`"
+
+  - id: FND-005
+    title: "CI pipeline: lint, typecheck, unit, integration, e2e, build, coverage"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [FND-002]
+    body: |
+      `ci.yml` mirrors the local commands, caches pnpm and Turbo, runs integration tests against
+      a Postgres service container and uploads coverage to Codecov (no-op without a token).
+    acceptance:
+      - "Jobs: install (cached) → lint → typecheck → unit → integration (Postgres) → e2e → build"
+      - "Matrix on Node versions where it matters"
+      - "Coverage uploaded to Codecov only when `CODECOV_TOKEN` exists"
+      - "Least-privilege permissions, SHA-pinned actions, `actionlint` clean"
+
+  - id: FND-006
+    title: "Documentation site skeleton on GitHub Pages"
+    type: docs
+    areas: [docs]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [FND-002]
+    body: |
+      `apps/docs` built with Starlight, deployed to `https://fabiovincenzi.github.io/fairhour/`
+      (base path `/fairhour/`) by `docs.yml`.
+    acceptance:
+      - "Sections: getting started, self-hosting, user guide, tax packs, API, contributing, ADRs"
+      - "Base path configured so links and assets work under `/fairhour/`"
+      - "`docs.yml` builds on PRs and deploys on `main`"
+
+  - id: FND-007
+    title: "ADR-0001 (stack) and ADR-0002 (licensing)"
+    type: docs
+    areas: [docs]
+    priority: P1
+    size: S
+    status: ready
+    body: |
+      Record the technology stack and the licensing split (AGPL apps, MIT libraries) with
+      context, decision, consequences and alternatives.
+    acceptance:
+      - "`docs/adr/0000-template.md`, `0001-technology-stack.md`, `0002-licensing.md`"
+      - "ADR index in `docs/adr/README.md` and on the docs site"
+
+  - id: FND-008
+    title: "Dev services, changesets and knip"
+    type: chore
+    areas: [infra]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [FND-002]
+    body: |
+      `docker-compose.yml` for local Postgres + Mailpit, Changesets for versioning, knip for
+      unused code and dependencies.
+    acceptance:
+      - "`docker compose up -d` starts Postgres 16 and Mailpit"
+      - "`.env.example` documents every variable"
+      - "`.changeset/config.json` configured; `pnpm changeset` works"
+      - "`pnpm knip` runs clean in CI"

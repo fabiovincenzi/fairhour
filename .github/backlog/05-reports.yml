@@ -1,0 +1,85 @@
+milestone: "v0.5 Reports"
+items:
+  - id: REP-001
+    title: "Epic: reports"
+    type: epic
+    areas: [reports]
+    priority: P1
+    size: XL
+    status: ready
+    children: [REP-002, REP-003, REP-004, REP-005, REP-006]
+    body: |
+      Phase 5. Understand where time and money go, and share it with clients.
+    acceptance:
+      - All sub-issues are done
+
+  - id: REP-002
+    title: "Reports dashboard with filters"
+    type: feature
+    areas: [reports, web]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [WEB-005]
+    body: |
+      Day/week/month/custom range; filter by client, project, task, tag and billable status;
+      totals of hours and amounts.
+    acceptance:
+      - "Filters reflected in the URL (shareable)"
+      - "Aggregation done in SQL, grouped in the user's time zone"
+
+  - id: REP-003
+    title: "Charts: hours over time, revenue by client, effective rate, budget burn"
+    type: feature
+    areas: [reports, web]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [REP-002]
+    body: |
+      Recharts visualizations with accessible data tables as alternatives.
+    acceptance:
+      - "Each chart has a table view and readable colors in light/dark"
+
+  - id: REP-004
+    title: "PDF timesheet"
+    type: feature
+    areas: [reports]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [REP-002]
+    body: |
+      `@fairhour/pdf` renders a timesheet for a client and period, attachable to an invoice.
+    acceptance:
+      - "Locale-aware dates and amounts; workspace branding (name, logo placeholder)"
+      - "Snapshot test of the rendered document structure"
+
+  - id: REP-005
+    title: "CSV export"
+    type: feature
+    areas: [reports]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [REP-002]
+    body: |
+      Export filtered entries as CSV (RFC 4180), safe against formula injection.
+    acceptance:
+      - "Cells starting with `=`, `+`, `-`, `@` are escaped"
+      - "Columns documented"
+
+  - id: REP-006
+    title: "Signed, expiring read-only share links"
+    type: feature
+    areas: [reports, api]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [REP-002]
+    body: |
+      Share a report with a client through a link signed with HMAC and an expiry, revocable.
+    acceptance:
+      - "Tampered or expired links are rejected"
+      - "Revocation takes effect immediately"
+      - "Shared view exposes only the report data"

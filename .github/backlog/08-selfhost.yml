@@ -1,0 +1,70 @@
+milestone: "v0.8 Self-hosting & Releases"
+items:
+  - id: HOST-001
+    title: "Epic: self-hosting and releases"
+    type: epic
+    areas: [infra]
+    priority: P1
+    size: XL
+    status: ready
+    children: [HOST-002, HOST-003, HOST-004, HOST-005]
+    body: |
+      Phase 8. One `docker compose up` for production and a release pipeline that publishes
+      changelogs, GitHub Releases, multi-arch images and an SBOM.
+    acceptance:
+      - All sub-issues are done
+
+  - id: HOST-002
+    title: "Multi-stage, non-root production Dockerfile"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: M
+    status: ready
+    body: |
+      Next.js standalone output in a slim image running as a non-root user, with a health check.
+    acceptance:
+      - "Image under the documented size budget; runs read-only root filesystem"
+      - "`HEALTHCHECK` uses `/api/health`"
+
+  - id: HOST-003
+    title: "Production docker compose and environment reference"
+    type: feature
+    areas: [infra, docs]
+    priority: P1
+    size: S
+    status: ready
+    depends_on: [HOST-002]
+    body: |
+      `deploy/docker-compose.yml` with the app and Postgres, volumes, health checks and the
+      migrate-on-boot option.
+    acceptance:
+      - "Every environment variable documented with default and example"
+
+  - id: HOST-004
+    title: "Release pipeline: Changesets, GHCR multi-arch images, SBOM"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [HOST-002]
+    body: |
+      Changesets version PRs, GitHub Releases, `ghcr.io/fabiovincenzi/fairhour` images for
+      amd64/arm64, SBOM attached, npm publish disabled until packages are public.
+    acceptance:
+      - "Dry run documented and executed"
+      - "npm publish runs only when `NPM_TOKEN` exists and the package is not private"
+
+  - id: HOST-005
+    title: "Self-hosting guide"
+    type: docs
+    areas: [docs]
+    priority: P1
+    size: S
+    status: ready
+    depends_on: [HOST-003]
+    body: |
+      Installation, reverse proxy (Caddy/Traefik/nginx), email, backups, upgrades, troubleshooting.
+    acceptance:
+      - "Tested from a clean machine following only the guide"

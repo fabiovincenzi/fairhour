@@ -1,0 +1,95 @@
+milestone: "v0.6 Hardening"
+items:
+  - id: HARD-001
+    title: "Epic: hardening"
+    type: epic
+    areas: [web, api, infra]
+    priority: P1
+    size: XL
+    status: ready
+    children: [HARD-002, HARD-003, HARD-004, HARD-005, HARD-006, HARD-007]
+    body: |
+      Phase 6. Confidence to run Fairhour in production.
+    acceptance:
+      - All sub-issues are done
+
+  - id: HARD-002
+    title: "Playwright E2E for the critical flow"
+    type: chore
+    areas: [web]
+    priority: P1
+    size: L
+    status: ready
+    depends_on: [WEB-007, REP-004]
+    body: |
+      Sign up → client/project → track time → report → invoice computation → PDF, on desktop and
+      mobile viewports, in CI against a real Postgres.
+    acceptance:
+      - "Runs headless in CI with traces on failure"
+      - "Deterministic: seeded data, frozen clock where needed"
+
+  - id: HARD-003
+    title: "Accessibility: axe checks for WCAG 2.2 AA"
+    type: chore
+    areas: [web, ui]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [HARD-002]
+    body: |
+      Automated axe scans on every page of the E2E flow plus manual keyboard review.
+    acceptance:
+      - "Zero serious/critical axe violations"
+      - "Focus visible, skip link, landmarks, reduced motion respected"
+
+  - id: HARD-004
+    title: "Security headers and strict CSP"
+    type: security
+    areas: [web]
+    priority: P1
+    size: S
+    status: ready
+    body: |
+      Nonce-based CSP, HSTS, frame-ancestors, referrer and permissions policy.
+    acceptance:
+      - "securityheaders.com grade A on a deployed instance"
+      - "Tests assert the headers"
+
+  - id: HARD-005
+    title: "Rate limiting on auth and the public API"
+    type: security
+    areas: [api]
+    priority: P1
+    size: S
+    status: ready
+    body: |
+      Protect sign-in, magic link and token endpoints, plus per-token API limits.
+    acceptance:
+      - "Limits configurable via env; in-memory by default, Postgres-backed option for multi-instance"
+      - "`429` with `Retry-After`"
+
+  - id: HARD-006
+    title: "Observability: logging, tracing, error reporting, health and shutdown"
+    type: feature
+    areas: [api, infra]
+    priority: P2
+    size: M
+    status: ready
+    body: |
+      pino structured logs with redaction, OpenTelemetry hooks, Sentry-compatible error
+      reporting (off without a DSN), `/api/health`, graceful shutdown.
+    acceptance:
+      - "No PII or secrets in logs (redaction tests)"
+      - "Health endpoint checks the database"
+
+  - id: HARD-007
+    title: "Performance budget"
+    type: chore
+    areas: [web]
+    priority: P3
+    size: S
+    status: ready
+    body: |
+      Keep the app fast: bundle size budget and server response times for the main pages.
+    acceptance:
+      - "First-load JS under the documented budget, checked in CI"

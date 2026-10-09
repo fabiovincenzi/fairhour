@@ -1,0 +1,327 @@
+milestone: "v0.2 Core & Tax Engine"
+items:
+  # --- Core domain ------------------------------------------------------------
+  - id: CORE-001
+    title: "Epic: core domain library"
+    type: epic
+    areas: [core]
+    priority: P1
+    size: XL
+    status: ready
+    children: [CORE-002, CORE-003, CORE-004, CORE-005, CORE-006, CORE-007, CORE-008, CORE-009]
+    body: |
+      Pure, I/O-free domain logic shared by the web app, the API and the desktop companion:
+      money, time math, rates, budgets and the bridge from time entries to invoice lines.
+    acceptance:
+      - All sub-issues are done
+      - "`packages/core` and `packages/money` have ≥ 95% coverage with table-driven and property-based tests"
+
+  - id: CORE-002
+    title: "@fairhour/money: exact money and decimal arithmetic"
+    type: feature
+    areas: [core]
+    priority: P1
+    size: M
+    status: ready
+    body: |
+      Money is integer minor units (`bigint`) with an ISO 4217 currency; rates, quantities and
+      exchange rates are exact decimals parsed from strings. Floats are never used.
+    acceptance:
+      - "`Money` type, `money()`/`parseMoney()`, add/subtract/negate/compare/sum, currency guards"
+      - "`Decimal` type with parse/format and `multiply(money, decimal, rounding)`"
+      - "Rounding modes: half-up, half-even, half-down, up, down, ceiling, floor"
+      - "`allocate()` splits an amount by ratios without losing or creating minor units"
+      - "Currency table with minor-unit exponents (EUR 2, JPY 0, KWD 3, …) and `convert()` with an explicit exchange rate"
+      - "Locale-aware formatting through `Intl.NumberFormat` without converting to floats"
+      - "fast-check properties: associativity of addition, allocation sums, rounding bounds"
+
+  - id: CORE-003
+    title: "Time math: durations, billing rounding and DST-safe grouping"
+    type: feature
+    areas: [core]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [CORE-002]
+    body: |
+      Timestamps are stored in UTC; reports group by the user's local day/week/month in their
+      time zone, which must be correct across DST transitions.
+    acceptance:
+      - "Duration of an entry in seconds; running entries use an injected clock"
+      - "Rounding per project: none, 6, 15 or 30 minutes; direction up/nearest/down"
+      - "Group entries by local day/ISO week/month in any IANA time zone, with DST tests (Europe/Rome, America/New_York, Australia/Lord_Howe)"
+      - "Entries spanning midnight are split across days for reporting"
+
+  - id: CORE-004
+    title: "Overlap detection, split and merge of time entries"
+    type: feature
+    areas: [core]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [CORE-003]
+    body: |
+      Users must be warned about overlapping entries and be able to split or merge entries
+      without losing time.
+    acceptance:
+      - "`findOverlaps(entries)` in O(n log n) returns overlapping pairs"
+      - "`splitEntry(entry, at)` and `mergeEntries(a, b)` preserve total duration and metadata rules"
+      - "Property test: split then merge is the identity"
+
+  - id: CORE-005
+    title: "Rate resolution, billing modes and extra line items"
+    type: feature
+    areas: [core]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [CORE-002]
+    body: |
+      The hourly rate is resolved by priority task > project > client > workspace default.
+      Projects can be hourly, fixed-price, or day-rate (half/full day). Invoices can include
+      expenses, mileage (per km) and equipment lines.
+    acceptance:
+      - "`resolveRate()` returns the rate and which level it came from"
+      - "Fixed-price projects bill the agreed amount regardless of hours"
+      - "Day rates: configurable hours per full day and half-day threshold"
+      - "Mileage lines: km × rate per km with explicit rounding"
+      - "Currency per client; mixing currencies without an exchange rate is an error"
+
+  - id: CORE-006
+    title: "Budgets with 80% and 100% alerts, estimate vs actual"
+    type: feature
+    areas: [core]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [CORE-005]
+    body: |
+      Projects can have an hours or amount budget. Users are alerted at 80% and 100%.
+    acceptance:
+      - "`budgetStatus()` returns consumed, remaining, ratio and the crossed thresholds"
+      - "Thresholds are configurable (default 80% and 100%)"
+      - "Estimate vs actual for tasks with an estimate"
+
+  - id: CORE-007
+    title: "Effective hourly rate"
+    type: feature
+    areas: [core]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [CORE-005]
+    body: |
+      "This fixed-price project paid you €X/h": revenue divided by tracked hours, per project and per client.
+    acceptance:
+      - "`effectiveHourlyRate(revenue, seconds)` with explicit rounding"
+      - "Returns `null` (not infinity) when no time was tracked"
+
+  - id: CORE-008
+    title: "Natural-language quick add parser"
+    type: feature
+    areas: [core]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [CORE-003]
+    body: |
+      `2h design Acme yesterday`, `1h30m call with Bob @Website #meeting`, `9:00-10:15 standup` …
+      parsed into a draft time entry, matching clients/projects/tags fuzzily.
+    acceptance:
+      - "Durations (`2h`, `1.5h`, `90m`, `1h30`), ranges (`9-10:15`) and dates (today, yesterday, weekdays, ISO dates)"
+      - "Matches project/client by name or `@project`, tags by `#tag`; the rest is the description"
+      - "Locale-aware keywords for English and Italian (`ieri`, `oggi`)"
+      - "Table-driven tests with at least 30 cases"
+
+  - id: CORE-009
+    title: "Invoice draft builder: time entries → invoice lines"
+    type: feature
+    areas: [core]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [CORE-005, TAX-002]
+    body: |
+      Aggregate billable entries for a client and period into invoice lines (by project, task or
+      entry), apply rounding and rates, add extra lines, and produce the tax engine input.
+    acceptance:
+      - "Grouping options: per project, per task, per entry, single line"
+      - "Lines carry quantity (hours or days) and unit price as exact decimals"
+      - "Exchange rate is explicit and recorded on the draft when currencies differ"
+      - "Output validates against the `InvoiceInput` schema of `@fairhour/tax-core`"
+
+  # --- Tax engine ---------------------------------------------------------------
+  - id: TAX-001
+    title: "Epic: pluggable tax engine"
+    type: epic
+    areas: [tax-core]
+    priority: P1
+    size: XL
+    status: ready
+    children: [TAX-002, TAX-003, TAX-004, TAX-005, TAX-006, TAX-007, TAX-008, TAX-009, TAX-010, TAX-011]
+    body: |
+      The differentiator: country packs that turn tracked time into the exact amounts to put on
+      an invoice, with a human-readable explanation of every step and its legal source.
+    acceptance:
+      - All sub-issues are done
+      - "Every pack passes the shared conformance suite and has ≥ 95% coverage"
+
+  - id: TAX-002
+    title: "tax-core: TaxPack interface, rule pipeline, versioned parameters and trace"
+    type: feature
+    areas: [tax-core]
+    priority: P0
+    size: L
+    status: ready
+    depends_on: [CORE-002]
+    body: |
+      A pure, I/O-free engine. A pack declares its configuration schema (zod), its rule
+      pipeline, its legal wording and its parameters by effective date. The engine validates
+      input, resolves parameters for the issue date, runs the rules and returns an
+      `InvoiceComputation`.
+    acceptance:
+      - "`TaxPack`, `Rule`, `InvoiceInput`, `InvoiceComputation`, `TraceStep` and `SourceRef` types with zod schemas"
+      - "Parameter resolution by effective date with clear errors for dates before the first version"
+      - "Computation output includes subtotal, components (contributions, taxes, withholdings, stamp duty), taxable base, total, net payable, legal notes, warnings and a trace"
+      - "Trace messages are localizable (message key + params + English default) and formatted per locale"
+      - "Totals reconcile exactly; the engine asserts it and fails loudly otherwise"
+
+  - id: TAX-003
+    title: "Shared conformance suite for tax packs"
+    type: feature
+    areas: [tax-core]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [TAX-002]
+    body: |
+      Every pack must pass the same checks so contributors get fast, objective feedback.
+    acceptance:
+      - "`defineConformanceSuite(pack, options)` exported from `@fairhour/tax-core/conformance`"
+      - "Checks metadata, config schema (valid and invalid samples), parameter timeline, sources on every rule, wording in English"
+      - "Property-based invariants: reconciliation, determinism, non-negative amounts, currency consistency, rounding to minor units"
+      - "Runs the pack's golden fixtures"
+
+  - id: TAX-004
+    title: "tax-pack-it: regime forfettario"
+    type: feature
+    areas: [tax-pack-it]
+    priority: P0
+    size: M
+    status: ready
+    depends_on: [TAX-002]
+    body: |
+      No VAT (with configurable exemption wording), no withholding, optional 4% INPS rivalsa
+      (gestione separata), €2 stamp duty above the €77.47 threshold, charged to the client or absorbed.
+    acceptance:
+      - "Every rule cites L. 190/2014 art. 1 cc. 54-89, L. 662/1996 art. 1 c. 212, DPR 642/1972 as applicable"
+      - "Golden fixtures: with/without rivalsa, below/at/above the stamp threshold, stamp absorbed vs charged"
+      - "Legal wording in Italian and English"
+
+  - id: TAX-005
+    title: "tax-pack-it: regime ordinario"
+    type: feature
+    areas: [tax-pack-it]
+    priority: P0
+    size: L
+    status: ready
+    depends_on: [TAX-002]
+    body: |
+      VAT 22% (other rates configurable), 20% ritenuta d'acconto when the client is a
+      withholding agent, optional 4% INPS rivalsa and pluggable professional fund ("cassa")
+      contributions, each with the correct computation bases. Expenses incurred in the client's
+      name (art. 15 DPR 633/1972) are excluded from VAT and withholding.
+    acceptance:
+      - "Rivalsa INPS is subject to VAT and to withholding; cassa contributions are subject to VAT but not to withholding"
+      - "Cassa presets with FatturaPA `TipoCassa` codes plus a custom cassa"
+      - "Withholding rate and base share configurable (e.g. agents)"
+      - "Golden fixtures for professional with INPS rivalsa, lawyer with Cassa Forense, private client (no withholding), art. 15 expenses"
+
+  - id: TAX-006
+    title: "tax-pack-it: stamp duty (imposta di bollo) rules"
+    type: feature
+    areas: [tax-pack-it]
+    priority: P1
+    size: S
+    status: ready
+    depends_on: [TAX-004]
+    body: |
+      €2 stamp duty applies to invoice amounts not subject to VAT above €77.47, in both regimes.
+    acceptance:
+      - "Threshold and amount versioned by date and configurable"
+      - "Charged to the client (added to the total) or absorbed (informational note)"
+      - "Applies in ordinario only to the VAT-excluded/exempt part above the threshold"
+
+  - id: TAX-007
+    title: "tax-pack-it: annual revenue tracker and forfettario ceiling warning"
+    type: feature
+    areas: [tax-pack-it]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [TAX-004]
+    body: |
+      Warn when the yearly revenue approaches the forfettario ceiling (€85,000 since 2023) and
+      when it exceeds the €100,000 immediate-exit threshold.
+    acceptance:
+      - "Ceiling and warning ratio configurable; parameters versioned by year"
+      - "Status: ok, approaching, exceeded, immediate-exit with explanation and sources"
+
+  - id: TAX-008
+    title: "tax-pack-generic: configurable VAT/no-VAT pack"
+    type: feature
+    areas: [tax-packs]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [TAX-002]
+    body: |
+      Make Fairhour useful worldwide from day one: a pack where the user sets the tax label
+      (VAT, GST, sales tax), rate, optional withholding and exemption wording.
+    acceptance:
+      - "Config: tax label, rate (or none), reverse-charge wording, optional withholding rate"
+      - "Golden fixtures for VAT 20%, GST 10%, no tax with note, reverse charge"
+
+  - id: TAX-009
+    title: "Tax pack template and contributor guide"
+    type: docs
+    areas: [tax-packs, docs]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [TAX-003]
+    body: |
+      Adding a country must be a well-scoped community contribution.
+    acceptance:
+      - "`packages/tax-pack-template` compiles, passes the conformance suite and contains clear `TEMPLATE` markers"
+      - "`docs/contributing/tax-packs.md` walks through research, config, rules, sources, fixtures, docs and PR"
+
+  - id: TAX-010
+    title: "Tax documentation: Italy, generic pack, rounding policies, disclaimer"
+    type: docs
+    areas: [docs, tax-pack-it]
+    priority: P1
+    size: S
+    status: ready
+    depends_on: [TAX-004, TAX-005]
+    body: |
+      Every rule and its source documented for humans, matching the code.
+    acceptance:
+      - "`docs/tax-packs/it.md` and `docs/tax-packs/generic.md` with worked examples"
+      - "Rounding policy for each pack"
+      - "The informational-figures disclaimer is prominent"
+
+  - id: TAX-011
+    title: "Golden fixtures and property-based tests for money and rounding"
+    type: chore
+    areas: [tax-core, core]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [TAX-002]
+    body: |
+      Golden fixtures pin the exact output of real-world invoices; fast-check guards the
+      invariants that must hold for any input.
+    acceptance:
+      - "`fixtures/invoices/*.json` loaded and validated by a schema"
+      - "Properties: reconciliation, rounding within half a minor unit, scaling, determinism"

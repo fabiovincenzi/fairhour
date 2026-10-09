@@ -1,0 +1,317 @@
+# Self-contained tasks for new contributors. Each one links the docs a newcomer needs.
+milestone: "v1.0 Launch"
+items:
+  # --- Translations -------------------------------------------------------------
+  - id: GFI-001
+    title: "Translate the web app into German (de)"
+    type: feature
+    areas: [i18n]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue", "help wanted", "translation"]
+    depends_on: [WEB-002]
+    body: |
+      Add `apps/web/messages/de.json` translated from `en.json` and register the locale.
+      Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+    acceptance:
+      - "`de.json` has every key of `en.json`; `pnpm i18n:check` passes"
+      - "ICU placeholders and plurals preserved"
+      - "Locale listed in the language switcher"
+
+  - id: GFI-002
+    title: "Translate the web app into French (fr)"
+    type: feature
+    areas: [i18n]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue", "help wanted", "translation"]
+    depends_on: [WEB-002]
+    body: |
+      Add `apps/web/messages/fr.json` translated from `en.json` and register the locale.
+      Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+    acceptance:
+      - "`fr.json` has every key of `en.json`; `pnpm i18n:check` passes"
+      - "Typography follows French conventions (non-breaking space before `:` `?` `!`)"
+
+  - id: GFI-003
+    title: "Translate the web app into Spanish (es)"
+    type: feature
+    areas: [i18n]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue", "help wanted", "translation"]
+    depends_on: [WEB-002]
+    body: |
+      Add `apps/web/messages/es.json` translated from `en.json` and register the locale.
+      Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+    acceptance:
+      - "`es.json` has every key of `en.json`; `pnpm i18n:check` passes"
+
+  - id: GFI-004
+    title: "Translate the web app into Brazilian Portuguese (pt-BR)"
+    type: feature
+    areas: [i18n]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue", "help wanted", "translation"]
+    depends_on: [WEB-002]
+    body: |
+      Add `apps/web/messages/pt-BR.json` translated from `en.json` and register the locale.
+      Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+    acceptance:
+      - "`pt-BR.json` has every key of `en.json`; `pnpm i18n:check` passes"
+
+  - id: GFI-005
+    title: "Translate the web app into Dutch (nl)"
+    type: feature
+    areas: [i18n]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue", "help wanted", "translation"]
+    depends_on: [WEB-002]
+    body: |
+      Add `apps/web/messages/nl.json` translated from `en.json` and register the locale.
+      Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+    acceptance:
+      - "`nl.json` has every key of `en.json`; `pnpm i18n:check` passes"
+
+  - id: GFI-006
+    title: "Translate the self-hosting guide into Italian"
+    type: docs
+    areas: [docs, i18n]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue", "translation"]
+    depends_on: [HOST-005]
+    body: |
+      The docs site supports localized pages. Translate the self-hosting guide into Italian.
+    acceptance:
+      - "`apps/docs/src/content/docs/it/self-hosting.mdx` mirrors the English page"
+      - "Docs build passes"
+
+  # --- Tax packs ------------------------------------------------------------------
+  - id: GFI-007
+    title: "Tax pack: Germany, Kleinunternehmerregelung (§ 19 UStG) and standard VAT"
+    type: feature
+    areas: [tax-packs]
+    priority: P3
+    size: M
+    status: ready
+    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    depends_on: [TAX-009]
+    body: |
+      German freelancers either apply VAT (19% standard, 7% reduced) or use the small-business
+      exemption of § 19 UStG with the mandatory note on the invoice. Start from
+      `packages/tax-pack-template` and follow [docs/contributing/tax-packs.md](../../docs/contributing/tax-packs.md),
+      or run `/new-tax-pack de` with Claude Code.
+    acceptance:
+      - "Regimes: Regelbesteuerung (19%/7%) and Kleinunternehmer (§ 19 UStG note, no VAT)"
+      - "Thresholds versioned by effective date with sources (they changed on 2025-01-01)"
+      - "Conformance suite passes; golden fixtures for both regimes; `docs/tax-packs/de.md`"
+
+  - id: GFI-008
+    title: "Tax pack: France, micro-entrepreneur (franchise en base de TVA)"
+    type: feature
+    areas: [tax-packs]
+    priority: P3
+    size: M
+    status: ready
+    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    depends_on: [TAX-009]
+    body: |
+      Micro-entrepreneurs under the VAT franchise must print "TVA non applicable, art. 293 B du
+      CGI". Others charge VAT (20% standard). Start from the template and follow
+      [docs/contributing/tax-packs.md](../../docs/contributing/tax-packs.md).
+    acceptance:
+      - "Regimes: franchise en base (mention art. 293 B CGI) and TVA 20%/10%/5.5%"
+      - "Sources for each rule; conformance suite passes; `docs/tax-packs/fr.md`"
+
+  - id: GFI-009
+    title: "Tax pack: Spain, autónomo (IVA + IRPF withholding)"
+    type: feature
+    areas: [tax-packs]
+    priority: P3
+    size: M
+    status: ready
+    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    depends_on: [TAX-009]
+    body: |
+      Spanish professionals charge IVA (21% standard) and, when invoicing businesses, the client
+      withholds IRPF (15%, or a reduced rate for new professionals). Start from the template.
+    acceptance:
+      - "IVA rate and IRPF withholding (standard and reduced) configurable, versioned by date"
+      - "Sources for each rule; conformance suite passes; `docs/tax-packs/es.md`"
+
+  - id: GFI-010
+    title: "Tax pack: Portugal, trabalhador independente"
+    type: feature
+    areas: [tax-packs]
+    priority: P3
+    size: M
+    status: ready
+    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    depends_on: [TAX-009]
+    body: |
+      Independent workers charge IVA (23% on the mainland) or use the small-business exemption
+      (art. 53 CIVA), and business clients may withhold IRS. Research the current rates and
+      thresholds with sources. Start from the template.
+    acceptance:
+      - "Exemption wording, IVA rates by region (mainland, Madeira, Azores) and withholding configurable"
+      - "Sources for each rule; conformance suite passes; `docs/tax-packs/pt.md`"
+
+  - id: GFI-011
+    title: "Tax pack: United Kingdom, sole trader (VAT registered or not)"
+    type: feature
+    areas: [tax-packs]
+    priority: P3
+    size: M
+    status: ready
+    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    depends_on: [TAX-009]
+    body: |
+      Sole traders above the VAT registration threshold charge VAT (20% standard); others do not.
+      Track turnover against the threshold. Start from the template.
+    acceptance:
+      - "VAT registered / not registered; registration threshold versioned by date with sources"
+      - "Conformance suite passes; `docs/tax-packs/gb.md`"
+
+  - id: GFI-012
+    title: "Tax pack: Netherlands, KOR (kleineondernemersregeling) and BTW"
+    type: feature
+    areas: [tax-packs]
+    priority: P3
+    size: M
+    status: ready
+    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    depends_on: [TAX-009]
+    body: |
+      Dutch freelancers charge BTW (21%/9%) or opt into the KOR exemption with the required
+      invoice note. Start from the template.
+    acceptance:
+      - "Regimes: BTW and KOR, thresholds versioned with sources"
+      - "Conformance suite passes; `docs/tax-packs/nl.md`"
+
+  # --- Small product improvements -----------------------------------------------
+  - id: GFI-013
+    title: "Keyboard shortcut help dialog (`?`)"
+    type: feature
+    areas: [web, ui]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    depends_on: [WEB-006]
+    body: |
+      Pressing `?` opens a dialog listing every keyboard shortcut, generated from the shortcut
+      registry so it never gets out of date.
+    acceptance:
+      - "Accessible dialog (focus trap, `Escape` closes, labelled)"
+      - "Strings translated in `en` and `it`"
+
+  - id: GFI-014
+    title: "Show the currency symbol and an example amount in the client form"
+    type: feature
+    areas: [web]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    depends_on: [WEB-003]
+    body: |
+      When picking a client currency, preview how amounts will look (e.g. `CHF 1’234.50`) using
+      `formatMoney` from `@fairhour/money` and the user's locale.
+    acceptance:
+      - "Preview updates as the currency changes; covered by a component test"
+
+  - id: GFI-015
+    title: "Add more ISO 4217 currencies to @fairhour/money"
+    type: feature
+    areas: [core]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    depends_on: [CORE-002]
+    body: |
+      The currency table covers the most common currencies. Add the remaining active ISO 4217
+      codes with their minor-unit exponents.
+    acceptance:
+      - "Table generated or checked against the ISO 4217 list, with a test for exponents 0, 2 and 3"
+
+  - id: GFI-016
+    title: "Country flags in the tax pack selector"
+    type: feature
+    areas: [web, ui]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    depends_on: [WEB-008]
+    body: |
+      Show each pack's country flag (emoji from the ISO code) next to its name, with an
+      accessible label.
+    acceptance:
+      - "Flags derived from `pack.meta.countries`; screen readers announce the country name"
+
+  - id: GFI-017
+    title: "Copy-to-clipboard for amounts on the invoice computation screen"
+    type: feature
+    areas: [web]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    depends_on: [WEB-007]
+    body: |
+      Each amount gets a small copy button so users can paste figures into their invoicing tool.
+    acceptance:
+      - "Copies the plain decimal (e.g. `1268.80`), shows an accessible confirmation"
+
+  # --- Docs -------------------------------------------------------------------------
+  - id: GFI-018
+    title: "Docs: FAQ page"
+    type: docs
+    areas: [docs]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    body: |
+      Collect frequent questions (Is Fairhour free? Can I self-host? Is it tax advice? How do I
+      add my country?) into a FAQ page on the docs site.
+    acceptance:
+      - "`apps/docs/src/content/docs/faq.md` linked from the sidebar"
+
+  - id: GFI-019
+    title: "Docs: English glossary of Italian tax terms"
+    type: docs
+    areas: [docs]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    body: |
+      Explain terms like *regime forfettario*, *ritenuta d'acconto*, *rivalsa INPS*, *cassa
+      previdenziale*, *imposta di bollo* and *fattura elettronica* for non-Italian readers.
+    acceptance:
+      - "Glossary page linked from `docs/tax-packs/it.md`"
+
+  - id: GFI-020
+    title: "Docs: troubleshooting section for local development"
+    type: docs
+    areas: [docs]
+    priority: P3
+    size: S
+    status: ready
+    labels: ["good first issue"]
+    body: |
+      Common setup problems (port 5432 in use, corepack not enabled, Mailpit URL, Playwright
+      browsers) and their fixes.
+    acceptance:
+      - "Section added to the contributing docs and linked from `CONTRIBUTING.md`"

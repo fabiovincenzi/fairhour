@@ -1,0 +1,152 @@
+milestone: "v0.1 Foundation"
+items:
+  - id: BOOT-001
+    title: "Epic: project bootstrap"
+    type: epic
+    areas: [infra]
+    priority: P1
+    size: XL
+    status: ready
+    state: done
+    children: [BOOT-002, BOOT-003, BOOT-004, BOOT-005, BOOT-006, BOOT-007, BOOT-008, BOOT-009]
+    body: |
+      Phase 0. Everything a healthy open-source project needs before the first line of product
+      code: the AI development setup, governance, the backlog as code, templates and automation.
+    acceptance:
+      - All sub-issues are done
+      - "`actionlint` is clean on every workflow"
+      - "`PROGRESS.md` records the phase as done"
+
+  - id: BOOT-002
+    title: "Claude Code setup: CLAUDE.md, subagents, slash commands, settings"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: M
+    status: ready
+    state: done
+    body: |
+      Fairhour is developed mostly by Claude Code sessions. The repo must tell any session which
+      subagent to use for which work, without a human specifying it.
+    acceptance:
+      - "Root `CLAUDE.md` with repo map, commands, conventions, definition of done and the delegation policy table"
+      - "`.claude/agents/` defines architect, implementer, test-writer, reviewer, explorer, i18n and triage with model and minimal tools"
+      - "`.claude/commands/` provides /next-issue, /implement-issue, /resume, /review-pr, /new-tax-pack and /release-check"
+      - "`.claude/settings.json` allows safe frequent commands and denies destructive ones"
+      - "Nested `CLAUDE.md` in `packages/tax-core` and `packages/tax-pack-template` with tax-specific rules"
+
+  - id: BOOT-003
+    title: "Governance and community health files"
+    type: docs
+    areas: [docs]
+    priority: P1
+    size: M
+    status: ready
+    state: done
+    body: |
+      License, README, contributing guide, code of conduct, security policy, governance,
+      support, maintainers, code owners, funding placeholder and all-contributors config.
+    acceptance:
+      - "`LICENSE` (AGPL-3.0), `README.md` with badges, quickstart, roadmap and contributing links"
+      - "`CONTRIBUTING.md` covers setup, workflow, Conventional Commits, DCO, tax packs and translations"
+      - "`CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `SECURITY.md` with private reporting"
+      - "`GOVERNANCE.md`, `SUPPORT.md`, `MAINTAINERS.md`, `.github/CODEOWNERS`, `.github/FUNDING.yml`"
+      - "`.all-contributorsrc` and the contributors table in the README"
+
+  - id: BOOT-004
+    title: "Backlog as code: labels, milestones, issues and the sync workflow"
+    type: chore
+    areas: [infra]
+    priority: P1
+    size: L
+    status: ready
+    state: done
+    body: |
+      The product backlog lives in `.github/backlog/*.yml` and is synced idempotently to GitHub
+      issues, labels and milestones by a small, tested TypeScript script.
+    acceptance:
+      - "`.github/labels.yml` with type, area, priority, status, size and community labels"
+      - "`.github/milestones.yml` with one milestone per phase"
+      - "At least 60 well-scoped issues, at least 15 `good first issue`s, and epics with task lists"
+      - "`scripts/github` sync script with unit tests: matches issues by `<!-- backlog-id: … -->`, never duplicates, never reopens closed issues, respects manual body edits"
+      - "`sync-backlog.yml` runs on push to `main` (when backlog files change) and on `workflow_dispatch`"
+
+  - id: BOOT-005
+    title: "Issue forms and pull request template"
+    type: chore
+    areas: [infra]
+    priority: P2
+    size: S
+    status: ready
+    state: done
+    body: |
+      Structured issue forms make triage fast and keep reports actionable.
+    acceptance:
+      - "Issue forms: bug report, feature request, tax pack request, translation request, docs"
+      - "`config.yml` routes questions to Discussions and security reports to private reporting"
+      - "PR template with a checklist: tests, docs, changeset, screenshots for UI, DCO"
+
+  - id: BOOT-006
+    title: "Community automation workflows"
+    type: chore
+    areas: [infra]
+    priority: P2
+    size: M
+    status: ready
+    state: done
+    body: |
+      Automate the repetitive parts of maintaining the project.
+    acceptance:
+      - "`pr-title.yml` enforces Conventional Commit PR titles"
+      - "`labeler.yml` labels PRs by changed paths"
+      - "`dco.yml` fails PRs with commits missing a sign-off (tested script)"
+      - "`welcome.yml` greets first-time contributors"
+      - "`stale.yml` with a conservative policy exempting P0, P1, pinned and security"
+      - "`lock.yml` locks long-closed threads"
+
+  - id: BOOT-007
+    title: "Security automation: CodeQL, dependency review, Scorecard, Renovate"
+    type: security
+    areas: [infra]
+    priority: P1
+    size: M
+    status: ready
+    state: done
+    body: |
+      Supply-chain and code scanning from day one.
+    acceptance:
+      - "`codeql.yml` analyses JavaScript/TypeScript on PRs, pushes and weekly"
+      - "`dependency-review.yml` blocks PRs that add vulnerable or incompatible-license dependencies"
+      - "`scorecard.yml` publishes OpenSSF Scorecard results"
+      - "`renovate.json` with grouped updates and automerge of patch-level dev dependencies"
+      - "Every workflow has least-privilege `permissions:` and SHA-pinned actions"
+
+  - id: BOOT-008
+    title: "Maintainer documentation"
+    type: docs
+    areas: [docs]
+    priority: P2
+    size: S
+    status: ready
+    state: done
+    body: |
+      Document how the project is run so that new maintainers can help immediately.
+    acceptance:
+      - "`docs/maintainers/release-process.md`, `triage.md`, `labels.md`"
+      - "`docs/maintainers/repo-settings.md` lists exactly what to enable manually (branch protection, Pages, secrets)"
+      - "`docs/maintainers/project-board.md` explains the optional Projects v2 board"
+
+  - id: BOOT-009
+    title: "Optional GitHub Projects v2 roadmap board automation"
+    type: chore
+    areas: [infra]
+    priority: P3
+    size: S
+    status: ready
+    state: done
+    body: |
+      Adding issues to a Projects v2 board needs a PAT (`PROJECT_TOKEN`). The workflow must be a
+      no-op when the secret or the `PROJECT_URL` variable is missing.
+    acceptance:
+      - "`add-to-project.yml` adds newly opened issues to the board when `PROJECT_TOKEN` and `PROJECT_URL` exist"
+      - "Skips cleanly (green) when they do not"

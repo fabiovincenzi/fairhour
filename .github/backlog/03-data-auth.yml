@@ -1,0 +1,155 @@
+milestone: "v0.3 Data & Auth"
+items:
+  - id: DATA-001
+    title: "Epic: data layer and authentication"
+    type: epic
+    areas: [db, api]
+    priority: P1
+    size: XL
+    status: ready
+    children: [DATA-002, DATA-003, DATA-004, DATA-005, DATA-006, DATA-007, DATA-008, DATA-009, DATA-010]
+    body: |
+      Phase 3. PostgreSQL schema, migrations, a realistic seed, authentication, workspaces with
+      roles, and proof that one workspace can never see another's data.
+    acceptance:
+      - All sub-issues are done
+      - "Integration tests run against a real Postgres in CI"
+
+  - id: DATA-002
+    title: "Drizzle schema for the core domain"
+    type: feature
+    areas: [db]
+    priority: P1
+    size: L
+    status: ready
+    depends_on: [CORE-005]
+    body: |
+      Tables: users, sessions/accounts (auth), workspaces, memberships, clients, projects, tasks,
+      tags, time_entries (+ tags), rates, budgets, expenses, invoices (+ lines, computation
+      snapshot), tax profiles, audit_log, share_links, api_tokens, webhooks.
+    acceptance:
+      - "Money stored as `bigint` minor units + currency; decimals as `numeric` strings"
+      - "Timestamps `timestamptz` in UTC"
+      - "Every tenant table has `workspace_id` (FK, indexed)"
+      - "Partial unique index guaranteeing one running timer per user"
+
+  - id: DATA-003
+    title: "Migrations and migrate-on-boot"
+    type: feature
+    areas: [db, infra]
+    priority: P1
+    size: S
+    status: ready
+    depends_on: [DATA-002]
+    body: |
+      drizzle-kit generated SQL migrations, a `pnpm db:migrate` command and an optional
+      `MIGRATE_ON_BOOT=true` for self-hosters.
+    acceptance:
+      - "Migrations are committed SQL, applied in order, idempotent to re-run"
+      - "CI fails if the schema and the migrations drift"
+
+  - id: DATA-004
+    title: "Workspace-scoped repositories and tenant isolation tests"
+    type: security
+    areas: [db]
+    priority: P0
+    size: M
+    status: ready
+    depends_on: [DATA-002]
+    body: |
+      All data access goes through repositories created for one workspace. Cross-tenant access
+      must be impossible by construction and proven by tests.
+    acceptance:
+      - "Repositories require a `WorkspaceContext`; raw table access is not exported"
+      - "Integration tests prove reads, updates and deletes across workspaces fail for every table"
+      - "Foreign keys cannot point to another workspace's rows (composite FKs or checks)"
+
+  - id: DATA-005
+    title: "Realistic multi-country demo seed"
+    type: feature
+    areas: [db]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [DATA-002]
+    body: |
+      Demo workspaces for an Italian forfettario designer, an Italian ordinario developer and a
+      UK/US freelancer using the generic pack, with months of time entries.
+    acceptance:
+      - "`pnpm db:seed` is deterministic (seeded RNG) and idempotent"
+      - "Covers clients in several currencies, budgets near alerts, fixed-price projects"
+
+  - id: DATA-006
+    title: "Authentication: magic link, Google, GitHub with database sessions"
+    type: feature
+    areas: [api, web]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [DATA-002]
+    body: |
+      Better Auth with database sessions. Email magic links (Mailpit in dev), OAuth with Google
+      and GitHub when credentials are configured.
+    acceptance:
+      - "Magic link sign-in works end to end in dev with Mailpit"
+      - "OAuth providers enabled only when their env vars are set"
+      - "Sessions in Postgres, secure cookies, CSRF protection"
+
+  - id: DATA-007
+    title: "Passkeys (WebAuthn)"
+    type: feature
+    areas: [api, web]
+    priority: P3
+    size: M
+    status: ready
+    depends_on: [DATA-006]
+    body: |
+      Let users register a passkey and sign in without email.
+    acceptance:
+      - "Register, list and remove passkeys in account settings"
+      - "Sign in with a passkey on supported browsers"
+
+  - id: DATA-008
+    title: "Workspaces, memberships and roles"
+    type: feature
+    areas: [api, db]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [DATA-004, DATA-006]
+    body: |
+      Roles: owner, admin, member, viewer. Owners manage billing-relevant settings, admins manage
+      members and projects, members track time, viewers read reports.
+    acceptance:
+      - "Permission matrix documented and enforced in one place"
+      - "Invitations by email with expiry"
+      - "Tests for every role × action combination"
+
+  - id: DATA-009
+    title: "Audit log for time entries and invoice-relevant data"
+    type: feature
+    areas: [db, api]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [DATA-004]
+    body: |
+      Who changed what and when, for time entries, rates, tax profiles and invoices.
+    acceptance:
+      - "Append-only `audit_log` with actor, action, entity, diff (no PII beyond IDs)"
+      - "Written in the same transaction as the change"
+
+  - id: DATA-010
+    title: "GDPR: data export, account deletion, retention"
+    type: feature
+    areas: [api, docs]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [DATA-008]
+    body: |
+      Users can export everything as JSON and delete their account; retention is documented.
+    acceptance:
+      - "Export endpoint produces a versioned JSON document of the user's data"
+      - "Account deletion removes or anonymizes personal data, keeps invoice records the law requires"
+      - "`docs` page on data retention"

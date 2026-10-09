@@ -1,0 +1,154 @@
+milestone: "v0.4 Web MVP"
+items:
+  - id: WEB-001
+    title: "Epic: web MVP"
+    type: epic
+    areas: [web]
+    priority: P1
+    size: XL
+    status: ready
+    children: [WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009, WEB-010]
+    body: |
+      Phase 4. The first usable version of the web app: manage clients and projects, track time,
+      review entries and compute an invoice, in English and Italian.
+    acceptance:
+      - All sub-issues are done
+      - "The critical flow works on desktop and mobile widths"
+
+  - id: WEB-002
+    title: "App shell, navigation, theming, i18n (en + it) and PWA"
+    type: feature
+    areas: [web, ui, i18n]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [DATA-006]
+    body: |
+      Next.js App Router shell with sidebar navigation, light/dark theme, next-intl with English
+      (source) and Italian, locale-aware formatting and an installable PWA manifest.
+    acceptance:
+      - "Locale switcher; user locale and time zone stored in profile"
+      - "No hard-coded UI strings; `pnpm i18n:check` passes"
+      - "Manifest, icons and offline fallback page"
+
+  - id: WEB-003
+    title: "Clients, projects and tasks CRUD with rates and budgets"
+    type: feature
+    areas: [web, api]
+    priority: P1
+    size: L
+    status: ready
+    depends_on: [WEB-002, DATA-008]
+    body: |
+      Forms validated with the same zod schemas as the API. Rates at every level, billing mode,
+      rounding, budgets and client currency.
+    acceptance:
+      - "Create, edit, archive and delete (with undo) for clients, projects and tasks"
+      - "Rate inheritance is visible (\"inherited from client: €60/h\")"
+
+  - id: WEB-004
+    title: "Timer: optimistic start/stop, cross-tab and cross-device sync"
+    type: feature
+    areas: [web, api]
+    priority: P0
+    size: M
+    status: ready
+    depends_on: [WEB-002]
+    body: |
+      One running timer per user. It survives reloads, updates optimistically, syncs across tabs
+      (BroadcastChannel) and devices (polling/refetch on focus).
+    acceptance:
+      - "Starting a timer stops the running one atomically"
+      - "Title shows the running time; works after reload"
+      - "Conflicts resolved by the server's single-running constraint"
+
+  - id: WEB-005
+    title: "Time entries list and calendar week view"
+    type: feature
+    areas: [web]
+    priority: P1
+    size: L
+    status: ready
+    depends_on: [WEB-004]
+    body: |
+      Entries grouped by day in the user's time zone, inline edit, split, merge, bulk actions and
+      overlap warnings; a week calendar with drag to create/resize.
+    acceptance:
+      - "Overlaps highlighted using `findOverlaps`"
+      - "Split and merge with undo"
+      - "Keyboard accessible calendar"
+
+  - id: WEB-006
+    title: "Command palette, keyboard shortcuts and quick add"
+    type: feature
+    areas: [web]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [WEB-004, CORE-008]
+    body: |
+      `⌘K`/`Ctrl+K` palette for navigation and actions; `s` to start/stop, `n` for a new entry;
+      quick add box that uses the natural-language parser with a live preview.
+    acceptance:
+      - "Shortcuts listed in a help dialog (`?`)"
+      - "Quick add preview shows the parsed project, duration and date before saving"
+
+  - id: WEB-007
+    title: "Invoice computation screen with explanation trace"
+    type: feature
+    areas: [web, tax-core]
+    priority: P0
+    size: L
+    status: ready
+    depends_on: [WEB-003, CORE-009, TAX-005]
+    body: |
+      Pick a client and a period, preview the lines built from billable time, then see every
+      amount computed by the workspace's tax pack with the step-by-step explanation and sources.
+    acceptance:
+      - "Shows taxable base, contributions, VAT, withholding, stamp duty, total, net payable"
+      - "Explanation trace with links to sources; informational disclaimer"
+      - "Manual exchange rate input when the client's currency differs"
+      - "Saving stores an immutable computation snapshot"
+
+  - id: WEB-008
+    title: "Workspace tax profile settings"
+    type: feature
+    areas: [web, tax-core]
+    priority: P1
+    size: M
+    status: ready
+    depends_on: [WEB-002, TAX-005]
+    body: |
+      Choose a tax pack and configure it with a form generated from the pack's zod schema.
+    acceptance:
+      - "Pack selector with country flag and description"
+      - "Validation errors from the pack schema shown inline"
+
+  - id: WEB-009
+    title: "Empty states, skeletons, error boundaries and undo"
+    type: feature
+    areas: [web, ui]
+    priority: P2
+    size: M
+    status: ready
+    depends_on: [WEB-003]
+    body: |
+      Polish: every list has a helpful empty state, loading uses skeletons, errors are caught by
+      boundaries with a retry, destructive actions offer undo.
+    acceptance:
+      - "No layout shift when data loads"
+      - "Undo toast for delete/archive"
+
+  - id: WEB-010
+    title: "Budget alerts in the UI"
+    type: feature
+    areas: [web]
+    priority: P2
+    size: S
+    status: ready
+    depends_on: [WEB-003, CORE-006]
+    body: |
+      Show budget burn on project pages and alert at 80% and 100%.
+    acceptance:
+      - "Progress bar with accessible text alternative"
+      - "Toast when a new entry crosses a threshold"
