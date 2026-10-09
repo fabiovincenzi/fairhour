@@ -77,5 +77,6 @@ Rules:
 | [0002](0002-licensing.md)               | Licensing: AGPL-3.0 for the product, MIT for the libraries            | Accepted | 2026-10-09 |
 | [0003](0003-money-representation.md)    | Money representation: bigint minor units and exact decimals           | Accepted | 2026-10-09 |
 | [0004](0004-tax-engine-architecture.md) | Tax engine architecture: pure rule pipeline with versioned parameters | Accepted | 2026-10-09 |
+| [0005](0005-time-zones-and-dates.md)    | Time zones and dates: UTC instants, local dates in the user's zone    | Accepted | 2026-10-09 |
 
 Planned: the zod to OpenAPI generator for the public REST API (phase 7, API-002).

@@ -601,6 +601,30 @@ scale 0..8):
 - `formatMoney` (en-US, `useGrouping: false`, `currencyDisplay: 'code'`): stripping everything but
   digits and the minus sign from the output gives the digits of `toDecimalString(m)`.
 
+### 3.13 Changes during implementation
+
+Recorded with CORE-002 (2026-10-09). No public signature changed.
+
+- **Currency snapshot.** 166 codes, taken from the `datasets/currency-codes` mirror of SIX List One
+  (SIX's own download was unreachable from the build environment; re-check against `list-one.xml`
+  at the next update). ISO had already withdrawn `BGN` (2026-01); it stays in `CURRENCY_DATA` (so
+  `CurrencyCode` includes it, as the table above requires) instead of moving to a
+  `HISTORIC_CURRENCY_DATA` export, which is deferred until a second historic code is needed.
+- **zod schemas are codecs.** The transforming schemas of 3.10 are built with `z.codec`, so
+  `z.encode(schema, value)` produces the JSON form; their declared types are unchanged.
+- **`formatPercent`** formats with `style: "unit", unit: "percent"` (input in percent units)
+  rather than `style: "percent"`, so the bigint fallback of 3.9 works unchanged; the output is the
+  same (`"22%"`, `"22 %"`).
+- **Fallback digits.** The fallback transliterates fraction digits by formatting the bigint
+  `"1" + digits` in the formatter's numbering system and dropping the leading one (handles leading
+  zeros and astral digits, such as Adlam), instead of indexing the digits of `1234567890n`.
+- **Errors made explicit.** `convertPrice` applies the checks of `convert` (`InvalidCurrencyError`,
+  `non-positive-rate`, `same-currency-rate`) and can throw `scale-overflow` from
+  `multiplyDecimal`; `rescaleDecimal` and `divideDecimal` throw `InvalidAmountError`
+  (`out-of-range`) for a scale outside `0..MAX_DECIMAL_SCALE`; `DivisionByZeroError` takes an
+  optional message. Calls from untyped code with a non-`bigint` amount or factor, or an unknown
+  rounding mode, throw a plain `TypeError` (a programming error, not a `MoneyError`).
+
 ---
 
 ## 4. `@fairhour/tax-core`
