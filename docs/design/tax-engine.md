@@ -2335,6 +2335,30 @@ hoursRounding)`. With 6/15/30-minute rounding the result is exact (0.1/0.25/0.5 
 The bridge never decides tax matters (no VAT, contributions or withholding): that is the pack's
 job, so that every tax decision has a rule id, a source and a trace step.
 
+### 7.1 Changes during implementation
+
+Recorded with the CORE-005 review follow-up (2026-10-09). The types above are the bridge's contract;
+`@fairhour/core`'s rates module (`src/rates`) now splits the rate unit, and CORE-009 follows it:
+
+- **A rate is per `hour` or per `day`.** `RateLevels` entries are `UnitRate = { unit, price }` and
+  `resolveRate({ unit, ... })` returns the first level (task, project, client, workspace) whose
+  rate is per that unit. It skips levels of the other unit, never converts between units and
+  throws `MissingRateError` when no level has one: days are never billed at the hourly rate.
+  `ResolvedRate` carries the `unit`.
+- **`BillableEntry.rate` is in the unit of its project's mode.** `billingRateUnit(mode)` gives it:
+  `hourly` -> `"hour"`, `day-rate` -> `"day"`, `fixed` -> none (no rate needed). The bridge resolves
+  one rate per `(entry, mode)` with that unit; `billableAmount(mode, usage, rate, options)` takes
+  `rate: { rate, unit } | undefined` (a `ResolvedRate` fits) and throws `MissingRateError` for a
+  missing rate or one per the other unit.
+- **Currencies are checked, not assumed.** `billableAmount` takes `options.currency` (the invoice
+  currency) and `fixedAmount(mode, currency)` the same: a rate or a fixed amount in another
+  currency throws `RateCurrencyMismatchError` instead of being billed as if it were in the invoice
+  currency. Step 6 converts first, so every price handed to these functions is already in
+  `options.currency`.
+- **Exchange rates are unambiguous.** Two entries for the same `from` currency throw
+  `DuplicateExchangeRateError` (in `resolveRate`, and the bridge must validate
+  `InvoiceDraftOptions.exchangeRates` the same way).
+
 ---
 
 ## 8. Pack package layout

@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { InvalidInstantError, InvalidTimeZoneError } from "../errors";
-import { parseQuickAdd } from "./parse";
+import { QUICK_ADD_MAX_INPUT_LENGTH, parseQuickAdd } from "./parse";
 import type { QuickAddDraft, QuickAddLocale, QuickAddOptions, QuickAddProject } from "./types";
 
 // Wednesday 4 March 2026, 11:00 in Rome (CET, UTC+1).
@@ -44,9 +44,14 @@ interface Expected {
   description?: string;
   issues?: string[];
   confidence?: QuickAddDraft["confidence"];
+  /** Fields the draft must not have at all. */
+  absent?: (keyof QuickAddDraft)[];
 }
 
-/** `issues` is compared exactly when given; every other field is a partial match. */
+/**
+ * `issues` is compared exactly when given; `absent` names fields that must be missing; every
+ * other field is a partial match.
+ */
 type Case = [name: string, input: string, locale: QuickAddLocale, expected: Expected];
 
 const HOUR = 3600n;
@@ -118,7 +123,12 @@ const cases: Case[] = [
     "en",
     { durationSeconds: HOUR, description: "review" },
   ],
-  ["range with a dash", "9 – 10", "en", { durationSeconds: HOUR, issues: [] }],
+  [
+    "range with a dash (two bare numbers are assumed to be times)",
+    "9 – 10",
+    "en",
+    { durationSeconds: HOUR, issues: ["assumed-time-range"], confidence: "medium" },
+  ],
   [
     "range across midnight",
     "22-1 deploy",
@@ -127,7 +137,7 @@ const cases: Case[] = [
       durationSeconds: 3n * HOUR,
       start: "2026-03-04T21:00:00Z",
       end: "2026-03-05T00:00:00Z",
-      issues: ["range-crosses-midnight"],
+      issues: ["assumed-time-range", "range-crosses-midnight"],
       confidence: "medium",
       description: "deploy",
     },
@@ -136,7 +146,11 @@ const cases: Case[] = [
     "range up to 24:00",
     "20-24",
     "en",
-    { durationSeconds: 4n * HOUR, end: "2026-03-04T23:00:00Z", issues: [] },
+    {
+      durationSeconds: 4n * HOUR,
+      end: "2026-03-04T23:00:00Z",
+      issues: ["assumed-time-range"],
+    },
   ],
   [
     "empty range",
@@ -163,12 +177,28 @@ const cases: Case[] = [
     "en",
     { durationSeconds: 7200n, issues: ["invalid-time"], confidence: "low" },
   ],
-  ["range and duration agree", "9-10 1h", "en", { durationSeconds: HOUR, issues: [] }],
+  [
+    "range and duration agree",
+    "9:00-10:00 1h",
+    "en",
+    {
+      durationSeconds: HOUR,
+      start: "2026-03-04T08:00:00Z",
+      end: "2026-03-04T09:00:00Z",
+      issues: [],
+      confidence: "high",
+    },
+  ],
   [
     "range wins over a different duration",
-    "9-10 2h",
+    "9:00-10:00 2h",
     "en",
-    { durationSeconds: HOUR, issues: ["conflicting-duration"], confidence: "medium" },
+    {
+      durationSeconds: HOUR,
+      start: "2026-03-04T08:00:00Z",
+      issues: ["conflicting-duration"],
+      confidence: "medium",
+    },
   ],
   [
     "range on a given date",
@@ -179,7 +209,7 @@ const cases: Case[] = [
       dateSource: "iso",
       start: "2026-03-02T08:00:00Z",
       end: "2026-03-02T09:00:00Z",
-      issues: [],
+      issues: ["assumed-time-range"],
     },
   ],
   // --- dates
@@ -235,7 +265,8 @@ const cases: Case[] = [
       projectId: "p-web",
       description: "design",
       issues: [],
-      confidence: "high",
+      // a client found by its first word only: medium
+      confidence: "medium",
     },
   ],
   [
@@ -301,7 +332,7 @@ const cases: Case[] = [
     "whole leading words match",
     "1h website call",
     "en",
-    { projectId: "p-web", description: "call", confidence: "high" },
+    { projectId: "p-web", description: "call", confidence: "medium", issues: [] },
   ],
   ["a partial word does not match", "1h call", "en", { description: "call" }],
   [
@@ -350,10 +381,10 @@ const cases: Case[] = [
     { durationSeconds: 4500n, description: "riunione", issues: [] },
   ],
   [
-    "Italian: range with a",
-    "9 a 10 riunione",
+    "Italian: range with da ... a",
+    "da 9 a 10 riunione",
     "it",
-    { durationSeconds: HOUR, description: "riunione" },
+    { durationSeconds: HOUR, description: "riunione", issues: [] },
   ],
   ["Italian: hours and minutes spelled out", "1 ora 30 minuti", "it", { durationSeconds: 5400n }],
   [
@@ -404,17 +435,375 @@ const cases: Case[] = [
     "two ranges: the first wins",
     "9-10 and 11-12",
     "en",
-    { durationSeconds: HOUR, issues: ["multiple-durations"] },
+    { durationSeconds: HOUR, issues: ["assumed-time-range", "multiple-durations"] },
   ],
   ["punctuation around the pieces is trimmed", "- review, 2h -", "en", { description: "review" }],
+  // --- two numbers and a unit are neither a range nor one duration
+  [
+    "a span of minutes is not a range",
+    "standup 10-15 min",
+    "en",
+    {
+      issues: ["ambiguous-duration"],
+      confidence: "low",
+      description: "standup",
+      absent: ["durationSeconds", "start", "end"],
+    },
+  ],
+  [
+    "a span of hours is not a range",
+    "spent 1-2 hours",
+    "en",
+    {
+      issues: ["ambiguous-duration"],
+      confidence: "low",
+      description: "spent",
+      absent: ["durationSeconds", "start", "end"],
+    },
+  ],
+  [
+    "Italian: da ... a ... ore is a span of hours",
+    "da 2 a 3 ore",
+    "it",
+    {
+      issues: ["ambiguous-duration"],
+      confidence: "low",
+      description: "",
+      absent: ["durationSeconds", "start", "end"],
+    },
+  ],
+  [
+    "a unit glued to the second number",
+    "worked 9-10h",
+    "en",
+    { issues: ["ambiguous-duration"], confidence: "low", description: "worked" },
+  ],
+  [
+    "a decimal in the span",
+    "spent 1-1.5 hours",
+    "en",
+    { issues: ["ambiguous-duration"], confidence: "low", description: "spent" },
+  ],
+  [
+    "a joiner word with a unit is a span too",
+    "spent 1 to 2 hours",
+    "en",
+    { issues: ["ambiguous-duration"], confidence: "low", description: "spent" },
+  ],
+  [
+    "a span does not hide a real duration",
+    "spent 1-2 hours and 30m",
+    "en",
+    { issues: ["ambiguous-duration"], durationSeconds: 1800n, confidence: "low" },
+  ],
+  // --- number pairs that are not times
+  [
+    "Italian: da 3 a 4 persone is a headcount",
+    "riunione da 3 a 4 persone 1h",
+    "it",
+    {
+      durationSeconds: HOUR,
+      description: "riunione da 3 a 4 persone",
+      issues: [],
+      confidence: "high",
+      absent: ["start", "end"],
+    },
+  ],
+  [
+    "assigned 3 to 4 people",
+    "assigned 3 to 4 people 1h",
+    "en",
+    {
+      durationSeconds: HOUR,
+      description: "assigned 3 to 4 people",
+      issues: [],
+      absent: ["start", "end"],
+    },
+  ],
+  [
+    "a dash before a noun that counts things",
+    "workshop 3-4 people 1h",
+    "en",
+    { durationSeconds: HOUR, description: "workshop 3-4 people", issues: [] },
+  ],
+  [
+    "a headcount alone is no duration",
+    "workshop 3-4 people",
+    "en",
+    { issues: ["missing-duration"], confidence: "low", description: "workshop 3-4 people" },
+  ],
+  [
+    "a joiner word needs a prefix word: 9 to 10",
+    "9 to 10 review",
+    "en",
+    { issues: ["missing-duration"], description: "9 to 10 review" },
+  ],
+  [
+    "a joiner word needs a prefix word: 9 a 10",
+    "9 a 10 riunione",
+    "it",
+    { issues: ["missing-duration"], description: "9 a 10 riunione" },
+  ],
+  [
+    "a prefix word is enough for a dash",
+    "da 9-10 riunione",
+    "it",
+    { durationSeconds: HOUR, description: "riunione", issues: [] },
+  ],
+  [
+    "from ... to ... after a joiner without a prefix",
+    "3 to 4 then from 9 to 10",
+    "en",
+    { durationSeconds: HOUR, description: "3 to 4 then", issues: [] },
+  ],
+  // --- bare ranges: two numbers with nothing that says they are times
+  [
+    "an explicit duration beats a bare range",
+    "review chapters 3-4 2h",
+    "en",
+    {
+      durationSeconds: 2n * HOUR,
+      description: "review chapters 3-4",
+      issues: [],
+      confidence: "high",
+      absent: ["start", "end"],
+    },
+  ],
+  [
+    "an explicit duration beats a bare range, even an equal one",
+    "chapters 3-4 1h",
+    "en",
+    { durationSeconds: HOUR, description: "chapters 3-4", issues: [], absent: ["start", "end"] },
+  ],
+  [
+    "a bare range that is no valid time is only digits next to a duration",
+    "pages 10-25 2h",
+    "en",
+    { durationSeconds: 2n * HOUR, description: "pages 10-25", issues: [] },
+  ],
+  [
+    "a bare range alone is kept, with a warning",
+    "review chapters 3-4",
+    "en",
+    {
+      durationSeconds: HOUR,
+      start: "2026-03-04T02:00:00Z",
+      end: "2026-03-04T03:00:00Z",
+      description: "review chapters",
+      issues: ["assumed-time-range"],
+      confidence: "medium",
+    },
+  ],
+  [
+    "a bare range that is no valid time is an error",
+    "pages 10-25",
+    "en",
+    { issues: ["invalid-time"], confidence: "low", description: "pages" },
+  ],
+  [
+    "a prefix word makes a range certain: it beats nothing, the range wins",
+    "from 3 to 4 2h",
+    "en",
+    {
+      durationSeconds: HOUR,
+      start: "2026-03-04T02:00:00Z",
+      issues: ["conflicting-duration"],
+      confidence: "medium",
+    },
+  ],
+  [
+    "Italian: dalle ... alle ... is certain too",
+    "dalle 9 alle 10 2h",
+    "it",
+    { durationSeconds: HOUR, issues: ["conflicting-duration"] },
+  ],
+  [
+    "minutes make a range certain",
+    "9:30-10 2h",
+    "en",
+    { durationSeconds: 1800n, issues: ["conflicting-duration"] },
+  ],
+  [
+    "am/pm makes a range certain",
+    "9am-10am 2h",
+    "en",
+    { durationSeconds: HOUR, issues: ["conflicting-duration"] },
+  ],
+  // --- 12-hour shorthand
+  [
+    "lunch 12-1 is an hour",
+    "lunch 12-1",
+    "en",
+    {
+      durationSeconds: HOUR,
+      start: "2026-03-04T11:00:00Z",
+      end: "2026-03-04T12:00:00Z",
+      description: "lunch",
+      issues: ["assumed-time-range", "assumed-pm"],
+      confidence: "medium",
+    },
+  ],
+  [
+    "9-5 is a working day",
+    "9-5",
+    "en",
+    {
+      durationSeconds: 8n * HOUR,
+      start: "2026-03-04T08:00:00Z",
+      end: "2026-03-04T16:00:00Z",
+      issues: ["assumed-time-range", "assumed-pm"],
+    },
+  ],
+  [
+    "minutes do not stop the pm assumption",
+    "9:00-5:30",
+    "en",
+    {
+      durationSeconds: 8n * HOUR + 1800n,
+      end: "2026-03-04T16:30:00Z",
+      issues: ["assumed-pm"],
+    },
+  ],
+  [
+    "Italian times are 24-hour: 9-5 crosses midnight",
+    "9-5",
+    "it",
+    {
+      durationSeconds: 20n * HOUR,
+      issues: ["assumed-time-range", "range-crosses-midnight"],
+      confidence: "medium",
+    },
+  ],
+  [
+    "an am/pm start keeps the midnight rule",
+    "10pm-2",
+    "en",
+    { durationSeconds: 4n * HOUR, issues: ["range-crosses-midnight"] },
+  ],
+  [
+    "12:30-12:15 has no afternoon reading: it crosses midnight",
+    "12:30-12:15",
+    "en",
+    { durationSeconds: 23n * HOUR + 2700n, issues: ["range-crosses-midnight"] },
+  ],
+  [
+    "an end of 0 is no 12-hour time",
+    "9-0",
+    "en",
+    { durationSeconds: 15n * HOUR, issues: ["assumed-time-range", "range-crosses-midnight"] },
+  ],
+  [
+    "24:00 as a start crosses midnight for the end",
+    "24-1",
+    "en",
+    { durationSeconds: HOUR, issues: ["assumed-time-range", "range-crosses-midnight"] },
+  ],
+  // --- minutes after the hours
+  [
+    "1h75 is not 2h15",
+    "1h75 work",
+    "en",
+    {
+      issues: ["invalid-duration"],
+      confidence: "low",
+      description: "work",
+      absent: ["durationSeconds"],
+    },
+  ],
+  [
+    "1h 75m is not 2h15 either",
+    "work 1h 75m",
+    "en",
+    { issues: ["invalid-duration"], confidence: "low", description: "work" },
+  ],
+  [
+    "Italian: 2 ore 60 minuti",
+    "2 ore 60 minuti",
+    "it",
+    { issues: ["invalid-duration"], absent: ["durationSeconds"] },
+  ],
+  [
+    "1h59 is fine",
+    "1h59",
+    "en",
+    { durationSeconds: HOUR + 59n * 60n, issues: [], confidence: "high" },
+  ],
+  [
+    "an invalid duration is not compared with a range",
+    "9:00-10:00 1h75",
+    "en",
+    { durationSeconds: HOUR, issues: ["invalid-duration"], confidence: "low" },
+  ],
+  [
+    "an invalid duration stops bare digits becoming a range",
+    "chapters 3-4 1h75",
+    "en",
+    { issues: ["invalid-duration"], description: "chapters 3-4", absent: ["start", "end"] },
+  ],
+  // --- short weekday names are also words
+  [
+    "sat with Bob: an abbreviation without a period is flagged",
+    "sat with Bob 1h",
+    "en",
+    {
+      date: "2026-02-28",
+      dateSource: "weekday",
+      description: "with Bob",
+      issues: ["ambiguous-weekday"],
+      confidence: "medium",
+    },
+  ],
+  [
+    "sat. with a period is an abbreviation on purpose",
+    "sat. with Bob 1h",
+    "en",
+    {
+      date: "2026-02-28",
+      dateSource: "weekday",
+      description: "with Bob",
+      issues: [],
+      confidence: "high",
+    },
+  ],
+  [
+    "a whole weekday name needs no period",
+    "saturday with Bob 1h",
+    "en",
+    { date: "2026-02-28", dateSource: "weekday", issues: [], confidence: "high" },
+  ],
+  [
+    "a short weekday after the duration is flagged too",
+    "2h Wed",
+    "en",
+    { issues: ["ambiguous-weekday"] },
+  ],
+  [
+    "Italian: mar is also the sea",
+    "mar 1h",
+    "it",
+    { date: "2026-03-03", issues: ["ambiguous-weekday"], confidence: "medium" },
+  ],
+  [
+    "Italian: mar. is Tuesday",
+    "mar. 1h",
+    "it",
+    { date: "2026-03-03", issues: [], description: "", confidence: "high" },
+  ],
+  [
+    "an abbreviation that loses against another date is just text",
+    "yesterday sat 1h",
+    "en",
+    { date: "2026-03-03", issues: ["multiple-dates"], description: "sat" },
+  ],
 ];
 
 describe("parseQuickAdd", () => {
   it.each(cases)("%s: %j", (_name, input, locale, expected) => {
     const draft = run(input, locale);
-    const { issues, ...rest } = expected;
+    const { issues, absent = [], ...rest } = expected;
     expect(draft).toMatchObject(rest);
     if (issues !== undefined) expect(codes(draft)).toEqual(issues);
+    for (const field of absent) expect(Object.keys(draft)).not.toContain(field);
   });
 
   it("has at least 30 table-driven cases", () => {
@@ -553,6 +942,109 @@ describe("parseQuickAdd", () => {
       });
     });
 
+    describe("articles and stopwords in loose words", () => {
+      const stores: QuickAddProject[] = [
+        { id: "co", name: "Support", clientName: "The Company" },
+        { id: "ri", name: "Store", clientName: "La Rinascente" },
+        { id: "lo", name: "Campaign", clientName: "L'Oréal" },
+        { id: "ux", name: "UX", clientName: "Initech" },
+        { id: "go", name: "Go Live Plan", clientName: "Umbrella" },
+        { id: "fg", name: "For Good", clientName: "Hooli" },
+        { id: "dw", name: "Design for Web", clientName: "Pied Piper" },
+      ];
+      const find = (input: string, locale: QuickAddLocale = "en") =>
+        run(input, locale, { projects: stores });
+
+      it("a stopword never starts a name: fix the bug", () => {
+        const draft = find("fix the bug 1h");
+        expect(draft.projectId).toBeUndefined();
+        expect(draft.description).toBe("fix the bug");
+        expect(draft.issues).toEqual([]);
+      });
+
+      it("a stopword never starts a name: sistemato la homepage", () => {
+        const draft = find("sistemato la homepage 1h", "it");
+        expect(draft.projectId).toBeUndefined();
+        expect(draft.description).toBe("sistemato la homepage");
+      });
+
+      it("stopwords are those of the locale", () => {
+        // `la` is no English stopword: it can start `La Rinascente`, typed whole
+        expect(find("1h la rinascente call").projectId).toBe("ri");
+        expect(find("1h la rinascente call", "it").projectId).toBe("ri");
+      });
+
+      it("finds a name without its leading article, and takes the typed article with it", () => {
+        const bare = find("1h company call");
+        expect(bare).toMatchObject({ projectId: "co", description: "call", confidence: "high" });
+        expect(bare.projectMatch).toEqual({ kind: "exact", via: "client", source: "text" });
+        expect(find("1h the company call")).toMatchObject({ projectId: "co", description: "call" });
+        expect(find("1h la rinascente call", "it")).toMatchObject({ description: "call" });
+        expect(find("1h rinascente call", "it").projectId).toBe("ri");
+      });
+
+      it("keeps an article that is not part of the name", () => {
+        // `una` is typed before `Rinascente`, whose name starts with `La`
+        expect(find("1h una rinascente call", "it")).toMatchObject({
+          projectId: "ri",
+          description: "una call",
+        });
+        // ... and an article too far away to belong to the name
+        expect(find("1h the ... ... company call").description).toBe("the ... ... call");
+      });
+
+      it("copes with an elided article: L'Oréal", () => {
+        expect(find("1h oreal call", "it")).toMatchObject({ projectId: "lo", description: "call" });
+        expect(find("1h l'oreal call", "it")).toMatchObject({
+          projectId: "lo",
+          description: "call",
+        });
+      });
+
+      it("a mention matches the name with or without its article", () => {
+        expect(find("@the-company 1h").projectId).toBe("co");
+        expect(find("@company 1h").projectId).toBe("co");
+        expect(find("@the 1h").projectId).toBe("co");
+        expect(find("@rinascente 1h", "it").projectId).toBe("ri");
+      });
+
+      it("a stopword inside a name is fine; one at its start needs an @mention", () => {
+        expect(find("1h design for web call")).toMatchObject({
+          projectId: "dw",
+          description: "call",
+        });
+        expect(find("1h for good call").projectId).toBeUndefined();
+        expect(find("1h @for-good call").projectId).toBe("fg");
+      });
+
+      it("one short word is an exact match only, never the start of a name", () => {
+        // `go` starts `Go Live Plan`, but two letters are too few for that
+        expect(find("1h go call").projectId).toBeUndefined();
+        expect(find("1h gox").projectId).toBeUndefined();
+        expect(find("1h go live call").projectId).toBe("go");
+        // an exact match of two letters is fine
+        expect(find("1h ux call")).toMatchObject({ projectId: "ux", confidence: "high" });
+        // three letters are enough to start a name
+        expect(find("1h gox live").projectId).toBeUndefined();
+        expect(
+          run("1h acm call", "en", { projects: [{ id: "a", name: "Acm Labs", clientName: "" }] })
+            .projectId,
+        ).toBe("a");
+      });
+
+      it("a match on the start of a name only is medium confidence; an exact one is high", () => {
+        const prefix = run("1h acme call", "en", {
+          projects: [{ id: "a", name: "Acme Labs", clientName: "" }],
+        });
+        expect(prefix).toMatchObject({ projectId: "a", confidence: "medium", issues: [] });
+        expect(find("1h ux call").confidence).toBe("high");
+        // a mention is explicit: its prefix is not doubtful
+        expect(
+          run("@acme 1h", "en", { projects: [{ id: "a", name: "Acme Labs", clientName: "" }] }),
+        ).toMatchObject({ projectId: "a", confidence: "high" });
+      });
+    });
+
     it("does not read a project name inside a mention or a tag", () => {
       const draft = run("@blog #blog 1h", "en");
       expect(draft.projectId).toBe("p-blog");
@@ -613,13 +1105,76 @@ describe("parseQuickAdd", () => {
       const draft = run("yesterday 0-24", "en", { now: "2026-10-26T10:00:00Z", timeZone: ZONE });
       expect(draft.durationSeconds).toBe(25n * 3600n);
       expect(draft.issues).toEqual([
+        { code: "assumed-time-range", severity: "warning", text: "0-24" },
         { code: "duration-over-24h", severity: "warning", text: "0-24" },
       ]);
+    });
+
+    it("decides midnight crossing on wall-clock times, not on instants", () => {
+      // 02:30 does not exist on 2026-03-29 in Rome and becomes 03:30 CEST (01:30Z), while 3:00 is
+      // 03:00 CEST (01:00Z): the end is before the start in instants but after it on the clock.
+      // That is an empty range, not an overnight one of 23.5 hours.
+      const draft = run("2026-03-29 2:30-3", "en", { now: "2026-03-30T10:00:00Z" });
+      expect(codes(draft)).toEqual(["empty-range"]);
+      expect(draft.confidence).toBe("low");
+      expect(Object.keys(draft)).not.toContain("durationSeconds");
+      expect(Object.keys(draft)).not.toContain("start");
+    });
+
+    it("still crosses midnight on the night the clocks go forward", () => {
+      // Saturday 2026-03-28, 22:00 CET (21:00Z) to Sunday 02:00, which does not exist: 03:00 CEST.
+      const draft = run("2026-03-28 22:00-2:00", "en", { now: "2026-03-30T10:00:00Z" });
+      expect(draft).toMatchObject({
+        start: "2026-03-28T21:00:00Z",
+        end: "2026-03-29T01:00:00Z",
+        durationSeconds: 4n * 3600n,
+      });
+      expect(codes(draft)).toEqual(["range-crosses-midnight"]);
     });
 
     it("a range that collapses into the gap is empty", () => {
       const draft = run("yesterday 2-3", "en", { now: "2026-03-30T10:00:00Z", timeZone: ZONE });
       expect(codes(draft)).toEqual(["empty-range"]);
+    });
+  });
+
+  describe("input length", () => {
+    it("reads at most QUICK_ADD_MAX_INPUT_LENGTH characters, and says so", () => {
+      expect(QUICK_ADD_MAX_INPUT_LENGTH).toBe(1000);
+      // the duration sits after the cut
+      const draft = run(`${"a".repeat(QUICK_ADD_MAX_INPUT_LENGTH)} 2h`);
+      expect(codes(draft)).toEqual(["input-too-long", "missing-duration"]);
+      expect(draft.issues[0]).toEqual({ code: "input-too-long", severity: "error" });
+      expect(draft.confidence).toBe("low");
+      expect(draft.description).toBe("a".repeat(QUICK_ADD_MAX_INPUT_LENGTH));
+    });
+
+    it("reads what comes before the cut", () => {
+      const draft = run(`2h ${"a ".repeat(QUICK_ADD_MAX_INPUT_LENGTH)}`);
+      expect(draft.durationSeconds).toBe(2n * HOUR);
+      expect(codes(draft)).toEqual(["input-too-long"]);
+    });
+
+    it("accepts exactly the limit", () => {
+      const input = `2h ${"a".repeat(QUICK_ADD_MAX_INPUT_LENGTH - 3)}`;
+      expect(input).toHaveLength(QUICK_ADD_MAX_INPUT_LENGTH);
+      expect(codes(run(input))).toEqual([]);
+    });
+
+    it("never cuts a surrogate pair in two", () => {
+      const input = `${"a".repeat(QUICK_ADD_MAX_INPUT_LENGTH - 1)}😀 2h`;
+      const draft = run(input);
+      expect(draft.description).toBe("a".repeat(QUICK_ADD_MAX_INPUT_LENGTH - 1));
+      expect(draft.description).not.toMatch(/[\ud800-\udfff]/u);
+    });
+
+    it("parses 100 kB of separators in no time", () => {
+      for (const input of [`${", ".repeat(50_000)}x 2h`, `2h ${", ".repeat(50_000)}x`]) {
+        const started = performance.now();
+        const draft = run(input);
+        expect(performance.now() - started).toBeLessThan(250);
+        expect(codes(draft)).toContain("input-too-long");
+      }
     });
   });
 
@@ -642,9 +1197,14 @@ describe("parseQuickAdd", () => {
             if (draft.durationSeconds === undefined) {
               expect(
                 codes(draft).some((code) =>
-                  ["missing-duration", "zero-duration", "empty-range", "invalid-time"].includes(
-                    code,
-                  ),
+                  [
+                    "missing-duration",
+                    "zero-duration",
+                    "empty-range",
+                    "invalid-time",
+                    "invalid-duration",
+                    "ambiguous-duration",
+                  ].includes(code),
                 ),
               ).toBe(true);
             }

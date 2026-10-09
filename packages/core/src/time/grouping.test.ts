@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
-import { InvalidTimeZoneError, MissingClockError } from "../errors";
+import { InvalidDateError, InvalidTimeZoneError, MissingClockError } from "../errors";
 import { groupEntries, isoWeekKey } from "./grouping";
 
 const h = (hours: number): bigint => BigInt(hours) * 3600n;
@@ -242,5 +242,47 @@ describe("groupEntries", () => {
       }),
       { numRuns: 100 },
     );
+  });
+});
+
+describe("dates beyond Temporal's limits", () => {
+  // Temporal stops at +275760-09-13 and -271821-04-19: date arithmetic past them throws a bare
+  // RangeError, which must not reach the caller.
+  const last = "+275760-09-12T00:00:00Z";
+  const first = "-271821-04-20T00:00:00Z";
+  const entry = (instant: string) => ({ start: instant, end: instant });
+
+  it.each([
+    ["the week of the last day", last, "week"],
+    ["the month of the last day", last, "month"],
+    ["the month of the first day", first, "month"],
+  ] as const)("reports %s as an InvalidDateError", (_name, instant, period) => {
+    expect(() => groupEntries([entry(instant)], { timeZone: "UTC", period })).toThrow(
+      InvalidDateError,
+    );
+    expect(() =>
+      groupEntries([entry(instant)], { timeZone: "UTC", period, splitAtMidnight: false }),
+    ).toThrow(InvalidDateError);
+  });
+
+  it("splitting at midnight on the very last date is an InvalidDateError too", () => {
+    expect(() =>
+      groupEntries([entry("+275760-09-13T00:00:00Z")], { timeZone: "UTC", period: "day" }),
+    ).toThrow(InvalidDateError);
+  });
+
+  it("still groups the days just inside the limits", () => {
+    expect(
+      groupEntries([entry(last)], { timeZone: "UTC", period: "day" }).map((g) => g.key),
+    ).toEqual(["+275760-09-12"]);
+    expect(
+      groupEntries([entry(first)], { timeZone: "UTC", period: "week" }).map((g) => g.key),
+    ).toHaveLength(1);
+  });
+
+  it("isoWeekKey rejects text that is not a date, and dates out of range", () => {
+    for (const date of ["hello", "2026-13-45", "2026-02-30", "", "+275760-09-12"]) {
+      expect(() => isoWeekKey(date), date).toThrow(InvalidDateError);
+    }
   });
 });

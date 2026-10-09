@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { InvalidTimeZoneError, MissingClockError } from "../errors";
+import { InvalidDateError, InvalidTimeZoneError, MissingClockError } from "../errors";
 import { epochSeconds } from "./instant";
 import { type DayPart, splitByLocalDay } from "./local-days";
 
@@ -273,5 +273,13 @@ describe("splitByLocalDay", () => {
       ),
       { numRuns: 200 },
     );
+  });
+});
+
+describe("the last date Temporal supports", () => {
+  it("is an InvalidDateError, not a bare RangeError", () => {
+    const entry = { start: "+275760-09-13T00:00:00Z", end: "+275760-09-13T00:00:00Z" };
+    expect(() => splitByLocalDay(entry, "UTC")).toThrow(InvalidDateError);
+    expect(() => splitByLocalDay(entry, "UTC")).not.toThrow(RangeError);
   });
 });

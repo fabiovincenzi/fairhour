@@ -171,18 +171,30 @@ describe("findOverlaps", () => {
     );
   });
 
-  it("scales to many entries (n log n): 50 000 disjoint entries", () => {
-    const base = epochSeconds("2026-01-01T00:00:00Z");
-    const entries: E[] = Array.from({ length: 50_000 }, (_, i) => {
-      const start = base + BigInt(i) * 120n;
-      return {
-        id: String(i),
-        start: new Date(Number(start) * 1000).toISOString(),
-        end: new Date(Number(start + 60n) * 1000).toISOString(),
-      };
-    });
-    const started = performance.now();
-    expect(findOverlaps(entries)).toEqual([]);
-    expect(performance.now() - started).toBeLessThan(5000);
+  it("scales as n log n, not n squared (a ratio of timings, so a slow machine does not matter)", () => {
+    const disjoint = (count: number): E[] => {
+      const base = epochSeconds("2026-01-01T00:00:00Z");
+      return Array.from({ length: count }, (_, i) => {
+        const start = base + BigInt(i) * 120n;
+        return {
+          id: String(i),
+          start: new Date(Number(start) * 1000).toISOString(),
+          end: new Date(Number(start + 60n) * 1000).toISOString(),
+        };
+      });
+    };
+    const fastest = (entries: E[]): number => {
+      const times = [0, 1, 2].map(() => {
+        const started = performance.now();
+        expect(findOverlaps(entries)).toEqual([]);
+        return performance.now() - started;
+      });
+      return Math.min(...times);
+    };
+    const small = disjoint(10_000);
+    const large = disjoint(80_000);
+    fastest(small); // warm up the JIT: the first run is the slowest
+    // 8 times the entries: about 9 times the work for n log n, 64 times for n squared
+    expect(fastest(large) / fastest(small)).toBeLessThan(30);
   });
 });

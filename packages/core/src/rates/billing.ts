@@ -1,4 +1,5 @@
 import {
+  type CurrencyCode,
   type Decimal,
   type Money,
   type Price,
@@ -17,14 +18,18 @@ import {
   type InvalidBillingModeReason,
   InvalidDurationError,
 } from "../errors";
+import { MissingRateError, RateCurrencyMismatchError } from "./errors";
+import type { RateUnit } from "./unit";
 
 /**
  * How a project turns tracked time into an amount (design §7):
  *
- * - `hourly`: hours × the resolved hourly rate;
- * - `fixed`: the agreed amount, whatever the hours;
+ * - `hourly`: hours × the resolved rate per hour;
+ * - `fixed`: the agreed amount, whatever the hours (in the currency the invoice is in);
  * - `day-rate`: per local day, up to `halfDayMaxHours` is half a day and more is a whole day
- *   (`hoursPerDay` is the length of a full day, it bounds the half-day threshold).
+ *   (`hoursPerDay` is the length of a full day, it bounds the half-day threshold), × the resolved
+ *   rate per day. The rates are per different units: `resolveRate({ unit: "hour" })` for `hourly`,
+ *   `resolveRate({ unit: "day" })` for `day-rate` (see `billingRateUnit`).
  */
 export type BillingMode =
   | { readonly kind: "hourly" }
@@ -43,6 +48,18 @@ export interface BillableAmount {
   readonly unit: BillingUnit;
   readonly unitPrice: Price;
   readonly amount: Money;
+}
+
+/** The unit of the rate a mode bills with: per hour or per day. `fixed` needs no rate. */
+export function billingRateUnit(mode: BillingMode): RateUnit | undefined {
+  switch (mode.kind) {
+    case "hourly":
+      return "hour";
+    case "day-rate":
+      return "day";
+    case "fixed":
+      return undefined;
+  }
 }
 
 export interface HourlyOptions {
@@ -136,8 +153,15 @@ export function dayRateAmount(
   };
 }
 
-/** Fixed-price billing: one lump sum, the agreed amount, regardless of the hours worked. */
-export function fixedAmount(mode: FixedMode): BillableAmount {
+/**
+ * Fixed-price billing: one lump sum, the agreed amount, regardless of the hours worked. The
+ * amount must be in `currency`, the currency of the invoice: it is never converted here.
+ * @throws RateCurrencyMismatchError
+ */
+export function fixedAmount(mode: FixedMode, currency: CurrencyCode): BillableAmount {
+  if (mode.amount.currency !== currency) {
+    throw new RateCurrencyMismatchError(mode.amount.currency, currency);
+  }
   return {
     quantity: decimal("1"),
     unit: "lump-sum",
@@ -170,23 +194,50 @@ export interface BillingUsage {
   readonly secondsPerDay: readonly bigint[];
 }
 
+/** A resolved rate and what it is per (a `ResolvedRate` from `resolveRate` is one). */
+export interface BillingRate {
+  readonly rate: Price;
+  readonly unit: RateUnit;
+}
+
+export interface BillingOptions extends HourlyOptions {
+  /** The currency of the invoice: rates and fixed amounts must be in it. */
+  readonly currency: CurrencyCode;
+}
+
+/** The price of `rate` when it is per `unit` and in `currency`. */
+function priceOf(rate: BillingRate | undefined, unit: RateUnit, currency: CurrencyCode): Price {
+  if (rate?.unit !== unit) throw new MissingRateError(unit);
+  if (rate.rate.currency !== currency) {
+    throw new RateCurrencyMismatchError(rate.rate.currency, currency);
+  }
+  return rate.rate;
+}
+
 /**
- * The amount a project bills for `usage` under its billing mode. `rate` is the resolved rate
- * (`resolveRate`): the hourly rate for `hourly`, the day rate for `day-rate`, ignored for `fixed`.
- * @throws InvalidBillingModeError, InvalidDurationError
+ * The amount a project bills for `usage` under its billing mode. `hourly` needs a rate per hour,
+ * `day-rate` a rate per day (resolve each with `resolveRate`'s `unit`); `fixed` ignores `rate`.
+ * Nothing is converted: rates and fixed amounts must be in `options.currency`.
+ * @throws MissingRateError (no rate, or a rate per the other unit), RateCurrencyMismatchError,
+ *         InvalidBillingModeError, InvalidDurationError
  */
 export function billableAmount(
   mode: BillingMode,
   usage: BillingUsage,
-  rate: Price,
-  options: HourlyOptions,
+  rate: BillingRate | undefined,
+  options: BillingOptions,
 ): BillableAmount {
   switch (mode.kind) {
     case "hourly":
-      return hourlyAmount(usage.seconds, rate, options);
+      return hourlyAmount(usage.seconds, priceOf(rate, "hour", options.currency), options);
     case "fixed":
-      return fixedAmount(mode);
+      return fixedAmount(mode, options.currency);
     case "day-rate":
-      return dayRateAmount(usage.secondsPerDay, rate, mode, options.amountRounding);
+      return dayRateAmount(
+        usage.secondsPerDay,
+        priceOf(rate, "day", options.currency),
+        mode,
+        options.amountRounding,
+      );
   }
 }

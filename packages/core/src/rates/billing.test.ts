@@ -5,7 +5,7 @@ import {
   decimal,
   decimalEquals,
   decimalToString,
-  extend,
+  money,
   moneyToJson,
   parseMoney,
   price,
@@ -15,9 +15,12 @@ import { describe, expect, it } from "vitest";
 import { InvalidBillingModeError, InvalidDurationError } from "../errors";
 import {
   type BillingMode,
+  type BillingOptions,
+  type BillingRate,
   type DayRateMode,
   type HourlyOptions,
   billableAmount,
+  billingRateUnit,
   dayRateAmount,
   dayRateDays,
   fixedAmount,
@@ -25,6 +28,8 @@ import {
   hoursFromSeconds,
   mileageAmount,
 } from "./billing";
+import { MissingRateError, RateCurrencyMismatchError } from "./errors";
+import { resolveRate } from "./resolve";
 import { billingModeSchema } from "./schemas";
 
 const h = (hours: number, minutes = 0, seconds = 0): bigint =>
@@ -90,7 +95,7 @@ describe("hourlyAmount", () => {
     expect([toDecimalString(down.amount), toDecimalString(up.amount)]).toEqual(["33.33", "33.34"]);
   });
 
-  it("the total is exactly quantity x rate, what the invoice shows (property)", () => {
+  it("matches an exact rational oracle: hours and total (property)", () => {
     fc.assert(
       fc.property(
         fc.bigInt({ min: 0n, max: 10_000_000n }),
@@ -100,15 +105,26 @@ describe("hourlyAmount", () => {
         (seconds, whole, cents, hoursScale) => {
           const unit = price(`${whole}.${String(cents).padStart(2, "0")}`, "EUR");
           const line = hourlyAmount(seconds, unit, { ...options, hoursScale });
-          expect(line.amount).toEqual(extend(unit, line.quantity, "halfUp"));
-          // the quantity is within half a unit of its last decimal of the exact hours
-          const diff = line.quantity.coefficient * 3600n - seconds * 10n ** BigInt(hoursScale);
-          expect(2n * (diff < 0n ? -diff : diff) <= 3600n).toBe(true);
+
+          // hours = seconds / 3600, rounded half up to `hoursScale` decimals, as a bigint ratio
+          const scale = 10n ** BigInt(hoursScale);
+          const hours = roundHalfUp(seconds * scale, 3600n);
+          expect(line.quantity.coefficient).toBe(hours);
+          expect(line.quantity.scale).toBe(hoursScale);
+
+          // total = (rate in cents) x (hours / scale), rounded half up to whole cents
+          const rateInCents = BigInt(whole * 100 + cents);
+          expect(line.amount).toEqual(money(roundHalfUp(rateInCents * hours, scale), "EUR"));
         },
       ),
     );
   });
 });
+
+/** `numerator / denominator` rounded half up, for non-negative integers. */
+function roundHalfUp(numerator: bigint, denominator: bigint): bigint {
+  return (2n * numerator + denominator) / (2n * denominator);
+}
 
 describe("dayRateDays", () => {
   const days = (value: Decimal): string => decimalToString(value);
@@ -189,12 +205,27 @@ describe("dayRateAmount", () => {
 describe("fixedAmount", () => {
   it("is the agreed amount, one lump sum", () => {
     const agreed = parseMoney("1500.00", "EUR");
-    const line = fixedAmount({ kind: "fixed", amount: agreed });
+    const line = fixedAmount({ kind: "fixed", amount: agreed }, "EUR");
     expect(line.unit).toBe("lump-sum");
     expect(decimalToString(line.quantity)).toBe("1");
     expect(line.amount).toBe(agreed);
     expect(decimalToString(line.unitPrice.amount)).toBe("1500.00");
     expect(line.unitPrice.currency).toBe("EUR");
+  });
+
+  it("is never in another currency than the invoice: no silent relabelling", () => {
+    expect.assertions(4);
+    const agreed = parseMoney("1500.00", "USD");
+    expect(() => fixedAmount({ kind: "fixed", amount: agreed }, "EUR")).toThrow(
+      RateCurrencyMismatchError,
+    );
+    try {
+      fixedAmount({ kind: "fixed", amount: agreed }, "EUR");
+    } catch (error) {
+      expect(error).toBeInstanceOf(RateCurrencyMismatchError);
+      expect((error as RateCurrencyMismatchError).from).toBe("USD");
+      expect((error as RateCurrencyMismatchError).to).toBe("EUR");
+    }
   });
 });
 
@@ -219,31 +250,92 @@ describe("mileageAmount", () => {
 
 describe("billableAmount", () => {
   const usage = { seconds: h(10), secondsPerDay: [h(8), h(2)] };
+  const eur: BillingOptions = { ...options, currency: "EUR" };
+  const perHour: BillingRate = { rate: price("80", "EUR"), unit: "hour" };
+  const perDay: BillingRate = { rate: price("400", "EUR"), unit: "day" };
+  const fixed: BillingMode = { kind: "fixed", amount: parseMoney("500.00", "EUR") };
 
-  it.each<[string, BillingMode, string, string, string]>([
-    ["hourly", { kind: "hourly" }, "hour", "10.00", "800.00"],
-    ["day rate", dayRate, "day", "1.5", "120.00"],
-    ["fixed", { kind: "fixed", amount: parseMoney("500.00", "EUR") }, "lump-sum", "1", "500.00"],
-  ])("dispatches %s", (_name, mode, unit, quantity, amount) => {
-    const line = billableAmount(mode, usage, price("80", "EUR"), options);
+  it.each<[string, BillingMode, BillingRate | undefined, string, string, string]>([
+    ["hourly", { kind: "hourly" }, perHour, "hour", "10.00", "800.00"],
+    // 1.5 days (8 h is a day, 2 h half a day) at the day rate, not at the hourly rate
+    ["day rate", dayRate, perDay, "day", "1.5", "600.00"],
+    ["fixed", fixed, undefined, "lump-sum", "1", "500.00"],
+  ])("dispatches %s", (_name, mode, rate, unit, quantity, amount) => {
+    const line = billableAmount(mode, usage, rate, eur);
     expect(line.unit).toBe(unit);
     expect(decimalToString(line.quantity)).toBe(quantity);
     expect(toDecimalString(line.amount)).toBe(amount);
   });
 
+  it("bills a day-rate project with the day rate of resolveRate", () => {
+    const rate = resolveRate({
+      unit: "day",
+      project: { unit: "day", price: price("450", "EUR") },
+      workspace: { unit: "hour", price: price("80", "EUR") },
+    });
+    const line = billableAmount(dayRate, usage, rate, eur);
+    expect(line.unitPrice).toBe(rate.rate);
+    expect(toDecimalString(line.amount)).toBe("675.00");
+  });
+
+  it("never bills days at an hourly rate, nor hours at a day rate", () => {
+    expect.assertions(6);
+    for (const [mode, wrong, unit] of [
+      [dayRate, perHour, "day"],
+      [{ kind: "hourly" }, perDay, "hour"],
+    ] as const) {
+      expect(() => billableAmount(mode, usage, wrong, eur)).toThrow(MissingRateError);
+      try {
+        billableAmount(mode, usage, wrong, eur);
+      } catch (error) {
+        expect((error as MissingRateError).unit).toBe(unit);
+        expect((error as MissingRateError).code).toBe("missing-rate");
+      }
+    }
+  });
+
+  it("needs a rate for an hourly or a day-rate project, not for a fixed price", () => {
+    expect(() => billableAmount({ kind: "hourly" }, usage, undefined, eur)).toThrow(
+      MissingRateError,
+    );
+    expect(() => billableAmount(dayRate, usage, undefined, eur)).toThrow(MissingRateError);
+    // a fixed price ignores the rate it is given, whatever its unit
+    for (const rate of [undefined, perHour, perDay]) {
+      expect(toDecimalString(billableAmount(fixed, usage, rate, eur).amount)).toBe("500.00");
+    }
+  });
+
+  it("checks the currency of the rate and of the fixed amount against the invoice's", () => {
+    const usd = { ...eur, currency: "USD" } as const;
+    expect(() => billableAmount({ kind: "hourly" }, usage, perHour, usd)).toThrow(
+      new RateCurrencyMismatchError("EUR", "USD"),
+    );
+    expect(() => billableAmount(dayRate, usage, perDay, usd)).toThrow(
+      new RateCurrencyMismatchError("EUR", "USD"),
+    );
+    expect(() => billableAmount(fixed, usage, undefined, usd)).toThrow(
+      new RateCurrencyMismatchError("EUR", "USD"),
+    );
+    // in the right currency the same calls work
+    expect(toDecimalString(billableAmount(fixed, usage, undefined, eur).amount)).toBe("500.00");
+  });
+
   it("a fixed price ignores the hours entirely (property)", () => {
-    const mode: BillingMode = { kind: "fixed", amount: parseMoney("1500.00", "EUR") };
     fc.assert(
       fc.property(fc.bigInt({ min: 0n, max: 10n ** 7n }), (seconds) => {
-        const line = billableAmount(
-          mode,
-          { seconds, secondsPerDay: [seconds] },
-          price("1", "EUR"),
-          options,
-        );
+        const mode: BillingMode = { kind: "fixed", amount: parseMoney("1500.00", "EUR") };
+        const line = billableAmount(mode, { seconds, secondsPerDay: [seconds] }, undefined, eur);
         expect(toDecimalString(line.amount)).toBe("1500.00");
       }),
     );
+  });
+});
+
+describe("billingRateUnit", () => {
+  it("names the unit of the rate each mode bills with", () => {
+    expect(billingRateUnit({ kind: "hourly" })).toBe("hour");
+    expect(billingRateUnit(dayRate)).toBe("day");
+    expect(billingRateUnit({ kind: "fixed", amount: parseMoney("1.00", "EUR") })).toBeUndefined();
   });
 });
 

@@ -1,5 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import {
+  InvalidDateError,
   InvalidInstantError,
   InvalidIntervalError,
   InvalidTimeZoneError,
@@ -46,6 +47,20 @@ export function epochSeconds(instant: string): bigint {
     throw new InvalidInstantError(instant);
   }
   return floorDivide(nanoseconds, NANOSECONDS_PER_SECOND);
+}
+
+/**
+ * Runs Temporal date arithmetic. A date beyond Temporal's limits (or a malformed one) makes it
+ * throw a bare `RangeError`; callers get an `InvalidDateError` instead, whatever the input.
+ * @throws InvalidDateError
+ */
+export function withinDateRange<T>(compute: () => T): T {
+  try {
+    return compute();
+  } catch (error) {
+    if (error instanceof RangeError) throw new InvalidDateError();
+    throw error;
+  }
 }
 
 /** The canonical UTC text (`2026-03-02T08:00:00Z`) of a number of seconds since the epoch. */

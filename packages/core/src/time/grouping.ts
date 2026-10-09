@@ -6,6 +6,7 @@ import {
   instantFromEpochSeconds,
   parseNow,
   resolveInterval,
+  withinDateRange,
   zonedAt,
 } from "./instant";
 import { splitEpochByLocalDay } from "./local-days";
@@ -90,9 +91,12 @@ function bucketOf(date: Temporal.PlainDate, period: GroupPeriod): Bucket {
   }
 }
 
-/** The ISO week key (`2026-W10`) of a local date. */
+/**
+ * The ISO week key (`2026-W10`) of a local date.
+ * @throws InvalidDateError when `date` is not a valid `YYYY-MM-DD` or too far in the past or future
+ */
 export function isoWeekKey(date: LocalDate): string {
-  return isoWeekBucket(Temporal.PlainDate.from(date)).key;
+  return withinDateRange(() => isoWeekBucket(Temporal.PlainDate.from(date)).key);
 }
 
 interface OrderedSlice<E extends EntryTimes> {
@@ -105,7 +109,9 @@ interface OrderedSlice<E extends EntryTimes> {
  * Groups entries by local day, ISO week (Monday start) or month in any IANA time zone, correct
  * across DST changes (a day can be 23, 23.5, 24.5 or 25 hours long). Groups come back in
  * chronological order; periods with no entries are not listed.
- * @throws InvalidInstantError, InvalidIntervalError, InvalidTimeZoneError, MissingClockError
+ * @throws InvalidInstantError, InvalidIntervalError, InvalidTimeZoneError, MissingClockError,
+ *         InvalidDateError (an entry so close to the first or last date Temporal supports that its
+ *         period, or its day, cannot be computed)
  */
 export function groupEntries<E extends EntryTimes>(
   entries: readonly E[],
@@ -128,7 +134,7 @@ export function groupEntries<E extends EntryTimes>(
           },
         ];
     for (const part of parts) {
-      const bucket = bucketOf(Temporal.PlainDate.from(part.date), period);
+      const bucket = withinDateRange(() => bucketOf(Temporal.PlainDate.from(part.date), period));
       let group = groups.get(bucket.key);
       if (group === undefined) {
         group = { bucket, slices: [] };

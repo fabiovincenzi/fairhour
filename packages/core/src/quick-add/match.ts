@@ -8,6 +8,8 @@ const WEIGHT: Readonly<Record<MatchKind, number>> = { substring: 1, prefix: 2, e
 
 /** Shortest query accepted in free text, where nothing marks the words as a project (`a`, `I`). */
 const MIN_FREE_TEXT_LENGTH = 2;
+/** Shortest single word that may match only the start of a name (`gen` is not `Genesis`). */
+const MIN_FREE_TEXT_PREFIX_LENGTH = 3;
 
 /**
  * How `query` matches `name` (both folded by `foldName`), if at all.
@@ -15,8 +17,9 @@ const MIN_FREE_TEXT_LENGTH = 2;
  * - `mention` (the user wrote `@query`): exact, then any prefix (`acm` finds `acme`), then
  *   substring.
  * - `text` (loose words of the sentence): exact, then a prefix made of whole leading words
- *   (`design` finds `design system`, `call` does not find `callum`). No substring: ordinary words
- *   such as `design` must not hijack `website redesign`.
+ *   (`design` finds `design system`, `call` does not find `callum`); a single word needs at least
+ *   three letters for that. No substring: ordinary words such as `design` must not hijack
+ *   `website redesign`.
  */
 function kindOf(
   query: string,
@@ -30,20 +33,53 @@ function kindOf(
     if (name.startsWith(query)) return "prefix";
     return name.includes(query) ? "substring" : undefined;
   }
+  if (!query.includes(" ") && query.length < MIN_FREE_TEXT_PREFIX_LENGTH) return undefined;
   return name.startsWith(`${query} `) ? "prefix" : undefined;
+}
+
+/** The best match of `query` over the spellings of a name (with and without a leading article). */
+function bestKindOf(
+  query: string,
+  names: readonly string[],
+  source: QuickAddProjectMatch["source"],
+): MatchKind | undefined {
+  let best: MatchKind | undefined;
+  for (const name of names) {
+    const kind = kindOf(query, name, source);
+    if (kind !== undefined && (best === undefined || WEIGHT[kind] > WEIGHT[best])) best = kind;
+  }
+  return best;
 }
 
 export interface ProjectCandidate {
   readonly project: QuickAddProject;
-  readonly name: string;
-  readonly clientName: string;
+  /** Folded spellings of the project name: as written, and without a leading article. */
+  readonly names: readonly string[];
+  /** The same for the client name. */
+  readonly clientNames: readonly string[];
 }
 
-export function prepareProjects(projects: readonly QuickAddProject[]): ProjectCandidate[] {
+/**
+ * The folded name, and the name without its leading article when it has one (`the company` and
+ * `company`): `The Company` is found by `company`, and by `@the-company`.
+ */
+function spellings(name: string, articles: ReadonlySet<string>): string[] {
+  const folded = foldName(name);
+  const [first = "", ...rest] = folded.split(" ");
+  const bare = rest.join(" ");
+  return articles.has(first) && bare !== "" ? [folded, bare] : [folded];
+}
+
+/** @param articles The folded articles of the locale (`the`, `la`): see `LocaleKeywords`. */
+export function prepareProjects(
+  projects: readonly QuickAddProject[],
+  articles: readonly string[],
+): ProjectCandidate[] {
+  const known = new Set(articles);
   return projects.map((project) => ({
     project,
-    name: foldName(project.name),
-    clientName: foldName(project.clientName),
+    names: spellings(project.name, known),
+    clientNames: spellings(project.clientName, known),
   }));
 }
 
@@ -81,8 +117,8 @@ export function resolveProject(
 ): ProjectResolution | undefined {
   let best: Scored[] = [];
   for (const candidate of candidates) {
-    const byName = kindOf(query, candidate.name, source);
-    const byClient = kindOf(query, candidate.clientName, source);
+    const byName = bestKindOf(query, candidate.names, source);
+    const byClient = bestKindOf(query, candidate.clientNames, source);
     const nameRank = byName === undefined ? 0 : WEIGHT[byName] * 2 + 1;
     const clientRank = byClient === undefined ? 0 : WEIGHT[byClient] * 2;
     let scored: Scored | undefined;

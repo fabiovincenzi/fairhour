@@ -26,14 +26,26 @@ export type QuickAddIssueCode =
   | "duration-over-24h"
   | "conflicting-duration"
   | "multiple-durations"
+  /** Minutes after the hours above 59 (`1h75`). */
+  | "invalid-duration"
+  /** Two numbers and a unit (`10-15 min`, `1-2 hours`): a span, not one duration or a time range. */
+  | "ambiguous-duration"
   | "invalid-time"
   | "empty-range"
   | "range-crosses-midnight"
+  /** A range of two bare numbers (`9-10`), read as times of day. */
+  | "assumed-time-range"
+  /** A 12-hour range with no am/pm whose end is before its start (`9-5`): the end is pm. */
+  | "assumed-pm"
   | "invalid-date"
   | "multiple-dates"
   | "future-date"
+  /** A short weekday with no period (`sat`, `mar`) was taken as a date: it may be a word. */
+  | "ambiguous-weekday"
   | "project-not-found"
-  | "ambiguous-project";
+  | "ambiguous-project"
+  /** The input was longer than `QUICK_ADD_MAX_INPUT_LENGTH`: only the start was read. */
+  | "input-too-long";
 
 export interface QuickAddIssue {
   readonly code: QuickAddIssueCode;
@@ -46,7 +58,10 @@ export interface QuickAddIssue {
 }
 
 export interface QuickAddProjectMatch {
-  /** How the typed text matched: the whole name, the start of it, or somewhere inside (only `@`). */
+  /**
+   * How the typed text matched: the whole name, the start of it (whole leading words, in loose
+   * words), or somewhere inside (only `@`). A leading article (`the`, `la`) is ignored.
+   */
   readonly kind: "exact" | "prefix" | "substring";
   /** Matched on the project name or on its client's name. */
   readonly via: "project" | "client";
@@ -70,6 +85,9 @@ export interface QuickAddDraft {
   /** What is left of the text once everything recognised has been taken out. */
   readonly description: string;
   readonly issues: readonly QuickAddIssue[];
-  /** `low`: an error issue. `medium`: a warning, or a project found only inside a name (substring). `high`: neither. */
+  /**
+   * `low`: an error issue. `medium`: a warning, or a project found only by part of its name (a
+   * substring of it, or the start of it among loose words). `high`: neither.
+   */
   readonly confidence: "high" | "medium" | "low";
 }

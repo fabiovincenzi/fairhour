@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  InvalidDateError,
   InvalidInstantError,
   InvalidIntervalError,
   InvalidTimeZoneError,
@@ -14,6 +15,7 @@ import {
   localDateOf,
   parseNow,
   resolveInterval,
+  withinDateRange,
   zonedAt,
 } from "./instant";
 
@@ -132,5 +134,26 @@ describe("resolveInterval", () => {
   it("parses an optional now", () => {
     expect(parseNow(undefined)).toBeUndefined();
     expect(parseNow(start)).toBe(1772438400n);
+  });
+});
+
+describe("withinDateRange", () => {
+  it("returns what the computation returns", () => {
+    expect(withinDateRange(() => 42)).toBe(42);
+  });
+
+  it("turns a RangeError into an InvalidDateError, and lets every other error through", () => {
+    expect(() =>
+      withinDateRange(() => {
+        throw new RangeError("Out-of-bounds date");
+      }),
+    ).toThrow(InvalidDateError);
+    const other = new TypeError("not mine");
+    expect(() =>
+      withinDateRange(() => {
+        throw other;
+      }),
+    ).toThrow(other);
+    expect(() => withinDateRange(() => epochSeconds("nope"))).toThrow(InvalidInstantError);
   });
 });

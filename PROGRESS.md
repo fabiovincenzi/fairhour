@@ -98,6 +98,9 @@ Phase 2 (Core + tax engine), following the waves in `docs/design/tax-engine.md` 
 - `undici@8` (docs build only, via astro) declares Node ≥ 22.19 while the repo floor is 22.18;
   CI uses the latest 22.x. Revisit if someone builds the docs on 22.18.
 - `license:check` checks direct dependencies of MIT packages, not transitive ones (ADR-0002 follow-up).
+- Quick add (CORE-008): in `en`, a range with am/pm on one end only (`1-2pm`) reads the other end
+  on the 24-hour clock (13 h); two bare numbers (`3-4`) are read as a time range, with an
+  `assumed-time-range` warning, unless a duration is also given.
 
 ## How to resume
 
