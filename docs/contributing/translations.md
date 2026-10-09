@@ -90,10 +90,14 @@ through [next-intl](https://next-intl.dev/docs/usage/messages).
   braces, never the argument name or the option names.
 - **Tags**, such as `<link>...</link>` or `<b>...</b>`: translate the text between them and keep the
   tags.
-- **Apostrophes**: write the typographic apostrophe `’`, not the straight `'`. In ICU a straight
-  apostrophe can start quoted text, and `i18n:check` then stops seeing the placeholders after it.
-  This matters in Italian, French and other languages that use the apostrophe all the time:
-  write `L’area di lavoro {name}`.
+- **Apostrophes**: both the typographic `’` and the straight `'` are fine, and `i18n:check`
+  understands both: `L’area di lavoro {name}` and `L'area di lavoro {name}` have the argument
+  `name`. In ICU a straight apostrophe is an ordinary character, with two exceptions. A double
+  `''` is one apostrophe, and a single `'` directly before `{`, `}` or (inside a plural) `#`
+  starts quoted text that runs up to the next single `'`. So when an elision comes right before
+  an argument, write `dell’{name}` (typographic) or `dell''{name}` (two straight apostrophes);
+  `dell'{name}` would show `{name}` literally. The typographic apostrophe is the better choice
+  for readers, as it is the correct character in running text.
 
 ## Style
 

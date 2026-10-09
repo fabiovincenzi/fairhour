@@ -34,6 +34,7 @@ Useful commands:
 | `pnpm test:e2e`             | Playwright E2E on desktop and mobile viewports, with axe checks |
 | `pnpm i18n:check`           | Every locale has every English key                              |
 | `pnpm knip`                 | Unused files, exports and dependencies                          |
+| `pnpm license:check`        | MIT packages depend only on MIT or permissive code (ADR-0002)   |
 | `pnpm changeset`            | Describe a user-facing change for the changelog                 |
 
 ## Workflow

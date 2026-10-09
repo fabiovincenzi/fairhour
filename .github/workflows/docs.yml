@@ -30,6 +30,10 @@ on:
 permissions:
   contents: read
 
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+  ASTRO_TELEMETRY_DISABLED: "1"
+
 concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: true

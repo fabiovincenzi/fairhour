@@ -158,6 +158,16 @@ versions packages and writes the changelogs.
   `NodeNext` resolution, explicit `.ts` extensions and `erasableSyntaxOnly` (no enums, namespaces
   or parameter properties).
 
+- **The Turborepo cache sees source changes of dependencies.** Turborepo hashes a task from its
+  own package and from the tasks it depends on, not from the sources of the packages it imports.
+  `turbo.json` therefore defines an empty `transit` task (`dependsOn: ["^transit"]`) and makes
+  `build`, `lint`, `typecheck`, `test` and `test:integration` depend on it. That links every
+  package to its dependencies, so editing a library invalidates its dependents, while the tasks
+  of different packages still run in parallel. Tasks run in strict environment mode: the
+  variables of `.env.example` are passed to `dev`, `build`, `test:integration` and `test:e2e` and
+  not to the cached `lint`, `typecheck` and `test`, which keeps unit tests hermetic. Tests in
+  `scripts/github` keep `turbo.json` and `.env.example` in sync.
+
 Building every package to `dist` was rejected because it brings watch processes, stale output
 and slower feedback. TypeScript project references add configuration that buys little at our
 size.
@@ -317,8 +327,9 @@ an SBOM and build provenance.
   range must start at `>=22.18.0`), `.nvmrc`, the CI matrix (Node 22 and 24) and the committed
   lockfile.
 - **Renovate** ([`renovate.json`](../../renovate.json)): `typescript` is capped with
-  `allowedVersions: "<6.1.0"` and a reference to this ADR; toolchains are grouped (lint, test,
-  Next.js and React, Drizzle, Tauri, docs site); major updates need human review.
+  `allowedVersions: "<6.1.0"` and a reference to this ADR; `lint-staged` is capped below 17,
+  which requires Node 22.22.1 or later while the floor is 22.18; toolchains are grouped (lint,
+  test, Next.js and React, Drizzle, Tauri, docs site); major updates need human review.
 - **Shared presets:** `@fairhour/config` holds the tsconfig, ESLint, Prettier, tsdown and
   Tailwind presets. Packages extend them instead of redefining rules.
 - **CI:** `pnpm lint` (ESLint with `--max-warnings=0`, then `prettier --check`), `pnpm typecheck`,

@@ -45,6 +45,7 @@ pnpm db:migrate              # apply Drizzle migrations
 pnpm db:seed                 # demo data (several countries)
 pnpm db:generate             # generate a migration after a schema change
 pnpm i18n:check              # every locale has every English key
+pnpm license:check           # MIT packages depend only on MIT/permissive code (ADR-0002)
 pnpm --filter @fairhour/<pkg> <script>   # run a script in one package
 ```
 

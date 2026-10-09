@@ -25,6 +25,7 @@
     "clean": "turbo run clean",
     "knip": "knip",
     "i18n:check": "node scripts/i18n/check-locales.ts",
+    "license:check": "node scripts/github/src/cli/check-license-boundary.ts",
     "backlog:validate": "pnpm --filter @fairhour/github-scripts backlog:validate",
     "db:migrate": "pnpm --filter @fairhour/db --if-present db:migrate",
     "db:seed": "pnpm --filter @fairhour/db --if-present db:seed",
@@ -44,7 +45,7 @@
     "eslint": "^10.12.0",
     "knip": "^6.41.0",
     "lefthook": "^2.2.1",
-    "lint-staged": "^17.6.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.9.9",
     "turbo": "^2.11.7",
     "typescript": "~6.0.3"

@@ -93,6 +93,11 @@
       "allowedVersions": "<6.1.0"
     },
     {
+      "description": "lint-staged 17 needs Node >=22.22.1 but the repository supports Node >=22.18 (ADR-0001)",
+      "matchPackageNames": ["lint-staged"],
+      "allowedVersions": "<17.0.0"
+    },
+    {
       "description": "Major updates need a human review",
       "matchUpdateTypes": ["major"],
       "automerge": false,

@@ -85,8 +85,9 @@ to the Fairhour name or logo; a trademark policy, if one is needed, is a separat
 2. **The library boundary.** An MIT package may depend at runtime (`dependencies`,
    `peerDependencies`, `optionalDependencies`, and anything bundled into its build output) only on
    packages under MIT or another permissive license: ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0,
-   0BSD, BlueOak-1.0.0 or CC0-1.0. It never depends on an AGPL workspace package (such as
-   `@fairhour/core`, `db`, `api`, `ui`, `pdf` or `config`) or on any copyleft package.
+   0BSD, BlueOak-1.0.0, CC0-1.0, Unlicense or Python-2.0. It never depends on an AGPL workspace
+   package (such as `@fairhour/core`, `db`, `api`, `ui`, `pdf` or `config`) or on any copyleft
+   package.
    `devDependencies` used only to build, lint or test, such as the `@fairhour/config` presets or
    Vitest, are allowed, because they are neither distributed with the package nor compiled into
    it; the build must not inline them.
@@ -204,16 +205,24 @@ In place today:
   need an ADR.
 - The DCO workflow and the commitlint `Signed-off-by` rule check every commit.
 - The Docker image declares its license through the `org.opencontainers.image.licenses` label.
+- `pnpm license:check` (`scripts/github/src/license-boundary.ts`, run in the CI lint job) checks
+  every workspace package whose `license` is `MIT`: its `dependencies`, `peerDependencies` and
+  `optionalDependencies` may name only MIT workspace packages, every third-party package among
+  them must have a license from the allowlist in rule 2 (an SPDX `OR` expression passes when one
+  alternative is allowed), and it must ship a `LICENSE` file whose first line mentions MIT. It
+  inspects direct dependencies only and ignores `devDependencies`.
+- `createConfig({ mitLibrary: true })` in `@fairhour/config` makes ESLint reject source that
+  imports any `@fairhour/*` package other than `money`, `tax-core` and `tax-pack-*`. Every MIT
+  package must enable it in its `eslint.config.js`.
 
 To be added (follow-up work, outside this ADR's PR):
 
 - When `money`, `tax-core` and the tax packs are scaffolded (FND-002, CORE-002, TAX-002,
   TAX-009): an MIT `LICENSE` file and `"license": "MIT"` in each. `tax-pack-template` carries
   both, so every new pack inherits them.
-- Phase 2: an automated license boundary check in CI that fails when a package's `license` field
-  and its `LICENSE` file disagree, when an MIT package has a runtime dependency that is an AGPL
-  workspace package or is not on the permissive allowlist, or when source in an MIT package
-  imports an AGPL workspace package.
+- Extend `pnpm license:check` so that it also fails when the `license` field and the `LICENSE`
+  file of any package (not only an MIT one) disagree, and so that it follows transitive
+  dependencies.
 - `docs/LICENSE` and a license file in the docs site's content directory (CC BY 4.0, with the MIT
   note for code samples), and a mention of the documentation license in the README.
 - A backlog item for the web app's source link (rule 7).

@@ -36,6 +36,20 @@ and the changelog wording.
 
 A manual run of `docker.yml` publishes an `edge` image from the selected branch.
 
+### The first push to `main` tags `0.0.0`
+
+Every package starts at version `0.0.0`. `privatePackages.tag` is on in
+[`.changeset/config.json`](../../.changeset/config.json), so the first time `release.yml` runs on
+`main` with no tags yet, `changeset git-tag` tags **every package that is not listed under
+`ignore`** at `0.0.0` (for example `@fairhour/web@0.0.0` and `@fairhour/money@0.0.0`) and reports
+them to the workflow as published. This baseline is expected and harmless: it records what exists
+before the first real release, and the "Version packages" PR bumps from it.
+
+The workflow never turns a `0.0.0` tag into an artifact: the "Find released apps" step ignores
+version `0.0.0` of `@fairhour/web` and `@fairhour/desktop`, so no Docker image and no desktop
+bundles are built until a real version (`0.1.0` or later) is released. Packages under `ignore`
+(`@fairhour/config`, `@fairhour/docs`, the script packages) are never tagged.
+
 ## 4. npm publishing (disabled by default)
 
 All packages are `"private": true`. To publish a library:

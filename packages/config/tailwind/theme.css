@@ -176,7 +176,8 @@
   --secondary-foreground: var(--color-neutral-50);
   --muted: var(--color-neutral-800);
   --muted-foreground: var(--color-neutral-400);
-  --accent: var(--color-brand-900);
+  /* Dark enough for muted-foreground and the status colours to stay readable on it (4.5:1). */
+  --accent: var(--color-brand-950);
   --accent-foreground: var(--color-brand-50);
 
   --border: var(--color-neutral-800);
@@ -254,7 +255,13 @@
 }
 
 @layer base {
-  * {
+  /* Tailwind's preflight resets borders on pseudo-elements too (`::before`, `::backdrop`, the file
+     input button), and `*` does not match pseudo-elements, so list them. */
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
     border-color: var(--border);
   }
 
@@ -263,7 +270,9 @@
     color: var(--foreground);
   }
 
-  /* A visible focus indicator everywhere (WCAG 2.4.7, 2.4.11). Zero specificity: components win. */
+  /* A visible focus indicator everywhere (WCAG 2.4.7 Focus Visible); the ring colour keeps 3:1
+     against the surfaces (1.4.11 Non-text Contrast, checked by the config tests). Zero
+     specificity: components win. */
   :where(:focus-visible) {
     outline: 2px solid var(--ring);
     outline-offset: 2px;

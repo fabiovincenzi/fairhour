@@ -30,6 +30,7 @@ export default {
         "release",
         "backlog",
         "maintainers",
+        "adr",
       ],
     ],
   },

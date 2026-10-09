@@ -2,3 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
   - "scripts/*"
+
+# pnpm 10 does not run dependency lifecycle scripts unless they are approved. lefthook's own
+# postinstall (it downloads a binary) is not needed: the root `prepare` script runs
+# `lefthook install` to set up the git hooks. Listing it here silences the "Ignored build scripts"
+# warning on every install.
+ignoredBuiltDependencies:
+  - lefthook

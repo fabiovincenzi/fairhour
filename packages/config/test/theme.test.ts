@@ -45,6 +45,13 @@ function contrast(a: string, b: string): number {
 
 const statuses = ["success", "warning", "danger", "info"] as const;
 
+/**
+ * Surfaces besides `background` and `card` that text commonly sits on in shadcn/ui components:
+ * `popover` (menus, selects, tooltips), `muted` (table headers, code, skeletons, badges) and
+ * `accent` (the hovered or highlighted item of a menu, a select or a command palette).
+ */
+const surfaces = ["popover", "muted", "accent"] as const;
+
 /** [foreground, background, minimum contrast ratio]. 4.5 = WCAG 1.4.3 text, 3 = 1.4.11 UI. */
 const pairs: [string, string, number][] = [
   ["foreground", "background", 4.5],
@@ -62,11 +69,32 @@ const pairs: [string, string, number][] = [
   ["input", "card", 3],
   ["ring", "background", 3],
   ["ring", "card", 3],
+  // Secondary text, links and the default text colour on the other surfaces.
+  ["muted-foreground", "card", 4.5],
+  ["muted-foreground", "popover", 4.5],
+  ["muted-foreground", "accent", 4.5],
+  ["muted-foreground", "secondary", 4.5],
+  ["foreground", "muted", 4.5],
+  ["foreground", "accent", 4.5],
+  ["primary", "muted", 4.5],
+  ["primary", "accent", 4.5],
+  // Form borders and focus rings on a popover, and on a hovered or highlighted item.
+  ["input", "popover", 3],
+  ["input", "muted", 3],
+  ["ring", "popover", 3],
+  ["ring", "muted", 3],
+  ["ring", "accent", 3],
+  ...["background", "card", ...surfaces].map((surface): [string, string, number] => [
+    "destructive",
+    surface,
+    4.5,
+  ]),
   ...statuses.flatMap((status): [string, string, number][] => [
     [`${status}-foreground`, status, 4.5],
     [`${status}-subtle-foreground`, `${status}-subtle`, 4.5],
     [status, "background", 4.5],
     [status, "card", 4.5],
+    ...surfaces.map((surface): [string, string, number] => [status, surface, 4.5]),
   ]),
 ];
 
@@ -78,6 +106,22 @@ describe.each([
 
   it.each(pairs)("%s on %s meets %s:1 contrast", (foreground, background, minimum) => {
     expect(contrast(resolve(foreground), resolve(background))).toBeGreaterThanOrEqual(minimum);
+  });
+});
+
+describe("theme.css base layer", () => {
+  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  it("sets the default border colour on elements and on their pseudo-elements", () => {
+    const rule = /([^{}]+)\{[^{}]*\bborder-color:\s*var\(--border\);[^{}]*\}/.exec(withoutComments);
+    const selectors = (rule?.[1] ?? "").split(",").map((selector) => selector.trim());
+    expect(selectors).toEqual(
+      expect.arrayContaining(["*", "::before", "::after", "::backdrop", "::file-selector-button"]),
+    );
+  });
+
+  it("draws the focus indicator with the ring colour", () => {
+    expect(withoutComments).toMatch(/:focus-visible\)\s*\{[^}]*outline:\s*2px solid var\(--ring\)/);
   });
 });
 

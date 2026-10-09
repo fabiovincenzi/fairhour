@@ -66,8 +66,11 @@ jobs:
         env:
           PUBLISHED: ${{ steps.changesets.outputs.published-packages }}
         run: |
-          web=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "@fairhour/web") | .version')
-          desktop=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "@fairhour/desktop") | .version')
+          # The first push to main with these packages at 0.0.0 makes `changeset git-tag` tag every
+          # non-ignored private package as 0.0.0. That is not a release: never build a Docker image
+          # or desktop bundles for version 0.0.0.
+          web=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "@fairhour/web" and .version != "0.0.0") | .version')
+          desktop=$(echo "$PUBLISHED" | jq -r '.[] | select(.name == "@fairhour/desktop" and .version != "0.0.0") | .version')
           # Only build artifacts whose build definitions exist.
           [ -f Dockerfile ] || web=""
           [ -f apps/desktop/src-tauri/tauri.conf.json ] || desktop=""

@@ -78,10 +78,54 @@ Project choices on top of the presets:
   a bare `**`: it would make ESLint try to lint JSON.
 - Non-null assertions (`!`) are errors, except in test files (`*.test.ts`, `*.spec.ts`, `test/`,
   `tests/`, `e2e/`), where `items[0]!` is the idiomatic way to assert that something exists.
+- A `switch` over a union must name every member: a `default:` does **not** make it exhaustive
+  (`switch-exhaustiveness-check` with `considerDefaultExhaustiveForUnions: false`), so a member
+  added later, such as a new tax regime, is a lint error until it gets its own case. A `switch` over
+  a non-union type still needs a `default:`.
 - JavaScript files (the `*.config.js` files) are linted without type information.
 
 Options: `tsconfigRootDir` (required), `ignores`, `allowConsoleIn`, `extraConfigs` (framework
-plugins and per-package rules; they land before eslint-config-prettier).
+plugins and per-package rules; they land before eslint-config-prettier), and the two opt-in
+guards below.
+
+### `mitLibrary: true`: the license boundary
+
+For the MIT packages (`money`, `tax-core`, `tax-pack-*`; see
+[ADR-0002](../../docs/adr/0002-licensing.md)):
+
+```js
+export default createConfig({ tsconfigRootDir: import.meta.dirname, mitLibrary: true });
+```
+
+Importing any `@fairhour/*` package is an error, **except** `@fairhour/money`, `@fairhour/tax-core`
+and `@fairhour/tax-pack-*` (and subpaths of those, such as `@fairhour/tax-core/testing`). Tool
+config files (`eslint.config.js`, `vitest.config.ts`, `tsdown.config.js`, ...) may additionally
+import `@fairhour/config`, which is a devDependency that is never shipped. The rule covers static
+imports, `import type`, `export ... from` and dynamic `import("...")`, in tests too. The error
+message cites ADR-0002. It checks the _source_; `pnpm license:check` checks the `package.json`
+dependencies and licenses.
+
+### `moneySafety: true`: no floats for money
+
+For code that handles money or tax (`money`, `tax-core`, `tax-pack-*`, and anywhere else that
+computes amounts):
+
+```js
+export default createConfig({ tsconfigRootDir: import.meta.dirname, moneySafety: true });
+```
+
+These float-prone APIs are errors, each with a message that points to `@fairhour/money`:
+`parseFloat(...)`, `Number.parseFloat(...)`, `Number(...)` (and `new Number(...)`), `.toFixed(...)`
+on anything, and `Math.round`, `Math.floor`, `Math.ceil`, `Math.trunc`. Other `Number` members
+(`Number.isInteger`, `Number.MAX_SAFE_INTEGER`) and other `Math` functions are fine.
+
+Test files may call `Number(...)`, because tests build inputs and oracles from fast-check values;
+`parseFloat`, `toFixed` and the `Math` rounding functions stay forbidden there too. Use a targeted
+`// eslint-disable-next-line <rule> -- <reason>` for the rare legitimate exception.
+
+Both options can be combined. They configure `no-restricted-imports`, `no-restricted-globals`,
+`no-restricted-properties` and `no-restricted-syntax`: do not set those rules again in
+`extraConfigs` (a later entry replaces the options, it does not add to them).
 
 ## Prettier
 
@@ -135,7 +179,10 @@ Import Tailwind first. The theme has three layers:
 The base layer also sets the default border colour, the page colours and a visible
 `:focus-visible` ring. `test/theme.test.ts` checks every foreground/background pair against
 WCAG 2.2 AA (4.5:1 for text, 3:1 for form borders and focus rings) in light and dark mode, so a
-token change that breaks contrast fails the tests.
+token change that breaks contrast fails the tests. That includes secondary text, links and the
+status colours on the `popover`, `muted` and `accent` surfaces that menus, selects and badges use
+(for example `muted-foreground` and `danger` on a highlighted menu item). The default border colour
+is also applied to `::before`, `::after`, `::backdrop` and `::file-selector-button`.
 
 ## Library packages: source exports and `publishConfig`
 
@@ -193,4 +240,6 @@ published to npm additionally declares where the built files live, and pnpm swap
 
 `pnpm --filter @fairhour/config test` checks that every tsconfig parses and keeps the strict flags,
 that the ESLint preset actually rejects `any`, floating promises, unmarked type imports and
-friends, and that the theme tokens meet the contrast ratios.
+friends (including the `mitLibrary` and `moneySafety` guards), and that the theme tokens meet the
+contrast ratios. The ESLint tests are type-aware and build a TypeScript program, so they have a
+60 s timeout: under `turbo run` the suites of every package compete for the CPU.

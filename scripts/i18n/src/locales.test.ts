@@ -48,9 +48,59 @@ describe("placeholders", () => {
     // Malformed: the type is not followed by a comma, so `{a}` is read as an argument.
     ["broken {x, plural one {a}}", ["a", "x"]],
     ["broken {x, number", ["x"]],
-    ["'unterminated quote {y}", []],
   ])("%s", (message, expected) => {
     expect(placeholders(message)).toEqual(expected);
+  });
+});
+
+// ICU MessageFormat apostrophes (ApostropheMode.DOUBLE_OPTIONAL, the ICU default): `''` is a
+// literal apostrophe, and a single `'` starts quoted text only before `{`, `}` or (in a plural)
+// `#`. Every other `'` is an ordinary character, which is what Italian and French elisions need.
+describe("placeholders: apostrophes", () => {
+  it.each([
+    // Elisions: the apostrophe is literal, so the arguments after it are still seen.
+    ["L'area {name}", ["name"]],
+    ["dell'utente {count, plural, one {# voce} other {# voci}}", ["count"]],
+    [
+      "{count, plural, one {l'elemento di {owner}} other {gli elementi di {owner}}}",
+      ["count", "owner"],
+    ],
+    ["{role, select, owner {l'owner} other {l'utente {name}}}", ["name", "role"]],
+    ["un'ora fa, {name} ha detto: c'era una volta", ["name"]],
+    ["rock 'n' roll {x}", ["x"]],
+    ["{n, selectordinal, one {#st} other {#th}} l'anno {year}", ["n", "year"]],
+    // A trailing or lone apostrophe is literal.
+    ["dell'", []],
+    ["'", []],
+    ["{x}'", ["x"]],
+    // `''` is a literal apostrophe, also right before a brace.
+    ["It''s {x}", ["x"]],
+    ["dell''{name}", ["name"]],
+    ["Say ''{x}''", ["x"]],
+    ["''", []],
+    ["'''{x}'''", []],
+    // Quoted text: `'` before `{` or `}` quotes up to the next single `'`.
+    ["'{literal}'", []],
+    ["'{literal}' and {real}", ["real"]],
+    ["'}' {x}", ["x"]],
+    ["'{a''b}' {c}", ["c"]],
+    ["dell'{name}", []],
+    ["'{y}", []],
+    ["'{unterminated {y}", []],
+    // The quote ends at the first single apostrophe, even one inside a word.
+    ["'{a} it's {b}' {c}", ["b", "c"]],
+    // Outside a plural `#` is an ordinary character; inside one, `'#` starts quoted text.
+    ["'#' and {x}", ["x"]],
+    ["{n, plural, other {'#' items}}", ["n"]],
+    ["{n, plural, other {'# {hidden} ' {shown}}}", ["n", "shown"]],
+    // An apostrophe that does not start a quote never hides later arguments.
+    ["'unterminated quote {y}", ["y"]],
+  ])("%s", (message, expected) => {
+    expect(placeholders(message)).toEqual(expected);
+  });
+
+  it("does not change which arguments plain messages have", () => {
+    expect(placeholders("No apostrophes {a} and {b, number}")).toEqual(["a", "b"]);
   });
 });
 
@@ -65,6 +115,27 @@ describe("compareLocale", () => {
     expect(isFailing(report)).toBe(false);
     expect(coverage(report)).toBe(100);
     expect(report.identical).toEqual([]); // "OK" is too short to flag
+  });
+
+  it("accepts Italian elisions with a straight apostrophe", () => {
+    const report = compareLocale(
+      "it",
+      {
+        workspace: "Workspace {name}",
+        owner: "Owner of {count, plural, one {# project} other {# projects}}",
+      },
+      {
+        workspace: "L'area di lavoro {name}",
+        owner: "Titolare dell'utente di {count, plural, one {# progetto} other {# progetti}}",
+      },
+    );
+    expect(report.placeholderMismatches).toEqual([]);
+    expect(isFailing(report)).toBe(false);
+  });
+
+  it("still reports a placeholder that an apostrophe quotes away", () => {
+    const report = compareLocale("it", { a: "Hi {name}" }, { a: "Ciao dell'{name}" });
+    expect(report.placeholderMismatches).toEqual(["a"]);
   });
 
   it("reports missing keys, placeholder mismatches, identical and stale keys", () => {
