@@ -6,6 +6,7 @@ import type { Decimal } from "./decimal";
 import { InvalidAmountError } from "./errors";
 import { makeMoney } from "./money";
 import type { Money } from "./money";
+import { assertRoundingMode } from "./rounding";
 import type { RoundingMode } from "./rounding";
 
 /**
@@ -43,6 +44,7 @@ export function toDecimal(value: Money): Decimal {
  * @throws InvalidCurrencyError
  */
 export function fromDecimal(value: Decimal, currency: CurrencyCode, mode: RoundingMode): Money {
+  assertRoundingMode(mode);
   const code = assertCurrencyCode(currency);
   return makeMoney(
     shiftAndRound(value.coefficient, minorUnitExponent(code) - value.scale, mode),

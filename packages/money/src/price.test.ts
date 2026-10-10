@@ -1,7 +1,15 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { currencyArb, decimalArb, isCorrectRounding, modeArb, moneyIn } from "../test/arbitraries";
+import {
+  currencyArb,
+  decimalArb,
+  decimalTieArb,
+  isCorrectRounding,
+  modeArb,
+  moneyIn,
+  tieRounding,
+} from "../test/arbitraries";
 import { minorUnitExponent } from "./currency";
 import type { CurrencyCode } from "./currency";
 import { decimal, decimalToString } from "./decimal";
@@ -89,6 +97,25 @@ describe("extend", () => {
           const numerator = unit.coefficient * quantity.coefficient * 10n ** BigInt(Math.max(k, 0));
           const denominator = 10n ** BigInt(Math.max(-k, 0));
           return isCorrectRounding(total.amount, numerator, denominator, mode);
+        },
+      ),
+    );
+  });
+
+  it("rounds exact ties in the direction of each mode", () => {
+    fc.assert(
+      fc.property(
+        decimalTieArb,
+        currencyArb,
+        modeArb,
+        ({ numerator, digits, quotient, negative }, currency, mode) => {
+          // A unit price of ±(quotient + ½) minor units, extended by 1 and by 0.5 of twice it.
+          const scale = digits + minorUnitExponent(currency);
+          const unitPrice = price(decimalToString({ coefficient: numerator, scale }), currency);
+          const expected = money(tieRounding(quotient, negative, mode), currency);
+          expect(extend(unitPrice, d("1"), mode)).toEqual(expected);
+          const twice = price(decimalToString({ coefficient: 2n * numerator, scale }), currency);
+          expect(extend(twice, d("0.5"), mode)).toEqual(expected);
         },
       ),
     );

@@ -6,14 +6,16 @@ import {
   amountArb,
   currencyArb,
   decimalArb,
+  decimalTieArb,
   directedModeArb,
   halfModeArb,
   isCorrectRounding,
   modeArb,
   moneyIn,
   nonNegativeDecimalArb,
+  tieRounding,
 } from "../test/arbitraries";
-import { allocate, convert, divide, multiply, percentage } from "./arithmetic";
+import { allocate, convert, divide, multiply, percentage, shiftAndRound } from "./arithmetic";
 import { minorUnitExponent } from "./currency";
 import type { CurrencyCode } from "./currency";
 import { DECIMAL_HUNDRED, DECIMAL_ONE, decimal, decimalFromInteger, makeDecimal } from "./decimal";
@@ -414,7 +416,43 @@ describe("convert", () => {
   });
 });
 
+describe("shiftAndRound (internal)", () => {
+  it.each([
+    [1234n, 2, "halfUp", 123400n],
+    [1234n, 0, "halfUp", 1234n],
+    [1235n, -1, "halfUp", 124n],
+    [1235n, -1, "halfEven", 124n],
+    [1245n, -1, "halfEven", 124n],
+    [-1235n, -1, "halfDown", -123n],
+  ] as const)("%s × 10^%i with %s is %s", (coefficient, shift, mode, expected) => {
+    expect(shiftAndRound(coefficient, shift, mode)).toBe(expected);
+  });
+
+  it("checks the mode even when the shift needs no rounding", () => {
+    for (const shift of [3, 0, -2]) {
+      expect(() => shiftAndRound(100n, shift, "bogus" as RoundingMode)).toThrow(TypeError);
+    }
+  });
+});
+
 describe("identities", () => {
+  it("multiply and divide round exact ties in the direction of each mode", () => {
+    fc.assert(
+      fc.property(
+        decimalTieArb,
+        currencyArb,
+        modeArb,
+        ({ numerator, digits, quotient, negative }, currency, mode) => {
+          // numerator × 10^-digits and numerator / 10^digits are both ±(quotient + ½).
+          const expected = money(tieRounding(quotient, negative, mode), currency);
+          const value = money(numerator, currency);
+          expect(multiply(value, makeDecimal(1n, digits), mode)).toEqual(expected);
+          expect(divide(value, decimalFromInteger(10n ** BigInt(digits)), mode)).toEqual(expected);
+        },
+      ),
+    );
+  });
+
   it("percentage(m, 100) = m, multiply(m, 1) = m, multiply by an integer = multiplyByInteger", () => {
     fc.assert(
       fc.property(

@@ -30,6 +30,17 @@ export function isRoundingMode(value: string): value is RoundingMode {
 }
 
 /**
+ * @internal Throws a `TypeError` for an unknown mode (a programming error, possible only from
+ * untyped code). Every function that takes a mode calls it first, before any shortcut that does
+ * not need to round, so that a wrong mode fails on every input rather than only on inexact ones.
+ */
+export function assertRoundingMode(mode: RoundingMode): void {
+  if (!isRoundingMode(mode)) {
+    throw new TypeError(`Unknown rounding mode: expected one of ${ROUNDING_MODES.join(", ")}`);
+  }
+}
+
+/**
  * `numerator / denominator` rounded to an integer with `mode`.
  *
  * The single rounding primitive: every other function in the package delegates to it.
@@ -41,7 +52,7 @@ export function divideAndRound(numerator: bigint, denominator: bigint, mode: Rou
   if (typeof numerator !== "bigint" || typeof denominator !== "bigint") {
     throw new TypeError("divideAndRound expects bigint operands");
   }
-  if (!isRoundingMode(mode)) throw new TypeError("Unknown rounding mode");
+  assertRoundingMode(mode);
   if (denominator === 0n) throw new DivisionByZeroError();
 
   // 1. Make the denominator positive, so that the sign of the numerator is the sign of the result.

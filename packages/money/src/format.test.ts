@@ -2,9 +2,11 @@ import * as fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { amountArb, currencyArb, decimalArb, moneyArb, normalizeSpaces } from "../test/arbitraries";
+import { withLegacyIntl } from "../test/legacy-intl";
 import type { CurrencyCode } from "./currency";
 import { minorUnitExponent } from "./currency";
-import { decimal } from "./decimal";
+import { MAX_DECIMAL_SCALE, decimal, decimalToString } from "./decimal";
+import type { Decimal } from "./decimal";
 import {
   exactParts,
   fallbackParts,
@@ -14,6 +16,7 @@ import {
   formatPercent,
   formatPrice,
   overrideExactStringFormattingForTests,
+  pluralProxy,
   supportsExactStringFormatting,
 } from "./format";
 import type { FormatMoneyOptions } from "./format";
@@ -170,6 +173,10 @@ describe("fallback formatting (engines without Intl.NumberFormat v3)", () => {
     "ja-JP",
     "ar-EG",
     "ar-KW",
+    // Plural rules that depend on the fraction digits ("0,01 euros" but "1,00 euro").
+    "es-ES",
+    "lv-LV",
+    "ga-IE",
     "en-IN",
     "hi-IN-u-nu-deva",
     "th-TH-u-nu-thai",
@@ -178,7 +185,7 @@ describe("fallback formatting (engines without Intl.NumberFormat v3)", () => {
   ];
   const CURRENCIES: readonly CurrencyCode[] = ["EUR", "JPY", "KWD", "CHF", "CLF", "USD"];
   const AMOUNTS = [0n, 1n, -1n, 5n, -5n, 50n, -50n, 99n, 100n, -100n, 123456n, -123456n];
-  AMOUNTS.push(1000000n, 10n ** 25n + 7n, -(10n ** 25n) - 7n);
+  AMOUNTS.push(201n, 1000000n, 10n ** 25n + 7n, -(10n ** 25n) - 7n);
   const OPTIONS: readonly FormatMoneyOptions[] = [
     {},
     { currencyDisplay: "code" },
@@ -194,7 +201,7 @@ describe("fallback formatting (engines without Intl.NumberFormat v3)", () => {
     return { style: "currency", currency, ...options };
   }
 
-  // Exhaustive cross product (12 locales × 6 currencies × amounts × options): ~1 s alone, but over
+  // Exhaustive cross product (15 locales × 6 currencies × amounts × options): ~2.5 s alone, over
   // 10 s when Turborepo runs every package's tests in parallel, hence the explicit timeout.
   it(
     "gives parts identical to the exact path for every locale, currency, amount and option",
@@ -270,6 +277,238 @@ describe("fallback formatting (engines without Intl.NumberFormat v3)", () => {
     expect(formatPrice(price("0.4250", "EUR"), "fr-FR")).toBe(expectedPrice);
     expect(formatDecimal(decimal("-0.05"), "ar-EG")).toBe(expectedDecimal);
     expect(formatPercent(decimal("22.5"), "de-DE")).toBe(expectedPercent);
+  });
+});
+
+/** The sign and digits of formatted parts, without the words around them. */
+function numberOf(formatted: readonly Intl.NumberFormatPart[]): string {
+  const types = ["minusSign", "plusSign", "integer", "group", "decimal", "fraction"];
+  return formatted
+    .filter((part) => types.includes(part.type))
+    .map((part) => part.value)
+    .join("");
+}
+
+/** Runs `format` on the exact path, the forced fallback and a simulated legacy engine. */
+function onEveryPath(format: () => string): readonly string[] {
+  const exact = format();
+  overrideExactStringFormattingForTests(false);
+  const fallback = format();
+  overrideExactStringFormattingForTests(undefined);
+  return [exact, fallback, withLegacyIntl(format)].map(plain);
+}
+
+/** Locales whose plural category depends on the fraction digits (CLDR operands v, f, t, n). */
+const FRACTION_PLURAL_LOCALES = ["es-ES", "lv-LV", "lt-LT", "ga-IE", "cy-GB", "br-FR", "gd-GB"];
+
+describe("plural-dependent words (currencyDisplay: name) on every path", () => {
+  // Each row is a case where a template with a zero fraction ("0.01" formatted as "1.00", "2.01" as
+  // "2.00") has another plural category, so its words would be wrong.
+  it.each([
+    ["es-ES", "EUR", 1n, "0,01 euros"],
+    ["es-ES", "EUR", 100n, "1,00 euro"],
+    ["es-ES", "EUR", -101n, "-1,01 euros"],
+    ["lv-LV", "USD", 2n, "0,02 ASV dolāri"],
+    ["lv-LV", "USD", 201n, "2,01 ASV dolārs"],
+    ["lt-LT", "EUR", 1n, "0,01 euro"],
+    ["lt-LT", "EUR", 100n, "1,00 euras"],
+    ["lt-LT", "EUR", 1001n, "10,01 euro"],
+    ["ga-IE", "GBP", 1n, "0.01 punt steirling"],
+    ["ga-IE", "USD", 201n, "2.01 dollar S.A.M."],
+    ["cy-GB", "GBP", 1n, "0.01 punt Prydain"],
+    ["cy-GB", "USD", 201n, "2.01 doler UDA"],
+    ["br-FR", "USD", 201n, "2,01 dollar SU"],
+    ["gd-GB", "EUR", 301n, "3.01 Eòro"],
+    ["gd-GB", "GBP", 1n, "0.01 punnd Sasannach"],
+  ] as const)("%s %s %s -> %s", (locale, currency, amount, expected) => {
+    const value = money(amount, currency);
+    const paths = onEveryPath(() => formatMoney(value, locale, { currencyDisplay: "name" }));
+    expect(paths).toEqual([expected, expected, expected]);
+  });
+
+  it("matches the exact path for every amount of at most 15 significant digits", () => {
+    const names: readonly CurrencyCode[] = ["EUR", "USD", "GBP", "JPY", "KWD", "CLF"];
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...FRACTION_PLURAL_LOCALES),
+        fc.constantFrom(...names),
+        fc.bigInt({ min: -(10n ** 15n) + 1n, max: 10n ** 15n - 1n }),
+        fc.constantFrom<FormatMoneyOptions>({}, { signDisplay: "always" }),
+        (locale, currency, amount, options) => {
+          const e = minorUnitExponent(currency);
+          const base = {
+            style: "currency",
+            currency,
+            currencyDisplay: "name",
+            ...options,
+          } as const;
+          const value = { coefficient: amount, scale: e };
+          expect(fallbackParts(locale, base, value, e, e)).toEqual(
+            exactParts(locale, base, value, e, e),
+          );
+        },
+      ),
+    );
+  });
+
+  it("keeps every digit beyond 15 significant digits (only ICU's float-based words can differ)", () => {
+    // Above 15 significant digits ICU itself picks the plural category from a float approximation
+    // (lt-LT: 10^23 + 0.07 is "few" because the double nearest to 10^23 ends in 2), while the
+    // fallback's proxy keeps the residues of the exact value (0.07, "many"). Digits never differ.
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...FRACTION_PLURAL_LOCALES),
+        fc.bigInt({ min: -(10n ** 40n), max: 10n ** 40n }),
+        fc.integer({ min: 0, max: 4 }),
+        (locale, amount, scale) => {
+          const base = { style: "currency", currency: "EUR", currencyDisplay: "name" } as const;
+          const value = { coefficient: amount, scale };
+          const min = Math.min(2, scale);
+          expect(numberOf(fallbackParts(locale, base, value, min, scale))).toBe(
+            numberOf(exactParts(locale, base, value, min, scale)),
+          );
+        },
+      ),
+    );
+  });
+});
+
+const ASCII_DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
+
+describe("pluralProxy (internal)", () => {
+  it.each([
+    ["only zeros after the point", false, 0n, "00", undefined],
+    ["no fraction", false, 7n, "", undefined],
+    ["a short value, as is", true, 0n, "01", ["-0.01", 2]],
+    ["15 significant digits, as is", false, 12345678901234n, "5", ["12345678901234.5", 1]],
+    ["13 significant digits, 12 decimals", false, 5n, "000000000012", ["5.000000000012", 12]],
+    ["16 digits: integer modulo 10^6, plus 10^6", false, 123456789012345n, "50", ["1012345.50", 2]],
+    ["the last 18 integer digits, as ICU", true, 10n ** 18n + 2000001n, "5", ["-1000001.5", 1]],
+    ["integer digits beyond 18 dropped", false, 10n ** 23n, "07", ["0.07", 2]],
+    ["21 decimals: fraction compressed", false, 0n, `${"0".repeat(20)}1`, ["0.00000001", 8]],
+    ["at most 3 significant decimals kept", false, 2n, "0000000000000000123", ["2.00000123", 8]],
+    [
+      "last 3 behind a 1, 3 trailing zeros",
+      false,
+      1n,
+      "123456789012345678900000",
+      ["1.01789000", 8],
+    ],
+  ] as const)("%s", (_name, negative, integer, fraction, expected) => {
+    const proxy = pluralProxy(negative, integer, fraction);
+    expect(proxy === undefined ? undefined : [proxy.text, proxy.fractionDigits]).toEqual(expected);
+  });
+
+  it("never has more than 15 significant digits or 20 decimals", () => {
+    fc.assert(
+      fc.property(
+        fc.boolean(),
+        fc.bigInt({ min: 0n, max: 10n ** 45n }),
+        fc.string({ unit: fc.constantFrom(...ASCII_DIGITS), maxLength: MAX_DECIMAL_SCALE }),
+        (negative, integer, fraction) => {
+          const proxy = pluralProxy(negative, integer, fraction);
+          if (proxy === undefined) return;
+          const [whole = "", decimals = ""] = proxy.text.replace("-", "").split(".");
+          expect(`${whole}${decimals}`.replace(/^0+/, "").length).toBeLessThanOrEqual(15);
+          expect(decimals.length).toBe(proxy.fractionDigits);
+          expect(proxy.fractionDigits).toBeLessThanOrEqual(20);
+        },
+      ),
+    );
+  });
+});
+
+describe("on an engine without Intl.NumberFormat v3 (simulated)", () => {
+  it("takes the fallback, as the simulated engine only offers ES2020 Intl", () => {
+    withLegacyIntl(() => {
+      expect(supportsExactStringFormatting()).toBe(false);
+      expect(() => new Intl.NumberFormat("en-US", { maximumFractionDigits: 21 })).toThrow(
+        RangeError,
+      );
+      expect(() => new Intl.NumberFormat("en-US", { signDisplay: "negative" })).toThrow(RangeError);
+      expect(new Intl.NumberFormat("en-US").format("9007199254740993")).toBe(
+        "9,007,199,254,740,992",
+      );
+    });
+    expect(supportsExactStringFormatting()).toBe(true);
+  });
+
+  /** Decimals with 21 to 40 decimals: the template is formatted with at most 20. */
+  const WIDE_SCALES = [
+    `0.${"0".repeat(20)}1`,
+    "-1234.5678901234567890123456789",
+    `0.${"0".repeat(39)}1`,
+    `-${"9".repeat(40)}.${"9".repeat(40)}`,
+    "-0.1000000000000000000000",
+    "12.000000000000000000000000",
+  ];
+  const WIDE_LOCALES = ["en-US", "fr-FR", "ar-EG", "es-ES", "hi-IN-u-nu-deva", "en-u-nu-adlm"];
+
+  function formatAll(value: Decimal, locale: string): readonly string[] {
+    const unitPrice = price(decimalToString(value), "EUR");
+    return [
+      formatDecimal(value, locale),
+      formatPercent(value, locale),
+      formatPrice(unitPrice, locale),
+      formatPrice(unitPrice, locale, { signDisplay: "negative", currencyDisplay: "code" }),
+      formatPrice(unitPrice, locale, { signDisplay: "exceptZero", useGrouping: false }),
+    ];
+  }
+
+  it.each(WIDE_SCALES)("formats %s (scale above 20) like the exact path", (text) => {
+    const value = decimal(text);
+    for (const locale of WIDE_LOCALES) {
+      const exact = formatAll(value, locale);
+      expect(
+        withLegacyIntl(() => formatAll(value, locale)),
+        locale,
+      ).toEqual(exact);
+    }
+  });
+
+  it("formats any decimal of up to 80 digits and 40 decimals like the exact path", () => {
+    const wideDecimalArb = fc
+      .tuple(
+        fc.bigInt({ min: -(10n ** 40n), max: 10n ** 40n }),
+        fc.integer({ min: 0, max: MAX_DECIMAL_SCALE }),
+      )
+      .map(([coefficient, scale]) => decimal(decimalToString({ coefficient, scale })));
+    fc.assert(
+      fc.property(fc.constantFrom(...WIDE_LOCALES), wideDecimalArb, (locale, value) => {
+        const unitPrice = price(decimalToString(value), "KWD");
+        const format = () => [
+          formatDecimal(value, locale),
+          formatPrice(unitPrice, locale),
+          formatPrice(unitPrice, locale, { currencyDisplay: "code", signDisplay: "always" }),
+        ];
+        expect(withLegacyIntl(format)).toEqual(format());
+      }),
+    );
+  });
+
+  it("gives the words of the exact path too, up to 15 significant digits", () => {
+    const shortDecimalArb = fc
+      .tuple(
+        fc.bigInt({ min: -(10n ** 15n) + 1n, max: 10n ** 15n - 1n }),
+        fc.integer({ min: 0, max: MAX_DECIMAL_SCALE }),
+      )
+      .map(([coefficient, scale]) => decimal(decimalToString({ coefficient, scale })));
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...FRACTION_PLURAL_LOCALES, ...WIDE_LOCALES),
+        shortDecimalArb,
+        currencyArb,
+        (locale, value, currency) => {
+          const unitPrice = price(decimalToString(value), currency);
+          const format = () => [
+            formatPercent(value, locale),
+            formatPrice(unitPrice, locale, { currencyDisplay: "name" }),
+            formatPrice(unitPrice, locale, { currencyDisplay: "name", signDisplay: "negative" }),
+          ];
+          expect(withLegacyIntl(format)).toEqual(format());
+        },
+      ),
+    );
   });
 });
 

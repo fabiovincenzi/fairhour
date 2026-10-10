@@ -5,6 +5,7 @@ import { decimal, isDecimal, makeDecimal, multiplyDecimal } from "./decimal";
 import type { Decimal } from "./decimal";
 import { makeMoney } from "./money";
 import type { Money } from "./money";
+import { assertRoundingMode } from "./rounding";
 import type { RoundingMode } from "./rounding";
 
 /**
@@ -53,6 +54,7 @@ export function isPrice(value: unknown): value is Price {
  * The product is exact; this is the only rounding.
  */
 export function extend(unitPrice: Price, quantity: Decimal, mode: RoundingMode): Money {
+  assertRoundingMode(mode);
   const shift = minorUnitExponent(unitPrice.currency) - unitPrice.amount.scale - quantity.scale;
   return makeMoney(
     shiftAndRound(unitPrice.amount.coefficient * quantity.coefficient, shift, mode),

@@ -1,5 +1,5 @@
 import { InvalidAmountError } from "./errors";
-import { divideAndRound } from "./rounding";
+import { assertRoundingMode, divideAndRound } from "./rounding";
 import type { RoundingMode } from "./rounding";
 
 /**
@@ -133,6 +133,24 @@ export function digitsToString(coefficient: bigint, scale: number): string {
   return negative ? `-${text}` : text;
 }
 
+/**
+ * @internal {@link digitsToString} for encoders: the same text, or an `out-of-range` error when
+ * {@link decimal} would reject it (more than `MAX_DECIMAL_DIGITS` digits or `MAX_DECIMAL_SCALE`
+ * decimals), so that every value an encoder writes decodes back.
+ * @throws InvalidAmountError reason `"out-of-range"`
+ */
+export function encodeDigits(coefficient: bigint, scale: number): string {
+  const text = digitsToString(coefficient, scale);
+  const digits = text.length - (coefficient < 0n ? 1 : 0) - (scale > 0 ? 1 : 0);
+  if (digits > MAX_DECIMAL_DIGITS || scale > MAX_DECIMAL_SCALE) {
+    throw new InvalidAmountError(
+      "out-of-range",
+      `Value out of range for a decimal string (${digits} digits): at most ${MAX_DECIMAL_DIGITS} digits and ${MAX_DECIMAL_SCALE} decimals`,
+    );
+  }
+  return text;
+}
+
 /** Canonical text keeping the scale: `decimal("1.50")` -> `"1.50"`, `decimal("-0.0")` -> `"0.0"`. */
 export function decimalToString(value: Decimal): string {
   return digitsToString(value.coefficient, value.scale);
@@ -154,6 +172,7 @@ export function normalizeDecimal(value: Decimal): Decimal {
  * @throws InvalidAmountError reason `"out-of-range"` for a scale outside `0..MAX_DECIMAL_SCALE`
  */
 export function rescaleDecimal(value: Decimal, scale: number, mode: RoundingMode): Decimal {
+  assertRoundingMode(mode);
   assertScale(scale);
   if (scale === value.scale) return value;
   if (scale > value.scale) {
@@ -211,6 +230,7 @@ export function multiplyDecimal(a: Decimal, b: Decimal): Decimal {
  * @throws InvalidAmountError reason `"out-of-range"` for a scale outside `0..MAX_DECIMAL_SCALE`
  */
 export function divideDecimal(a: Decimal, b: Decimal, scale: number, mode: RoundingMode): Decimal {
+  assertRoundingMode(mode);
   assertScale(scale);
   // a / b × 10^scale = (ca / cb) × 10^(b.scale - a.scale + scale)
   const k = b.scale - a.scale + scale;

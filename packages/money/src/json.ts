@@ -1,8 +1,8 @@
-import { assertCurrencyCode } from "./currency";
-import { decimalToString } from "./decimal";
+import { assertCurrencyCode, minorUnitExponent } from "./currency";
+import { encodeDigits } from "./decimal";
 import { InvalidAmountError, InvalidCurrencyError } from "./errors";
 import type { Money } from "./money";
-import { parseMoney, toDecimalString } from "./parse";
+import { parseMoney } from "./parse";
 import { price } from "./price";
 import type { Price } from "./price";
 
@@ -18,9 +18,16 @@ export interface PriceJson {
   readonly currency: string;
 }
 
-/** `{ amount, currency }` with the amount from `toDecimalString` (exactly `exponent` decimals). */
+/**
+ * `{ amount, currency }` with the amount from `toDecimalString` (exactly `exponent` decimals).
+ * Symmetric with {@link moneyFromJson}: an amount it could not read back is rejected.
+ * @throws InvalidAmountError reason `"out-of-range"` above `MAX_DECIMAL_DIGITS` digits
+ */
 export function moneyToJson(value: Money): MoneyJson {
-  return Object.freeze({ amount: toDecimalString(value), currency: value.currency });
+  return Object.freeze({
+    amount: encodeDigits(value.amount, minorUnitExponent(value.currency)),
+    currency: value.currency,
+  });
 }
 
 /**
@@ -32,9 +39,16 @@ export function moneyFromJson(json: MoneyJson): Money {
   return parseMoney(amount, assertCurrencyCode(currency));
 }
 
-/** `{ amount, currency }` with the amount's own scale (`"0.4250"` stays `"0.4250"`). */
+/**
+ * `{ amount, currency }` with the amount's own scale (`"0.4250"` stays `"0.4250"`).
+ * Symmetric with {@link priceFromJson}: an amount it could not read back is rejected.
+ * @throws InvalidAmountError reason `"out-of-range"` above `MAX_DECIMAL_DIGITS` digits
+ */
 export function priceToJson(value: Price): PriceJson {
-  return Object.freeze({ amount: decimalToString(value.amount), currency: value.currency });
+  return Object.freeze({
+    amount: encodeDigits(value.amount.coefficient, value.amount.scale),
+    currency: value.currency,
+  });
 }
 
 /**

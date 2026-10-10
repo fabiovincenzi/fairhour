@@ -148,9 +148,15 @@ formatPercent(decimal("22"), "fr-FR"); // "22 %"
 ```
 
 Formatting never converts to a `number`: `Intl.NumberFormat` receives the exact decimal string
-(ECMA-402 2023), with the fraction digits pinned to the currency's **ISO 4217** exponent. On
-engines without exact string formatting, a `bigint` + `formatToParts` fallback produces identical
-output.
+(ECMA-402 2023), with the fraction digits pinned to the currency's **ISO 4217** exponent.
+
+Older engines (before Chrome/Edge 106, Firefox 116 and Safari 15.4) get a `bigint` +
+`formatToParts` fallback that needs only ES2020 `Intl` and supports every `FormatMoneyOptions`
+option and every scale up to 40 decimals. Its digits, signs and separators are always those of the
+exact path. So are plural-dependent words (`currencyDisplay: "name"`, the percent unit) for values
+of up to 15 significant digits: `es-ES` 0.01 EUR is `"0,01 euros"` and 1.00 EUR is `"1,00 euro"`
+on both paths. Beyond 15 significant digits ICU itself picks those words from a float
+approximation, and the fallback may pick another plural form of the word (never other digits).
 
 ### JSON and zod
 
@@ -162,6 +168,10 @@ import { moneyFromJson, moneyToJson, money } from "@fairhour/money";
 moneyToJson(money(123456n, "EUR")); // { amount: "1234.56", currency: "EUR" }
 moneyFromJson({ amount: "1234.56", currency: "EUR" }); // strict: "1.235" EUR throws
 ```
+
+Encoding is symmetric with decoding: an amount of more than 80 digits (only arithmetic produces
+one), which no decoder would read back, throws `InvalidAmountError` (reason `out-of-range`) from
+`moneyToJson`, `priceToJson` and the zod encoders below, `z.safeEncode` included.
 
 With zod 4 installed, `@fairhour/money/zod` provides schemas (codecs, so `z.encode` works too):
 
@@ -190,7 +200,8 @@ Every domain error extends `MoneyError` and has a `code`:
 | `DivisionByZeroError`   | `division-by-zero`  | Division, allocation or rounding by zero                                                                                                      |
 
 Messages never include the offending amount, which may be user data headed for a log. Calling the
-API from untyped code with a `number` where a `bigint` is expected throws a `TypeError`.
+API from untyped code with a `number` where a `bigint` is expected, or with an unknown rounding mode,
+throws a `TypeError`; a mode is checked on every call, even when no rounding is needed.
 
 ## Guarantees
 

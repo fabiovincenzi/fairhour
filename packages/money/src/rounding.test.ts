@@ -1,9 +1,9 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { isCorrectRounding, modeArb } from "../test/arbitraries";
+import { isCorrectRounding, modeArb, tieArb, tieRounding } from "../test/arbitraries";
 import { DivisionByZeroError } from "./errors";
-import { ROUNDING_MODES, divideAndRound, isRoundingMode } from "./rounding";
+import { ROUNDING_MODES, assertRoundingMode, divideAndRound, isRoundingMode } from "./rounding";
 import type { RoundingMode } from "./rounding";
 
 /** The reference table of design section 3.3: exact value as numerator / 10, then each mode. */
@@ -116,6 +116,8 @@ describe("divideAndRound", () => {
     expect(() => divideAndRound(1 as unknown as bigint, 2n, "halfUp")).toThrow(TypeError);
     expect(() => divideAndRound(1n, 2 as unknown as bigint, "halfUp")).toThrow(TypeError);
     expect(() => divideAndRound(4n, 2n, "nearest" as RoundingMode)).toThrow(TypeError);
+    // The mode is checked before the division by zero, too.
+    expect(() => divideAndRound(4n, 0n, "nearest" as RoundingMode)).toThrow(TypeError);
   });
 
   describe("properties", () => {
@@ -127,6 +129,30 @@ describe("divideAndRound", () => {
         fc.property(numeratorArb, denominatorArb, modeArb, (n, d, mode) =>
           isCorrectRounding(divideAndRound(n, d, mode), n, d, mode),
         ),
+      );
+    });
+
+    it("rounds exact ties in the direction of each mode, whatever the sign", () => {
+      fc.assert(
+        fc.property(tieArb, modeArb, ({ numerator, denominator, quotient, negative }, mode) => {
+          const expected = tieRounding(quotient, negative, mode);
+          expect(divideAndRound(numerator, denominator, mode)).toBe(expected);
+          expect(divideAndRound(-numerator, -denominator, mode)).toBe(expected);
+          expect(isCorrectRounding(expected, numerator, denominator, mode)).toBe(true);
+        }),
+      );
+    });
+
+    it("checks the tie direction in its oracle (swapped half modes are caught)", () => {
+      fc.assert(
+        fc.property(tieArb, ({ numerator, denominator, quotient, negative }) => {
+          const up = tieRounding(quotient, negative, "halfUp");
+          const down = tieRounding(quotient, negative, "halfDown");
+          expect(isCorrectRounding(down, numerator, denominator, "halfUp")).toBe(false);
+          expect(isCorrectRounding(up, numerator, denominator, "halfDown")).toBe(false);
+          const odd = quotient % 2n === 0n ? up : down;
+          expect(isCorrectRounding(odd, numerator, denominator, "halfEven")).toBe(false);
+        }),
       );
     });
 
@@ -182,6 +208,23 @@ describe("rounding modes", () => {
     for (const mode of ROUNDING_MODES) expect(isRoundingMode(mode)).toBe(true);
     for (const value of ["HALF_UP", "halfup", "nearest", "", "round"]) {
       expect(isRoundingMode(value)).toBe(false);
+    }
+  });
+
+  it("asserts modes with a TypeError that lists the valid ones", () => {
+    for (const mode of ROUNDING_MODES) {
+      expect(() => {
+        assertRoundingMode(mode);
+      }).not.toThrow();
+    }
+    for (const value of ["HALF_UP", "", undefined, null, 2, {}]) {
+      expect(() => {
+        assertRoundingMode(value as RoundingMode);
+      }).toThrow(
+        new TypeError(
+          "Unknown rounding mode: expected one of halfUp, halfEven, halfDown, up, down, ceiling, floor",
+        ),
+      );
     }
   });
 });

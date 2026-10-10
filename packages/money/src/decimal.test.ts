@@ -1,7 +1,13 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { decimalArb, isCorrectRounding, modeArb } from "../test/arbitraries";
+import {
+  decimalArb,
+  decimalTieArb,
+  isCorrectRounding,
+  modeArb,
+  tieRounding,
+} from "../test/arbitraries";
 import {
   DECIMAL_HUNDRED,
   DECIMAL_ONE,
@@ -15,7 +21,9 @@ import {
   decimalEquals,
   decimalFromInteger,
   decimalToString,
+  digitsToString,
   divideDecimal,
+  encodeDigits,
   isDecimal,
   isDecimalString,
   isZeroDecimal,
@@ -190,6 +198,53 @@ describe("constants and constructors", () => {
     ]) {
       expect(isDecimal(value)).toBe(false);
     }
+  });
+});
+
+describe("encodeDigits (internal, for the JSON and zod encoders)", () => {
+  const NINES = (count: number) => 10n ** BigInt(count) - 1n;
+
+  it.each([
+    [0n, 0, "0"],
+    [5n, 2, "0.05"],
+    [-5n, 2, "-0.05"],
+    [NINES(80), 0, "9".repeat(80)],
+    [-NINES(80), 40, `-${"9".repeat(40)}.${"9".repeat(40)}`],
+    [NINES(40), 40, `0.${"9".repeat(40)}`],
+    [1n, 40, `0.${"0".repeat(39)}1`],
+  ] as const)("encodes %s at scale %i as %j, which decimal() reads back", (c, scale, text) => {
+    expect(encodeDigits(c, scale)).toBe(text);
+    expect(parts(d(text))).toEqual([c, scale]);
+  });
+
+  it.each([
+    [NINES(81), 0],
+    [-NINES(81), 0],
+    [NINES(81), 1],
+    [-NINES(81), 40],
+    [1n, MAX_DECIMAL_SCALE + 1],
+  ] as const)("rejects %s at scale %i (out-of-range), as decimal() would", (c, scale) => {
+    expect(() => d(digitsToString(c, scale))).toThrow(InvalidAmountError);
+    expect(() => encodeDigits(c, scale)).toThrow(
+      expect.objectContaining({ code: "invalid-amount", reason: "out-of-range" }),
+    );
+  });
+
+  it("accepts exactly what decimal() accepts", () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: -(10n ** 85n), max: 10n ** 85n }),
+        fc.integer({ min: 0, max: MAX_DECIMAL_SCALE + 5 }),
+        (c, scale) => {
+          const text = digitsToString(c, scale);
+          if (isDecimalString(text)) {
+            expect(encodeDigits(c, scale)).toBe(text);
+          } else {
+            expect(() => encodeDigits(c, scale)).toThrow(InvalidAmountError);
+          }
+        },
+      ),
+    );
   });
 });
 
@@ -395,6 +450,21 @@ describe("exact arithmetic", () => {
         }),
       );
     });
+  });
+
+  it("rescales and divides exact ties in the direction of each mode", () => {
+    fc.assert(
+      fc.property(decimalTieArb, modeArb, ({ numerator, digits, quotient, negative }, mode) => {
+        // numerator × 10^-digits is ±(quotient + ½).
+        const expected = tieRounding(quotient, negative, mode);
+        const tie = decimal(decimalToString({ coefficient: numerator, scale: digits }));
+        expect(rescaleDecimal(tie, 0, mode).coefficient).toBe(expected);
+        const divisor = decimalFromInteger(10n ** BigInt(digits));
+        expect(divideDecimal(decimalFromInteger(numerator), divisor, 0, mode).coefficient).toBe(
+          expected,
+        );
+      }),
+    );
   });
 
   it("covers every rounding mode in rescaling", () => {

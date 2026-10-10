@@ -2,12 +2,16 @@ import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { currencyArb, decimalArb, moneyArb } from "../test/arbitraries";
-import { decimal, decimalToString } from "./decimal";
+import { MAX_DECIMAL_DIGITS, decimal, decimalToString } from "./decimal";
 import { InvalidAmountError, InvalidCurrencyError } from "./errors";
 import { moneyFromJson, moneyToJson, priceFromJson, priceToJson } from "./json";
 import type { MoneyJson, PriceJson } from "./json";
 import { money } from "./money";
-import { price } from "./price";
+import { convertPrice, price, priceFromMoney } from "./price";
+
+const OUT_OF_RANGE = { code: "invalid-amount", reason: "out-of-range" } as const;
+/** The largest coefficient of `MAX_DECIMAL_DIGITS` digits: 80 nines. */
+const LARGEST = 10n ** BigInt(MAX_DECIMAL_DIGITS) - 1n;
 
 describe("money JSON", () => {
   it.each([
@@ -60,6 +64,40 @@ describe("money JSON", () => {
   });
 });
 
+describe("money JSON limits (symmetric with decoding)", () => {
+  it.each([
+    ["EUR", LARGEST],
+    ["EUR", -LARGEST],
+    ["JPY", LARGEST],
+    ["CLF", -LARGEST],
+  ] as const)("encodes the largest %s amount of 80 digits and decodes it back", (code, amount) => {
+    const value = money(amount, code);
+    const json = moneyToJson(value);
+    expect(json.amount.replace(/[-.]/g, "")).toHaveLength(MAX_DECIMAL_DIGITS);
+    expect(moneyFromJson(json)).toEqual(value);
+  });
+
+  it.each([
+    ["EUR", LARGEST + 1n],
+    ["EUR", -LARGEST - 1n],
+    ["JPY", LARGEST + 1n],
+    ["KWD", -(10n ** 100n)],
+  ] as const)(
+    "rejects a %s amount of more than 80 digits, which no decoder reads",
+    (code, amount) => {
+      const value = money(amount, code);
+      expect(() => moneyToJson(value)).toThrow(InvalidAmountError);
+      expect(() => moneyToJson(value)).toThrow(expect.objectContaining(OUT_OF_RANGE));
+    },
+  );
+
+  it("names the digit count, never the amount, in the message", () => {
+    expect(() => moneyToJson(money(LARGEST + 1n, "JPY"))).toThrow(
+      "Value out of range for a decimal string (81 digits): at most 80 digits and 40 decimals",
+    );
+  });
+});
+
 describe("price JSON", () => {
   it("keeps the price's own scale", () => {
     const value = price("0.4250", "EUR");
@@ -73,6 +111,18 @@ describe("price JSON", () => {
     expect(() => priceFromJson({ amount: "0,42", currency: "EUR" })).toThrow(InvalidAmountError);
     expect(() => priceFromJson({ amount: "0.42", currency: "EURO" })).toThrow(InvalidCurrencyError);
     expect(() => priceFromJson(undefined as unknown as PriceJson)).toThrow(InvalidAmountError);
+  });
+
+  it("encodes exactly the prices it can decode back (at most 80 digits)", () => {
+    const largest = price(`${"9".repeat(40)}.${"9".repeat(40)}`, "EUR");
+    expect(priceFromJson(priceToJson(largest))).toEqual(largest);
+    // Exact arithmetic can produce more digits than the decoder reads: encoding refuses them.
+    const converted = convertPrice(largest, "USD", decimal("10"));
+    expect(() => priceToJson(converted)).toThrow(InvalidAmountError);
+    expect(() => priceToJson(converted)).toThrow(expect.objectContaining(OUT_OF_RANGE));
+    expect(() => priceToJson(priceFromMoney(money(LARGEST + 1n, "JPY")))).toThrow(
+      expect.objectContaining(OUT_OF_RANGE),
+    );
   });
 
   it("round-trips through JSON text", () => {

@@ -1,7 +1,15 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { currencyArb, decimalArb, isCorrectRounding, modeArb, moneyArb } from "../test/arbitraries";
+import {
+  currencyArb,
+  decimalArb,
+  decimalTieArb,
+  isCorrectRounding,
+  modeArb,
+  moneyArb,
+  tieRounding,
+} from "../test/arbitraries";
 import { minorUnitExponent } from "./currency";
 import type { CurrencyCode } from "./currency";
 import { decimal, decimalToString } from "./decimal";
@@ -109,6 +117,24 @@ describe("toDecimal and fromDecimal", () => {
   it("rejects unknown currencies", () => {
     expect(() => fromDecimal(decimal("1"), "ABC" as CurrencyCode, "halfUp")).toThrow(
       InvalidCurrencyError,
+    );
+  });
+
+  it("rounds exact ties in the direction of each mode", () => {
+    fc.assert(
+      fc.property(
+        decimalTieArb,
+        currencyArb,
+        modeArb,
+        ({ numerator, digits, quotient, negative }, currency, mode) => {
+          // In major units, numerator × 10^-(digits + exponent) is ±(quotient + ½) minor units.
+          const scale = digits + minorUnitExponent(currency);
+          const tie = decimal(decimalToString({ coefficient: numerator, scale }));
+          expect(fromDecimal(tie, currency, mode)).toEqual(
+            money(tieRounding(quotient, negative, mode), currency),
+          );
+        },
+      ),
     );
   });
 });

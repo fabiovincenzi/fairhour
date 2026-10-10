@@ -5,11 +5,15 @@ import type { Decimal } from "./decimal";
 import { DivisionByZeroError, InvalidAmountError } from "./errors";
 import { makeMoney } from "./money";
 import type { Money } from "./money";
-import { divideAndRound } from "./rounding";
+import { assertRoundingMode, divideAndRound } from "./rounding";
 import type { RoundingMode } from "./rounding";
 
-/** @internal `coefficient × 10^shift`, rounded with `mode` when `shift` is negative. */
+/**
+ * @internal `coefficient × 10^shift`, rounded with `mode` when `shift` is negative.
+ * @throws TypeError for an unknown mode, even when `shift ≥ 0` needs no rounding
+ */
 export function shiftAndRound(coefficient: bigint, shift: number, mode: RoundingMode): bigint {
+  assertRoundingMode(mode);
   return shift >= 0 ? coefficient * pow10(shift) : divideAndRound(coefficient, pow10(-shift), mode);
 }
 
@@ -18,6 +22,7 @@ export function shiftAndRound(coefficient: bigint, shift: number, mode: Rounding
  * Exact formula: `amount × coefficient / 10^scale`.
  */
 export function multiply(value: Money, factor: Decimal, mode: RoundingMode): Money {
+  assertRoundingMode(mode);
   return makeMoney(
     shiftAndRound(value.amount * factor.coefficient, -factor.scale, mode),
     value.currency,
@@ -29,6 +34,7 @@ export function multiply(value: Money, factor: Decimal, mode: RoundingMode): Mon
  * Exact formula: `amount × coefficient / 10^(scale + 2)`.
  */
 export function percentage(value: Money, ratePercent: Decimal, mode: RoundingMode): Money {
+  assertRoundingMode(mode);
   return makeMoney(
     shiftAndRound(value.amount * ratePercent.coefficient, -(ratePercent.scale + 2), mode),
     value.currency,
@@ -41,6 +47,7 @@ export function percentage(value: Money, ratePercent: Decimal, mode: RoundingMod
  * @throws DivisionByZeroError
  */
 export function divide(value: Money, divisor: Decimal, mode: RoundingMode): Money {
+  assertRoundingMode(mode);
   return makeMoney(
     divideAndRound(value.amount * pow10(divisor.scale), divisor.coefficient, mode),
     value.currency,
@@ -121,6 +128,7 @@ export function allocate(value: Money, ratios: readonly Decimal[]): readonly Mon
  *   currencies are equal and the rate is not 1
  */
 export function convert(value: Money, to: CurrencyCode, rate: Decimal, mode: RoundingMode): Money {
+  assertRoundingMode(mode);
   assertConversion(value.currency, to, rate);
   if (value.currency === to) return value;
   const shift = minorUnitExponent(to) - minorUnitExponent(value.currency) - rate.scale;

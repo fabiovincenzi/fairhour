@@ -4,10 +4,10 @@ import * as z from "zod";
 
 import { currencyArb, decimalArb, moneyArb } from "../test/arbitraries";
 import type { CurrencyCode } from "./currency";
-import { decimal, decimalToString } from "./decimal";
-import { InvalidCurrencyError } from "./errors";
+import { MAX_DECIMAL_DIGITS, decimal, decimalToString, multiplyDecimal } from "./decimal";
+import { InvalidAmountError, InvalidCurrencyError } from "./errors";
 import { money } from "./money";
-import { price } from "./price";
+import { price, priceFromMoney } from "./price";
 import {
   currencyCodeSchema,
   decimalSchema,
@@ -145,5 +145,42 @@ describe("priceJsonSchema", () => {
     });
     expect(priceJsonSchema.safeParse({ amount: "0,42", currency: "EUR" }).success).toBe(false);
     expect(priceJsonSchema.safeParse({ amount: "0.42", currency: "XXX" }).success).toBe(false);
+  });
+});
+
+describe("encoding limits (symmetric with decoding)", () => {
+  const OUT_OF_RANGE = { code: "invalid-amount", reason: "out-of-range" } as const;
+  /** The largest coefficient of `MAX_DECIMAL_DIGITS` digits, and the smallest beyond it. */
+  const LARGEST = 10n ** BigInt(MAX_DECIMAL_DIGITS) - 1n;
+  const TOO_LARGE = LARGEST + 1n;
+
+  it("encodes values of 80 digits, which decode back", () => {
+    const eur = money(-LARGEST, "EUR");
+    expect(moneyJsonSchema.parse(z.encode(moneyJsonSchema, eur))).toEqual(eur);
+    const schema = moneyStringSchema("JPY");
+    expect(schema.parse(z.encode(schema, money(LARGEST, "JPY")))).toEqual(money(LARGEST, "JPY"));
+    const largestPrice = priceFromMoney(money(LARGEST, "CLF"));
+    expect(priceJsonSchema.parse(z.encode(priceJsonSchema, largestPrice))).toEqual(largestPrice);
+    const largestDecimal = decimal(`${"9".repeat(40)}.${"9".repeat(40)}`);
+    expect(decimalSchema.parse(z.encode(decimalSchema, largestDecimal))).toEqual(largestDecimal);
+  });
+
+  // Only arithmetic produces such values (an overflow, not invalid input): the encoders throw the
+  // domain error of moneyToJson and priceToJson instead of reporting a zod issue.
+  const CASES: readonly (readonly [string, () => unknown])[] = [
+    ["moneyJsonSchema", () => z.encode(moneyJsonSchema, money(TOO_LARGE, "EUR"))],
+    ["moneyJsonSchema, negative", () => z.encode(moneyJsonSchema, money(-TOO_LARGE, "KWD"))],
+    ["moneyStringSchema", () => z.encode(moneyStringSchema("JPY"), money(TOO_LARGE, "JPY"))],
+    ["priceJsonSchema", () => z.encode(priceJsonSchema, priceFromMoney(money(TOO_LARGE, "EUR")))],
+    [
+      "decimalSchema",
+      () => z.encode(decimalSchema, multiplyDecimal(decimal("9".repeat(80)), decimal("10"))),
+    ],
+    ["z.safeEncode too", () => z.safeEncode(moneyJsonSchema, money(TOO_LARGE, "EUR"))],
+  ];
+
+  it.each(CASES)("%s rejects more than 80 digits with out-of-range", (_name, encode) => {
+    expect(encode).toThrow(InvalidAmountError);
+    expect(encode).toThrow(expect.objectContaining(OUT_OF_RANGE));
   });
 });

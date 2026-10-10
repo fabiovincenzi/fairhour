@@ -472,10 +472,22 @@ minimumFractionDigits: e, maximumFractionDigits: e, ...options })` with `e` the 
 - **Fallback** (engines without v3, still exact): split the amount into the integer part `I`
   (bigint) and the fraction digits `F`. Format a bigint template with `formatToParts`: `I` itself,
   or `±1n` when `I = 0` (to obtain the sign and symbol layout), with
-  `minimumFractionDigits = maximumFractionDigits = e`. Replace the `integer` parts by the localized
-  digits of `0` when the template was `±1n`, and replace the `fraction` part by `F` transliterated
-  into the locale's numbering system (digits obtained from `formatToParts(1234567890n)`).
-  Bigint formatting has been exact since ES2020, so neither path converts to `Number`.
+  `minimumFractionDigits = maximumFractionDigits = min(|F|, 20)` (ECMA-402 2022 caps both at 20;
+  only the presence of a fraction matters, so scales 21 to 40 work). Replace the `integer` parts by
+  the localized digits of `0` when the template was `±1n`, and replace the `fraction` part by `F`
+  transliterated into the locale's numbering system (see 3.13, "Fallback digits"). Bigint
+  formatting has been exact since ES2020, so no digit shown on either path comes from a `Number`.
+  It needs only ES2020 `Intl` and supports every option of `FormatMoneyOptions`
+  (`signDisplay: "negative"`, added by v3, is formatted as `"auto"`: they differ only on a negative
+  zero, which a bigint template cannot be).
+- **Plural-dependent words** (`currencyDisplay: "name"`, the percent unit): a template with a zero
+  fraction has the wrong plural category (`es-ES`: `"1,00 euro"` but `"0,01 euros"`). The fallback
+  takes the words from a proxy decimal string with the sign and the CLDR plural operands of the
+  shown value, of at most 15 significant digits (exact even where an engine converts it to a
+  float), and keeps only its words. The words are then the exact path's for every value of at most
+  15 significant digits. Beyond that, ICU's exact path selects them from approximations (a float
+  for `n`, the last 18 integer digits for `i`) that no short value reproduces in general: the
+  plural form of a word may differ (`lt-LT`, 10^23 + 0.07 EUR), the digits never do.
 - Tests compare `formatToParts` output or normalize U+00A0/U+202F spaces, because ICU versions
   differ in the space they put between number and symbol.
 
@@ -624,6 +636,38 @@ Recorded with CORE-002 (2026-10-09). No public signature changed.
   (`out-of-range`) for a scale outside `0..MAX_DECIMAL_SCALE`; `DivisionByZeroError` takes an
   optional message. Calls from untyped code with a non-`bigint` amount or factor, or an unknown
   rounding mode, throw a plain `TypeError` (a programming error, not a `MoneyError`).
+
+Review fixes (2026-10-10). No public signature changed and no export was added; behaviour changes
+only where a call used to succeed with an unusable result (an unknown mode, an unreadable encoding)
+or where the fallback formatter differed from the exact path.
+
+- **Rounding modes are checked up front.** Every function that takes a `RoundingMode`
+  (`divideAndRound`, `rescaleDecimal`, `divideDecimal`, `multiply`, `percentage`, `divide`,
+  `convert`, `extend`, `fromDecimal`) throws the `TypeError` for an unknown mode before any
+  shortcut that needs no rounding (same scale, more digits, same currency, exact result), so a
+  wrong mode fails on every input instead of only on inexact ones. The message lists the valid
+  modes.
+- **Encoders are symmetric with decoders.** `moneyToJson`, `priceToJson` and the encoders of the
+  zod codecs (`decimalSchema`, `moneyJsonSchema`, `moneyStringSchema`, `priceJsonSchema`) throw
+  `InvalidAmountError` (`out-of-range`) for a value of more than `MAX_DECIMAL_DIGITS` digits,
+  which only arithmetic produces and no decoder reads back. Before, `moneyToJson` wrote that text
+  and `z.encode` failed with a `ZodError` from the input schema. It is an overflow, not invalid
+  input, so the codecs throw it instead of reporting an issue: zod does not catch errors thrown
+  by a codec, so `z.safeEncode` throws it too. `toDecimalString` and `decimalToString` (display
+  and canonical text) keep writing any value.
+- **Fallback formatting** (3.9): the template uses at most 20 fraction digits, so `formatPrice`,
+  `formatDecimal` and `formatPercent` work for scales 21 to 40 on engines without v3;
+  `signDisplay: "negative"` is formatted as `"auto"`; plural-dependent words come from a proxy
+  value, so `es-ES` 0.01 EUR is `"0,01 euros"` on both paths. Tests run the public functions on a
+  simulated pre-v3 engine (`test/legacy-intl.ts`: a `RangeError` above 20 fraction digits and for
+  `"negative"`, strings converted to floats) and compare with the exact path, including `es-ES`,
+  `lv-LV`, `lt-LT`, `ga-IE`, `cy-GB`, `br-FR` and `gd-GB` with `currencyDisplay: "name"`.
+- **Tie properties.** fast-check generates exact ties (`n = q·d + d/2` with an even `d`, both
+  signs) and asserts each mode's direction (`halfUp` away from zero, `halfDown` toward zero,
+  `halfEven` to the even neighbour, the directed modes by their definition) for `divideAndRound`
+  and through `rescaleDecimal`, `divideDecimal`, `multiply`, `divide`, `fromDecimal` and `extend`.
+  The shared oracle `isCorrectRounding` now checks the tie direction too (it accepted either
+  neighbour before).
 
 ---
 
