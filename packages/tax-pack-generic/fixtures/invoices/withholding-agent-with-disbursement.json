@@ -1,0 +1,116 @@
+{
+  "name": "withholding-agent-with-disbursement",
+  "description": "Withholding (default label and scope) for a client flagged as a withholding agent: 10% of the €1,000.00 fee = €100.00; the €50.00 disbursement is neither taxed nor part of the withholding base; total €1,250.00, net payable €1,150.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 2.3",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    },
+    "withholding": {
+      "rate": "10"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Legal advice",
+        "quantity": "10",
+        "unit": "hour",
+        "unitPrice": "100"
+      },
+      {
+        "id": "l2",
+        "kind": "reimbursement",
+        "description": "Court fee",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "1000.00",
+        "groupId": "tax-20"
+      },
+      {
+        "id": "l2",
+        "net": "50.00",
+        "groupId": "excluded"
+      }
+    ],
+    "subtotal": "1050.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "20",
+        "amount": "200.00",
+        "allocations": [
+          {
+            "groupId": "tax-20",
+            "base": "1000.00",
+            "amount": "200.00"
+          }
+        ]
+      },
+      {
+        "id": "generic.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1000.00",
+        "rate": "10",
+        "amount": "100.00"
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "1000.00",
+        "tax": "200.00"
+      },
+      {
+        "groupId": "excluded",
+        "treatment": "excluded",
+        "base": "50.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "1000.00",
+    "taxTotal": "200.00",
+    "total": "1250.00",
+    "withholdingTotal": "100.00",
+    "netPayable": "1150.00",
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "generic.withholding", "core"]
+  }
+}

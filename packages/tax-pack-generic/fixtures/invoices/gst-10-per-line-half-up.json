@@ -1,0 +1,89 @@
+{
+  "name": "gst-10-per-line-half-up",
+  "description": "GST at 10% rounded on each line, half up: 10% × A$10.05 = 1.005 → A$1.01 twice, A$2.02 (one cent more than per document).",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.2",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "GST",
+    "tax": {
+      "kind": "rate",
+      "rate": "10"
+    },
+    "rounding": {
+      "mode": "halfUp",
+      "taxScope": "per-line"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "AUD",
+    "client": {
+      "country": "AU",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "51824753556"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "10.05"
+      },
+      {
+        "id": "l2",
+        "kind": "service",
+        "description": "Support",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "10.05"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "20.10",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "20.10",
+        "rate": "10",
+        "amount": "2.02",
+        "allocations": [
+          {
+            "groupId": "tax-10",
+            "base": "20.10",
+            "amount": "2.02"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-10",
+        "treatment": "taxable",
+        "rate": "10",
+        "base": "20.10",
+        "tax": "2.02"
+      }
+    ],
+    "taxTotal": "2.02",
+    "total": "22.12",
+    "netPayable": "22.12",
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
+  }
+}

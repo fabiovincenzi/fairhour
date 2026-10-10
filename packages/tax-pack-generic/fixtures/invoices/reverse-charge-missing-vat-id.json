@@ -1,0 +1,91 @@
+{
+  "name": "reverse-charge-missing-vat-id",
+  "description": "Reverse charge to a French business without a VAT number: still applied (the user configured it), with a warning; the €120.00 disbursement stays outside the taxable amount.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.4",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    },
+    {
+      "title": "Council Directive 2006/112/EC of 28 November 2006 on the common system of value added tax",
+      "citation": "art. 196",
+      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj"
+    },
+    {
+      "title": "Council Directive 2006/112/EC of 28 November 2006 on the common system of value added tax",
+      "citation": "art. 226, point (11a)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2006/112/oj"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "19"
+    },
+    "reverseCharge": {
+      "mode": "foreign-business-clients",
+      "supplierCountry": "DE",
+      "note": "Reverse charge"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "FR",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "90"
+      },
+      {
+        "id": "l2",
+        "kind": "reimbursement",
+        "description": "Train ticket paid for the client",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "120"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "1920.00",
+    "components": [],
+    "vatSummary": [
+      {
+        "groupId": "reverse-charge",
+        "treatment": "out-of-scope",
+        "base": "1800.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "excluded",
+        "treatment": "excluded",
+        "base": "120.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "1800.00",
+    "taxTotal": "0.00",
+    "total": "1920.00",
+    "netPayable": "1920.00",
+    "legalNotes": ["generic.note.reverse-charge"],
+    "warnings": ["generic.reverse-charge-without-vat-id"],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
+  }
+}

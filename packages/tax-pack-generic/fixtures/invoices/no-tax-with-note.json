@@ -1,0 +1,70 @@
+{
+  "name": "no-tax-with-note",
+  "description": "No tax, with the user's note printed on the invoice (the French small-business wording, used only as an example of user-supplied text): 15 h at €100.00 = €1,500.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.3",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "none",
+      "note": "TVA non applicable, art. 293 B du CGI"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "FR",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Coaching",
+        "quantity": "15",
+        "unit": "hour",
+        "unitPrice": "100"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "1500.00",
+        "groupId": "no-tax"
+      }
+    ],
+    "subtotal": "1500.00",
+    "components": [],
+    "vatSummary": [
+      {
+        "groupId": "no-tax",
+        "treatment": "out-of-scope",
+        "base": "1500.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "1500.00",
+    "taxTotal": "0.00",
+    "total": "1500.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1500.00",
+    "legalNotes": ["generic.note.no-tax"],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "core"]
+  }
+}

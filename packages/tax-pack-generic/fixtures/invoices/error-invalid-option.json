@@ -1,0 +1,49 @@
+{
+  "name": "error-invalid-option",
+  "description": "An unknown value of the per-invoice reverse-charge option is refused.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100"
+      }
+    ],
+    "options": {
+      "reverseCharge": "always"
+    }
+  },
+  "expectedError": {
+    "code": "invalid-options"
+  }
+}

@@ -7,7 +7,8 @@
 
 - **Pack id:** `generic` · **Countries:** any · **Locales:** `en`, `it` · **Document locale:**
   the user's locale (legal notes are user-supplied text)
-- **Status:** specification for implementation (phase 2)
+- **Status:** implemented (phase 2, TAX-008); see section 8 for the decisions taken while
+  implementing it
 - **Backlog:** TAX-008 (pack), TAX-010 (docs)
 - **Engine contract:** [`docs/design/tax-engine.md`](../design/tax-engine.md)
 
@@ -147,8 +148,9 @@ values (all values come from the configuration). Every rule and the version cite
 `generic.user-configuration` (kind `user-configuration`: "Values supplied in the workspace's tax
 settings"). The reverse-charge rule additionally cites, as context, Council Directive 2006/112/EC
 art. 196 (customer liable for B2B services) and art. 226 point 11a (the invoice mention "Reverse
-charge"), marked `verified` against an official summary; the pack does not apply EU law, it only
-prints the user's wording.
+charge"), marked `verified` against `secondary` sources (see section 8: the official pages could
+not be reached while implementing); the pack does not apply EU law, it only prints the user's
+wording.
 
 ---
 
@@ -250,7 +252,13 @@ Fixtures (`packages/tax-pack-generic/fixtures/invoices/`): `vat-20-gbp`, `gst-10
 `reverse-charge-foreign-business`, `reverse-charge-domestic-client`,
 `reverse-charge-missing-vat-id`, `withholding-business-client`, `withholding-private-client`
 (none withheld), `exempt-and-excluded-lines`, `jpy-zero-decimals` (¥ amounts, exponent 0),
-`kwd-three-decimals` (exponent 3), `error-rate-not-allowed`.
+`kwd-three-decimals` (exponent 3), `error-rate-not-allowed`. Added while implementing (section 8):
+`sales-tax-usd-tie-half-up` and `sales-tax-usd-tie-half-even` (8.875 % of $1,212.00 = $107.565,
+an exact tie), `reverse-charge-forced`, `reverse-charge-skipped`,
+`withholding-agent-with-disbursement`, `exempt-without-note`, `line-references`,
+`reduced-rates-per-line`, `no-tax-document-note`, `credit-note`, `zero-lines`,
+`error-rate-without-tax`, `error-reverse-charge-without-supplier-country` and
+`error-invalid-option`.
 
 ---
 
@@ -266,3 +274,62 @@ Fixtures (`packages/tax-pack-generic/fixtures/invoices/`): `vat-20-gbp`, `gst-10
   place-of-supply rules or exceptions.
 - No cash rounding (CHF 0.05 and similar).
 - The pack never validates the legal correctness of the user's rates or wording.
+
+---
+
+## 8. Changes during implementation (TAX-008)
+
+Recorded while implementing `packages/tax-pack-generic` (2026-10-10). The configuration, the
+pipeline and every example above are unchanged; these are clarifications of points the text left
+open, and one correction (the source verification).
+
+- **Classification order and refusals.** A `rate` line under `tax.kind === 'none'` is refused by
+  `generic.rate-without-tax` before any rule runs, so in practice only `standard` lines reach the
+  `no-tax` row of 2.1. With no tax configured, the per-invoice option `reverseCharge: 'apply'` has
+  no effect (there is no tax to reverse). A `rate` line that is not allowed is refused even when
+  the reverse charge would apply to it.
+- **Reverse charge.** The decision is taken once per invoice and reported in the trace only when
+  the invoice has at least one `standard` or `rate` line (otherwise there is nothing to reverse):
+  forced by the option, skipped by the option, not a business, domestic client, or foreign business
+  client. Nothing is reported when the mode is `off` and the option is `auto`. A
+  `public-administration` client is not a `business`, as 2.1 says; use the option `apply` when a
+  reverse charge is due to one.
+- **Groups.** Taxable groups are listed from the highest rate down, then `reverse-charge`,
+  `no-tax`, `exempt`, `out-of-scope` and `excluded`. Rates are normalized, so `"20"` and
+  `"20.00"` share `tax-20`. The `no-tax` label is `generic.group.no-tax` ("No {label}"). Groups
+  carry no `reference`: the user's text is printed once, as a legal note.
+- **Legal notes.** Ids: `generic.note.reverse-charge`; `generic.note.exempt.<n>` and
+  `generic.note.out-of-scope.<n>`, one per distinct text in line order (an exempt line's
+  `reference`, then `exemptNote` when an exempt line has no reference; duplicates printed once);
+  `generic.note.no-tax`; `generic.note.document`. All use `generic.note.custom` ("{text}").
+- **Tax.** `taxScope: 'per-document'` is the engine's `per-group` tax scope. The component has a
+  `rate` only when the invoice has one rate. The trace has one step per rate (`per-document`,
+  formula `core.formula.percentage`), or one step per line and a sum per rate (`per-line`, formula
+  `generic.formula.tax-per-line`), so the per-line rounding is visible. No taxable amount: no
+  component, and the trace step `generic.trace.tax.none`.
+- **Withholding.** The base is the sum of the lines whose treatment is not `excluded`, before tax,
+  whatever the tax configuration (reverse charge and no tax included). A zero base gives no
+  component and the trace step `generic.trace.withholding.no-base`; a `rate` of `0` gives a
+  component of zero. No legal note is added.
+- **Facts and parameters.** The rules exchange no facts (`initialFacts` is `{}`); `generic-v1` has
+  empty `params`.
+- **Messages.** Besides the keys of section 5: `generic.rule.{classify-lines,tax,withholding,
+notes}.title`; `generic.trace.classify`, `generic.trace.no-tax`,
+  `generic.trace.reverse-charge.{forced,foreign-business,skipped,not-business,domestic}`,
+  `generic.trace.tax`, `generic.trace.tax.line`, `generic.trace.tax.per-line`,
+  `generic.trace.tax.none`, `generic.trace.withholding` and
+  `generic.trace.withholding.{not-agent,individual,no-base}`; `generic.formula.tax-per-line`;
+  `generic.warning.{exempt-without-note,reverse-charge-without-vat-id}`;
+  `generic.issue.{rate-not-allowed,rate-without-tax}`; `generic.rounding.description-no-tax` and
+  `generic.rounding.{mode,scope}.*` (the rounding description names the mode and the scope in
+  words). Every user-supplied label and note is a `text` parameter.
+- **Sources.** `generic.classify-lines` cites the user configuration and, for its reverse-charge
+  part, the two Directive provisions; each trace step and legal note carries only the sources that
+  apply to it (the reverse-charge step and note: all three; everything else: the configuration).
+  The Directive provisions are marked `verified` on 2026-10-10 against `secondary` sources, not
+  `official-summary` as section 2.5 first said: EUR-Lex and the Commission's pages could not be
+  reached from the build environment. Art. 226 point 11a was confirmed by a quoted extract ("where
+  the customer is liable for the payment of the VAT, the mention 'Reverse charge'") and art. 196
+  by professional commentary. **To do before a release:** read both provisions in the consolidated
+  text on EUR-Lex and upgrade the verification to `primary-text`. The user-configuration source
+  stays `to-be-verified` on purpose.

@@ -1,0 +1,134 @@
+{
+  "name": "line-references",
+  "description": "Line references become notes: one per distinct exempt reference (duplicates printed once), the configured exemption note for the exempt line without a reference, and the out-of-scope reference; an out-of-scope line without a reference adds nothing.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 2.1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    },
+    "exemptNote": "Exempt supply"
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Physiotherapy",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "exempt",
+          "reference": "Exempt: medical care"
+        }
+      },
+      {
+        "id": "l2",
+        "kind": "service",
+        "description": "Tutoring",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "exempt",
+          "reference": "Exempt: education"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "service",
+        "description": "Physiotherapy",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "exempt",
+          "reference": "Exempt: medical care"
+        }
+      },
+      {
+        "id": "l4",
+        "kind": "service",
+        "description": "Workshop",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "exempt"
+        }
+      },
+      {
+        "id": "l5",
+        "kind": "service",
+        "description": "Consulting abroad",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "out-of-scope",
+          "reference": "Outside the scope of VAT: place of supply abroad"
+        }
+      },
+      {
+        "id": "l6",
+        "kind": "service",
+        "description": "Insurance recharge",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "out-of-scope"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "600.00",
+    "components": [],
+    "vatSummary": [
+      {
+        "groupId": "exempt",
+        "treatment": "exempt",
+        "base": "400.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "out-of-scope",
+        "treatment": "out-of-scope",
+        "base": "200.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "600.00",
+    "total": "600.00",
+    "legalNotes": [
+      "generic.note.exempt.1",
+      "generic.note.exempt.2",
+      "generic.note.exempt.3",
+      "generic.note.out-of-scope.1"
+    ],
+    "warnings": []
+  }
+}

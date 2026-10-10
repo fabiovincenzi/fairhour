@@ -1,0 +1,84 @@
+{
+  "name": "reverse-charge-domestic-client",
+  "description": "The same invoice to a business in the supplier's country: no reverse charge, VAT 19% × €1,800.00 = €342.00, total €2,142.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.4",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "19"
+    },
+    "reverseCharge": {
+      "mode": "foreign-business-clients",
+      "supplierCountry": "DE",
+      "note": "Reverse charge"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "DE",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "DE123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "90"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "1800.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1800.00",
+        "rate": "19",
+        "amount": "342.00",
+        "allocations": [
+          {
+            "groupId": "tax-19",
+            "base": "1800.00",
+            "amount": "342.00"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-19",
+        "treatment": "taxable",
+        "rate": "19",
+        "base": "1800.00",
+        "tax": "342.00"
+      }
+    ],
+    "taxTotal": "342.00",
+    "total": "2142.00",
+    "netPayable": "2142.00",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
+  }
+}

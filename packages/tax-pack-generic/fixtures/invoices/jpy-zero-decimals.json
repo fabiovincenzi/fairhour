@@ -1,0 +1,84 @@
+{
+  "name": "jpy-zero-decimals",
+  "description": "Yen has no minor unit: 7.5 h at ¥8,333 = ¥62,497.5 → ¥62,498; tax 10% = ¥6,249.8 → ¥6,250; total ¥68,748.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 3",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "Consumption tax",
+    "tax": {
+      "kind": "rate",
+      "rate": "10"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "JPY",
+    "client": {
+      "country": "JP",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Translation",
+        "quantity": "7.5",
+        "unit": "hour",
+        "unitPrice": "8333"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "62498",
+        "groupId": "tax-10"
+      }
+    ],
+    "subtotal": "62498",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "62498",
+        "rate": "10",
+        "amount": "6250",
+        "allocations": [
+          {
+            "groupId": "tax-10",
+            "base": "62498",
+            "amount": "6250"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-10",
+        "treatment": "taxable",
+        "rate": "10",
+        "base": "62498",
+        "tax": "6250"
+      }
+    ],
+    "taxableBase": "62498",
+    "taxTotal": "6250",
+    "total": "68748",
+    "withholdingTotal": "0",
+    "netPayable": "68748"
+  }
+}

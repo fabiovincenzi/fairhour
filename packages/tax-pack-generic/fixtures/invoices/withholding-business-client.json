@@ -1,0 +1,85 @@
+{
+  "name": "withholding-business-client",
+  "description": "Withholding at 15% for a business client (the mechanism only, not a Spanish tax pack): fees €1,000.00, IVA 21% = €210.00, total €1,210.00, withholding €150.00, net payable €1,060.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.5",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "IVA",
+    "tax": {
+      "kind": "rate",
+      "rate": "21"
+    },
+    "withholding": {
+      "label": "IRPF",
+      "rate": "15",
+      "appliesTo": "business-clients"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "ES",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "ESB12345678"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "1000"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "1000.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "21",
+        "amount": "210.00",
+        "allocations": [
+          {
+            "groupId": "tax-21",
+            "base": "1000.00",
+            "amount": "210.00"
+          }
+        ]
+      },
+      {
+        "id": "generic.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1000.00",
+        "rate": "15",
+        "amount": "150.00"
+      }
+    ],
+    "taxableBase": "1000.00",
+    "taxTotal": "210.00",
+    "total": "1210.00",
+    "withholdingTotal": "150.00",
+    "netPayable": "1060.00",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "generic.withholding", "core"]
+  }
+}

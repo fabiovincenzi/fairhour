@@ -1,0 +1,70 @@
+{
+  "name": "credit-note",
+  "description": "A credit note is computed like an invoice with positive amounts (the document kind gives the direction): 2.5 h at £80.00 = £200.00, VAT £40.00, total £240.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "documentKind": "credit-note",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design (refund)",
+        "quantity": "2.5",
+        "unit": "hour",
+        "unitPrice": "80"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "200.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "200.00",
+        "rate": "20",
+        "amount": "40.00",
+        "allocations": [
+          {
+            "groupId": "tax-20",
+            "base": "200.00",
+            "amount": "40.00"
+          }
+        ]
+      }
+    ],
+    "taxTotal": "40.00",
+    "total": "240.00",
+    "netPayable": "240.00",
+    "legalNotes": [],
+    "warnings": []
+  }
+}

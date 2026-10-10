@@ -1,0 +1,48 @@
+{
+  "name": "error-rate-without-tax",
+  "description": "A line rate is refused when the workspace is configured without tax.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "tax": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "goods",
+        "description": "Catering",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "rate",
+          "rate": "20"
+        }
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["generic.rate-without-tax"]
+  }
+}

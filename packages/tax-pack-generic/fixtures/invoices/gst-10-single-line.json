@@ -1,0 +1,67 @@
+{
+  "name": "gst-10-single-line",
+  "description": "GST at 10% on one line of A$1,234.56: 123.456 → A$123.46, total A$1,358.02.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.2",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "GST",
+    "tax": {
+      "kind": "rate",
+      "rate": "10"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "AUD",
+    "client": {
+      "country": "AU",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "51824753556"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Website build",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "1234.56"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "1234.56",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1234.56",
+        "rate": "10",
+        "amount": "123.46",
+        "allocations": [
+          {
+            "groupId": "tax-10",
+            "base": "1234.56",
+            "amount": "123.46"
+          }
+        ]
+      }
+    ],
+    "taxTotal": "123.46",
+    "total": "1358.02",
+    "netPayable": "1358.02"
+  }
+}

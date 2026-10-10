@@ -1,0 +1,63 @@
+{
+  "name": "exempt-without-note",
+  "description": "An exempt line without a reference and no exemption note configured: no note can be printed, so the pack warns.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 2.1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Training course",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "200",
+        "treatment": {
+          "kind": "exempt"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "200.00",
+    "components": [],
+    "vatSummary": [
+      {
+        "groupId": "exempt",
+        "treatment": "exempt",
+        "base": "200.00",
+        "tax": "0.00"
+      }
+    ],
+    "total": "200.00",
+    "legalNotes": [],
+    "warnings": ["generic.exempt-without-note"],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
+  }
+}

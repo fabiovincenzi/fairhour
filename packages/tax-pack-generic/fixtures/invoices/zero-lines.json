@@ -1,0 +1,49 @@
+{
+  "name": "zero-lines",
+  "description": "An empty draft: every amount is zero, no component, the engine warns that there are no lines.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 2",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": []
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [],
+    "subtotal": "0.00",
+    "components": [],
+    "vatSummary": [],
+    "taxableBase": "0.00",
+    "taxTotal": "0.00",
+    "total": "0.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "0.00",
+    "legalNotes": [],
+    "warnings": ["core.no-lines"],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
+  }
+}

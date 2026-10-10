@@ -1,0 +1,69 @@
+{
+  "name": "sales-tax-usd-tie-half-even",
+  "description": "The same tie with half-even rounding: $107.565 → $107.56 (6 is the even neighbour).",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 3",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "Sales tax",
+    "tax": {
+      "kind": "rate",
+      "rate": "8.875"
+    },
+    "rounding": {
+      "mode": "halfEven"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "USD",
+    "client": {
+      "country": "US",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Development",
+        "quantity": "12",
+        "unit": "hour",
+        "unitPrice": "101"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "1212.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1212.00",
+        "rate": "8.875",
+        "amount": "107.56",
+        "allocations": [
+          {
+            "groupId": "tax-8-875",
+            "base": "1212.00",
+            "amount": "107.56"
+          }
+        ]
+      }
+    ],
+    "taxTotal": "107.56",
+    "total": "1319.56",
+    "netPayable": "1319.56"
+  }
+}

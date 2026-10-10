@@ -1,0 +1,59 @@
+{
+  "name": "no-tax-document-note",
+  "description": "No tax and no note, with a document note: the note is printed, the amounts are untaxed.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 2.4",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "tax": {
+      "kind": "none"
+    },
+    "documentNote": "Registered in England and Wales, company number 01234567"
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Photography",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "350"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "350.00",
+    "components": [],
+    "vatSummary": [
+      {
+        "groupId": "no-tax",
+        "treatment": "out-of-scope",
+        "base": "350.00",
+        "tax": "0.00"
+      }
+    ],
+    "total": "350.00",
+    "netPayable": "350.00",
+    "legalNotes": ["generic.note.document"],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "core"]
+  }
+}

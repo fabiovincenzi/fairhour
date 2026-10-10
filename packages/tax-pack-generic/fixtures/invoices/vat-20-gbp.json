@@ -1,0 +1,88 @@
+{
+  "name": "vat-20-gbp",
+  "description": "UK-style VAT at 20%: 12.5 h at £80.00 = £1,000.00, VAT £200.00, total £1,200.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "12.5",
+        "unit": "hour",
+        "unitPrice": "80"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "1000.00",
+        "groupId": "tax-20"
+      }
+    ],
+    "subtotal": "1000.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "20",
+        "amount": "200.00",
+        "allocations": [
+          {
+            "groupId": "tax-20",
+            "base": "1000.00",
+            "amount": "200.00"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "1000.00",
+        "tax": "200.00"
+      }
+    ],
+    "taxableBase": "1000.00",
+    "taxTotal": "200.00",
+    "total": "1200.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1200.00",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
+  }
+}

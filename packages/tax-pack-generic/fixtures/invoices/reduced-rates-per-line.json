@@ -1,0 +1,142 @@
+{
+  "name": "reduced-rates-per-line",
+  "description": "Reduced rates per line: £100.00 at the standard 20% (£20.00), £40.00 at 5% (£2.00) and £10.00 at 0% (£0.00); one tax component with three allocations, total £172.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 2.2",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20",
+      "allowedLineRates": ["5", "0"]
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100"
+      },
+      {
+        "id": "l2",
+        "kind": "goods",
+        "description": "Energy-saving materials",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "40",
+        "treatment": {
+          "kind": "rate",
+          "rate": "5"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "goods",
+        "description": "Printed book",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "10",
+        "treatment": {
+          "kind": "rate",
+          "rate": "0.00"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "100.00",
+        "groupId": "tax-20"
+      },
+      {
+        "id": "l2",
+        "net": "40.00",
+        "groupId": "tax-5"
+      },
+      {
+        "id": "l3",
+        "net": "10.00",
+        "groupId": "tax-0"
+      }
+    ],
+    "subtotal": "150.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "150.00",
+        "amount": "22.00",
+        "allocations": [
+          {
+            "groupId": "tax-20",
+            "base": "100.00",
+            "amount": "20.00"
+          },
+          {
+            "groupId": "tax-5",
+            "base": "40.00",
+            "amount": "2.00"
+          },
+          {
+            "groupId": "tax-0",
+            "base": "10.00",
+            "amount": "0.00"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "100.00",
+        "tax": "20.00"
+      },
+      {
+        "groupId": "tax-5",
+        "treatment": "taxable",
+        "rate": "5",
+        "base": "40.00",
+        "tax": "2.00"
+      },
+      {
+        "groupId": "tax-0",
+        "treatment": "taxable",
+        "rate": "0",
+        "base": "10.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "150.00",
+    "taxTotal": "22.00",
+    "total": "172.00",
+    "netPayable": "172.00"
+  }
+}

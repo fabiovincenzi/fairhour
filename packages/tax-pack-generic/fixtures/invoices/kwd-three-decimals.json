@@ -1,0 +1,74 @@
+{
+  "name": "kwd-three-decimals",
+  "description": "Kuwaiti dinar has three decimals: 2.5 × KD 49.483 = 123.7075 → KD 123.708; an illustrative 5% tax = 6.1854 → KD 6.185; total KD 129.893. The rate is an example configuration, not a statement about Kuwaiti tax.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 3",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "Tax",
+    "tax": {
+      "kind": "rate",
+      "rate": "5"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "KWD",
+    "client": {
+      "country": "KW",
+      "kind": "business",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Training",
+        "quantity": "2.5",
+        "unit": "day",
+        "unitPrice": "49.483"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "123.708",
+        "groupId": "tax-5"
+      }
+    ],
+    "subtotal": "123.708",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "123.708",
+        "rate": "5",
+        "amount": "6.185",
+        "allocations": [
+          {
+            "groupId": "tax-5",
+            "base": "123.708",
+            "amount": "6.185"
+          }
+        ]
+      }
+    ],
+    "taxTotal": "6.185",
+    "total": "129.893",
+    "withholdingTotal": "0.000",
+    "netPayable": "129.893"
+  }
+}

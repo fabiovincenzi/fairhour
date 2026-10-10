@@ -1,0 +1,111 @@
+{
+  "name": "exempt-and-excluded-lines",
+  "description": "A standard line, an exempt line and a disbursement: VAT 20% × £500.00 = £100.00; the configured exemption note is printed; total £840.00.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 4.6",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20"
+    },
+    "exemptNote": "Exempt supply"
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "500"
+      },
+      {
+        "id": "l2",
+        "kind": "service",
+        "description": "Training course",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "200",
+        "treatment": {
+          "kind": "exempt"
+        }
+      },
+      {
+        "id": "l3",
+        "kind": "reimbursement",
+        "description": "Courier paid for the client",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "40"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "generic-v1",
+    "subtotal": "740.00",
+    "components": [
+      {
+        "id": "generic.tax",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "500.00",
+        "rate": "20",
+        "amount": "100.00",
+        "allocations": [
+          {
+            "groupId": "tax-20",
+            "base": "500.00",
+            "amount": "100.00"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "tax-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "500.00",
+        "tax": "100.00"
+      },
+      {
+        "groupId": "exempt",
+        "treatment": "exempt",
+        "base": "200.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "excluded",
+        "treatment": "excluded",
+        "base": "40.00",
+        "tax": "0.00"
+      }
+    ],
+    "taxableBase": "700.00",
+    "taxTotal": "100.00",
+    "total": "840.00",
+    "netPayable": "840.00",
+    "legalNotes": ["generic.note.exempt.1"],
+    "warnings": []
+  }
+}

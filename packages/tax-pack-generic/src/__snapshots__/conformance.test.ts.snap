@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`conformance: generic > parameters.snapshot 1`] = `
+[
+  {
+    "changes": [
+      "Initial version. The generic pack has no legal parameters: every rate, label and wording comes from the workspace's tax settings.",
+    ],
+    "effectiveFrom": "1900-01-01",
+    "id": "generic-v1",
+    "params": {},
+    "sources": [
+      {
+        "citation": "Values supplied in the workspace's tax settings",
+        "id": "generic.user-configuration",
+        "kind": "user-configuration",
+        "note": "The generic pack knows no country's law: the user is responsible for the configured values.",
+        "title": "Workspace tax settings",
+        "verification": {
+          "reason": "Supplied by the user: the pack cannot verify the rates, labels and wording configured in the workspace's tax settings; check them with an accountant or the tax authority",
+          "status": "to-be-verified",
+        },
+      },
+    ],
+  },
+]
+`;

@@ -1,0 +1,52 @@
+{
+  "name": "error-rate-not-allowed",
+  "description": "A line rate that is neither the standard rate nor one of the configured line rates is refused.",
+  "pack": "generic",
+  "sources": [
+    {
+      "title": "Workspace tax settings (user configuration)",
+      "citation": "Values supplied in the workspace's tax settings"
+    },
+    {
+      "title": "Fairhour generic tax pack specification",
+      "citation": "docs/tax-packs/generic.md, section 1",
+      "url": "https://fabiovincenzi.github.io/fairhour/tax-packs/generic/"
+    }
+  ],
+  "config": {
+    "taxLabel": "VAT",
+    "tax": {
+      "kind": "rate",
+      "rate": "20",
+      "allowedLineRates": ["5"]
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "GBP",
+    "client": {
+      "country": "GB",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "GB123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "goods",
+        "description": "Catering",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["generic.rate-not-allowed"]
+  }
+}
