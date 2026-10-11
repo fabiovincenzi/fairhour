@@ -183,7 +183,7 @@ Each line's `treatment` (from `@fairhour/tax-core`) decides its group in the tax
 
 The reverse charge applies with the option `"apply"`, or with `"auto"` when the mode is
 `"foreign-business-clients"`, the client is a `business` and its country differs from
-`supplierCountry`. The pack compares country codes only. It does not know the EU, VAT
+`supplierCountry`. The pack compares country codes only. It does not check EU membership, VAT
 registration, the place-of-supply rules or their exceptions: whether the reverse charge is
 allowed is your responsibility, and the explanation trace says so.
 
@@ -210,10 +210,12 @@ Any currency works: 7.5 h at ¥8,333 is ¥62,497.5, rounded to ¥62,498, and 10%
 The pack has a single parameter version, `generic-v1`, with no legal values: every rate, label
 and wording comes from your configuration. Its source is the configuration itself (kind
 `user-configuration`), marked "to be verified" on purpose: the pack cannot check what you
-configured. The reverse-charge step also cites, as context only, Council Directive 2006/112/EC,
-art. 196 (the customer is liable for business-to-business services from abroad) and art. 226,
-point (11a) (the invoice mention "Reverse charge"). The pack does not apply EU law; it prints
-your wording.
+configured. When the reverse charge applies automatically and you and your client are in two
+different EU Member States on the issue date (from 2013-01-01), the reverse-charge step and note
+also cite, as context only, Council Directive 2006/112/EC, art. 196 (the customer is liable for
+business-to-business services from another Member State) and art. 226, point (11a) (the invoice
+mention "Reverse charge"). A forced reverse charge and clients or suppliers outside the EU cite
+your configuration only. The pack does not apply EU law; it prints your wording.
 
 ## Limitations
 

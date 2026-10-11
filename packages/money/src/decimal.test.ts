@@ -34,6 +34,7 @@ import {
   signDecimal,
   subtractDecimal,
   tryDecimal,
+  tryEncodeDigits,
 } from "./decimal";
 import type { Decimal } from "./decimal";
 import { DivisionByZeroError, InvalidAmountError } from "./errors";
@@ -214,6 +215,7 @@ describe("encodeDigits (internal, for the JSON and zod encoders)", () => {
     [1n, 40, `0.${"0".repeat(39)}1`],
   ] as const)("encodes %s at scale %i as %j, which decimal() reads back", (c, scale, text) => {
     expect(encodeDigits(c, scale)).toBe(text);
+    expect(tryEncodeDigits(c, scale)).toEqual({ ok: true, text });
     expect(parts(d(text))).toEqual([c, scale]);
   });
 
@@ -227,6 +229,11 @@ describe("encodeDigits (internal, for the JSON and zod encoders)", () => {
     expect(() => d(digitsToString(c, scale))).toThrow(InvalidAmountError);
     expect(() => encodeDigits(c, scale)).toThrow(
       expect.objectContaining({ code: "invalid-amount", reason: "out-of-range" }),
+    );
+    const result = tryEncodeDigits(c, scale);
+    expect(result.ok).toBe(false);
+    expect("message" in result && result.message).toMatch(
+      /^Value out of range for a decimal string \(\d+ digits\)/,
     );
   });
 

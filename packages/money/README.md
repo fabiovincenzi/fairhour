@@ -170,8 +170,11 @@ moneyFromJson({ amount: "1234.56", currency: "EUR" }); // strict: "1.235" EUR th
 ```
 
 Encoding is symmetric with decoding: an amount of more than 80 digits (only arithmetic produces
-one), which no decoder would read back, throws `InvalidAmountError` (reason `out-of-range`) from
-`moneyToJson`, `priceToJson` and the zod encoders below, `z.safeEncode` included.
+one), which no decoder would read back, makes `moneyToJson` and `priceToJson` throw
+`InvalidAmountError` (reason `out-of-range`). The zod encoders below report it as an issue
+instead (code `custom`, `params: { reason: "out-of-range" }`, path `amount` for the object
+schemas; the message names the digit count, never the value), so `z.encode` throws a `ZodError`
+and `z.safeEncode` returns `{ success: false }`.
 
 With zod 4 installed, `@fairhour/money/zod` provides schemas (codecs, so `z.encode` works too):
 
@@ -183,6 +186,7 @@ import { decimalSchema, moneyJsonSchema, moneyStringSchema } from "@fairhour/mon
 const Line = z.object({ unitPrice: moneyJsonSchema, quantity: decimalSchema });
 Line.parse({ unitPrice: { amount: "60.00", currency: "EUR" }, quantity: "7.5" });
 z.encode(moneyJsonSchema, money(123456n, "EUR")); // { amount: "1234.56", currency: "EUR" }
+z.safeEncode(moneyJsonSchema, money(10n ** 80n, "EUR")).success; // false (out-of-range issue)
 moneyStringSchema("EUR").parse("1234.56"); // Money
 ```
 

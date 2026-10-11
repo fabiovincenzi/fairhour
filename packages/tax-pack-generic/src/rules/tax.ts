@@ -2,7 +2,8 @@
  * Rule 2, `generic.tax` (docs/tax-packs/generic.md, section 2.2): one `tax` component with one
  * allocation per taxable group, computed by tax-core's `taxAllocations`. `per-document` rounds
  * rate × group base once per group; `per-line` rounds rate × line net for each line and sums
- * per group (the trace then shows every line).
+ * per group (the trace then shows every line). Without a taxable amount there is no component,
+ * and the trace says why: a reverse charge, or nothing taxable.
  */
 import { percentage, type Decimal, type Money } from "@fairhour/money";
 import {
@@ -16,11 +17,14 @@ import {
   type TaxGroup,
   type TraceDraft,
 } from "@fairhour/tax-core";
+import type { FixedGroupId } from "../groups";
 import { configurationSources } from "../sources";
 import type { GenericRule } from "../types";
 
 export const TAX_RULE_ID = "generic.tax";
 export const TAX_COMPONENT_ID = "generic.tax";
+
+const REVERSE_CHARGE_GROUP_ID: FixedGroupId = "reverse-charge";
 
 function percentageFormula(rate: Decimal, base: Money, amount: Money): MessageRef {
   return message("core.formula.percentage", {
@@ -46,7 +50,11 @@ export const taxRule: GenericRule = {
     const policy = ctx.rounding.taxes;
     const allocations = taxAllocations(state, policy, ctx.currency);
     if (allocations.length === 0) {
-      return { trace: [{ message: message("generic.trace.tax.none", { label }) }] };
+      // Under a reverse charge every standard and rate line is in the reverse-charge group, so
+      // there is no taxable group: say why, rather than "no taxable amount".
+      const reverseCharge = state.groups.some((group) => group.id === REVERSE_CHARGE_GROUP_ID);
+      const key = reverseCharge ? "generic.trace.tax.reverse-charge" : "generic.trace.tax.none";
+      return { trace: [{ message: message(key, { label }) }] };
     }
 
     // The allocations with their groups, in group order (highest rate first).

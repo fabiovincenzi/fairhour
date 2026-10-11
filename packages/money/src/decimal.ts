@@ -134,21 +134,34 @@ export function digitsToString(coefficient: bigint, scale: number): string {
 }
 
 /**
+ * @internal Non-throwing {@link encodeDigits}, for the zod codecs (which report an issue instead):
+ * the text, or the `out-of-range` message when {@link decimal} would reject it.
+ */
+export function tryEncodeDigits(
+  coefficient: bigint,
+  scale: number,
+): { readonly ok: true; readonly text: string } | { readonly ok: false; readonly message: string } {
+  const text = digitsToString(coefficient, scale);
+  const digits = text.length - (coefficient < 0n ? 1 : 0) - (scale > 0 ? 1 : 0);
+  if (digits > MAX_DECIMAL_DIGITS || scale > MAX_DECIMAL_SCALE) {
+    return {
+      ok: false,
+      message: `Value out of range for a decimal string (${digits} digits): at most ${MAX_DECIMAL_DIGITS} digits and ${MAX_DECIMAL_SCALE} decimals`,
+    };
+  }
+  return { ok: true, text };
+}
+
+/**
  * @internal {@link digitsToString} for encoders: the same text, or an `out-of-range` error when
  * {@link decimal} would reject it (more than `MAX_DECIMAL_DIGITS` digits or `MAX_DECIMAL_SCALE`
  * decimals), so that every value an encoder writes decodes back.
  * @throws InvalidAmountError reason `"out-of-range"`
  */
 export function encodeDigits(coefficient: bigint, scale: number): string {
-  const text = digitsToString(coefficient, scale);
-  const digits = text.length - (coefficient < 0n ? 1 : 0) - (scale > 0 ? 1 : 0);
-  if (digits > MAX_DECIMAL_DIGITS || scale > MAX_DECIMAL_SCALE) {
-    throw new InvalidAmountError(
-      "out-of-range",
-      `Value out of range for a decimal string (${digits} digits): at most ${MAX_DECIMAL_DIGITS} digits and ${MAX_DECIMAL_SCALE} decimals`,
-    );
-  }
-  return text;
+  const result = tryEncodeDigits(coefficient, scale);
+  if (!result.ok) throw new InvalidAmountError("out-of-range", result.message);
+  return result.text;
 }
 
 /** Canonical text keeping the scale: `decimal("1.50")` -> `"1.50"`, `decimal("-0.0")` -> `"0.0"`. */

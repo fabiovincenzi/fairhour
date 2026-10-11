@@ -2,6 +2,7 @@ import { decimal, decimalToString } from "@fairhour/money";
 import {
   countryCode,
   InvalidInputError,
+  isoDate,
   type ClientInput,
   type LineTaxTreatment,
 } from "@fairhour/tax-core";
@@ -24,7 +25,9 @@ import { configurationSources, reverseChargeSources } from "../sources";
 import {
   CLASSIFY_LINES_RULE_ID,
   classifyLine,
+  classifyLinesRule,
   reverseChargeDecision,
+  reverseChargeDecisionSources,
   type Placement,
 } from "./classify-lines";
 
@@ -300,6 +303,12 @@ describe("reverse charge in the pipeline", () => {
     ]);
   });
 
+  it("cites the Directive in the rule's sources, which list everything its steps may cite", () => {
+    const c = compute(RC, [line("100")], { client: CLIENTS.frBusiness });
+    expect(c.trace.some((step) => step.ruleId === CLASSIFY_LINES_RULE_ID)).toBe(true);
+    expect(classifyLinesRule.sources).toEqual(reverseChargeSources);
+  });
+
   it("does nothing when no line is standard or rate", () => {
     const c = compute(RC, [line("100", { kind: "exempt", reference: "art. 10" })], {
       client: CLIENTS.frBusinessNoVatId,
@@ -314,6 +323,153 @@ describe("reverse charge in the pipeline", () => {
       client: CLIENTS.frBusiness,
     });
     expect(c.lines[0]?.groupId).toBe("reverse-charge");
+  });
+});
+
+describe("reverse-charge sources: the Directive only between two EU Member States (section 2.5)", () => {
+  const business = (country: string): ClientJson => ({
+    country,
+    kind: "business",
+    isWithholdingAgent: false,
+    vatId: `${country}123456789`,
+  });
+  const supplierIn = (country: string): GenericConfigInput => ({
+    ...RC,
+    reverseCharge: { mode: "foreign-business-clients", supplierCountry: country },
+  });
+  const EU = "Directive";
+  const CONFIGURATION = "configuration";
+
+  it.each<
+    [string, GenericConfigInput, ClientJson, string, Record<string, string> | undefined, string]
+  >([
+    ["Germany to France", RC, business("FR"), "2026-03-15", undefined, EU],
+    ["Germany to a US business", RC, business("US"), "2026-03-15", undefined, CONFIGURATION],
+    [
+      "a UK supplier to France",
+      supplierIn("GB"),
+      business("FR"),
+      "2026-03-15",
+      undefined,
+      CONFIGURATION,
+    ],
+    [
+      "a US supplier to Germany",
+      supplierIn("US"),
+      business("DE"),
+      "2026-03-15",
+      undefined,
+      CONFIGURATION,
+    ],
+    ["Germany to the UK in the transition period", RC, business("GB"), "2020-12-31", undefined, EU],
+    [
+      "Germany to the UK after the transition period",
+      RC,
+      business("GB"),
+      "2021-01-01",
+      undefined,
+      CONFIGURATION,
+    ],
+    [
+      "Germany to Croatia before its accession",
+      RC,
+      business("HR"),
+      "2013-06-30",
+      undefined,
+      CONFIGURATION,
+    ],
+    ["Germany to Croatia after its accession", RC, business("HR"), "2013-07-01", undefined, EU],
+    [
+      "Germany to France before point (11a) applied",
+      RC,
+      business("FR"),
+      "2012-12-31",
+      undefined,
+      CONFIGURATION,
+    ],
+    [
+      "forced on a domestic client",
+      RC,
+      business("DE"),
+      "2026-03-15",
+      { reverseCharge: "apply" },
+      CONFIGURATION,
+    ],
+    [
+      "forced between two Member States",
+      RC,
+      business("FR"),
+      "2026-03-15",
+      { reverseCharge: "apply" },
+      CONFIGURATION,
+    ],
+    [
+      "forced with the mode off",
+      VAT20,
+      business("GB"),
+      "2026-03-15",
+      { reverseCharge: "apply" },
+      CONFIGURATION,
+    ],
+  ])(
+    "%s: the step and the note cite the %s",
+    (_name, config, clientJson, issueDate, options, cited) => {
+      const c = compute(config, [line("100")], {
+        client: clientJson,
+        issueDate,
+        ...(options === undefined ? {} : { options }),
+      });
+      const expected = cited === EU ? reverseChargeSources : configurationSources;
+      const [step] = c.trace.filter(
+        (item) =>
+          item.ruleId === CLASSIFY_LINES_RULE_ID &&
+          item.message.key.startsWith("generic.trace.reverse-charge."),
+      );
+      expect(step?.sources).toEqual(expected);
+      expect(c.legalNotes.map((note) => [note.id, note.sources])).toEqual([
+        ["generic.note.reverse-charge", expected],
+      ]);
+      expect(c.lines.map((item) => item.groupId)).toEqual(["reverse-charge"]);
+    },
+  );
+
+  it.each<[string, ClientJson, Record<string, string> | undefined, string]>([
+    ["domestic", business("DE"), undefined, "generic.trace.reverse-charge.domestic"],
+    ["skipped", business("FR"), { reverseCharge: "skip" }, "generic.trace.reverse-charge.skipped"],
+    [
+      "not a business",
+      CLIENTS.frIndividual,
+      undefined,
+      "generic.trace.reverse-charge.not-business",
+    ],
+  ])(
+    "cites only the configuration when it does not apply (%s), and adds no note",
+    (_name, clientJson, options, key) => {
+      const c = compute(RC, [line("100")], {
+        client: clientJson,
+        ...(options === undefined ? {} : { options }),
+      });
+      const step = c.trace.find((item) => item.message.key === key);
+      expect(step?.sources).toEqual(configurationSources);
+      expect(c.legalNotes).toEqual([]);
+    },
+  );
+
+  it("decides the sources from the decision and the issue day", () => {
+    const foreign = {
+      applies: true,
+      reason: "foreign-business",
+      clientCountry: "FR",
+      supplierCountry: "DE",
+    } as const;
+    expect(reverseChargeDecisionSources(foreign, isoDate("2026-03-15"))).toBe(reverseChargeSources);
+    expect(reverseChargeDecisionSources(foreign, isoDate("2012-12-31"))).toBe(configurationSources);
+    expect(
+      reverseChargeDecisionSources({ applies: true, reason: "forced" }, isoDate("2026-03-15")),
+    ).toBe(configurationSources);
+    expect(
+      reverseChargeDecisionSources({ applies: false, reason: "off" }, isoDate("2026-03-15")),
+    ).toBe(configurationSources);
   });
 });
 

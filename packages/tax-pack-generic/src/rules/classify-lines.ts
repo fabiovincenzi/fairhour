@@ -13,14 +13,17 @@ import {
   message,
   p,
   type ClientInput,
+  type IsoDate,
   type LegalNoteDraft,
   type LineTaxTreatment,
   type MessageParam,
+  type SourceRef,
   type TaxGroup,
   type TraceDraft,
   type WarningDraft,
 } from "@fairhour/tax-core";
 import { percent, type GenericConfig, type GenericTaxConfig } from "../config";
+import { isIntraEuSupply } from "../eu";
 import {
   FIXED_GROUP_IDS,
   fixedGroup,
@@ -109,10 +112,26 @@ export function reverseChargeDecision(
   };
 }
 
+/**
+ * Sources of the reverse-charge step and note (docs/tax-packs/generic.md, section 2.5): the EU VAT
+ * Directive only for an automatic reverse charge between two EU Member States on the issue day,
+ * the configuration otherwise (a forced reverse charge, parties outside the EU, no reverse charge).
+ */
+export function reverseChargeDecisionSources(
+  decision: ReverseChargeDecision,
+  issueDate: IsoDate,
+): readonly SourceRef[] {
+  return decision.reason === "foreign-business" &&
+    isIntraEuSupply(decision.supplierCountry, decision.clientCountry, issueDate)
+    ? reverseChargeSources
+    : configurationSources;
+}
+
 /** The trace step of a reverse-charge decision; none when the feature is off. */
 function reverseChargeStep(
   decision: ReverseChargeDecision,
   label: MessageParam,
+  sources: readonly SourceRef[],
 ): TraceDraft | undefined {
   switch (decision.reason) {
     case "off":
@@ -120,7 +139,7 @@ function reverseChargeStep(
     case "forced":
       return {
         message: message("generic.trace.reverse-charge.forced", { label }),
-        sources: reverseChargeSources,
+        sources,
       };
     case "foreign-business":
       return {
@@ -129,7 +148,7 @@ function reverseChargeStep(
           clientCountry: p.text(decision.clientCountry),
           supplierCountry: p.text(decision.supplierCountry),
         }),
-        sources: reverseChargeSources,
+        sources,
       };
     case "skipped":
       return {
@@ -177,6 +196,7 @@ export const classifyLinesRule: GenericRule = {
       ctx.input.client,
     );
     const reverseCharge = config.tax.kind === "rate" && decision.applies;
+    const decisionSources = reverseChargeDecisionSources(decision, ctx.input.issueDate);
 
     const taxable = new Map<string, Decimal>();
     const used = new Set<FixedGroupId>();
@@ -221,7 +241,7 @@ export const classifyLinesRule: GenericRule = {
       legalNotes.push({
         id: "generic.note.reverse-charge",
         message: message("generic.note.custom", { text: p.text(config.reverseCharge.note) }),
-        sources: reverseChargeSources,
+        sources: decisionSources,
       });
     }
     legalNotes.push(
@@ -259,7 +279,7 @@ export const classifyLinesRule: GenericRule = {
         sources: configurationSources,
       });
     } else if (chargeable) {
-      const step = reverseChargeStep(decision, label);
+      const step = reverseChargeStep(decision, label, decisionSources);
       if (step !== undefined) trace.push(step);
     }
 

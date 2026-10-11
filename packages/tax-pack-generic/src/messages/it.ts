@@ -40,10 +40,13 @@ export const it: Readonly<Record<GenericMessageKey, string>> = {
     "Nessuna inversione contabile: il cliente non è un’impresa",
   "generic.trace.reverse-charge.domestic":
     "Nessuna inversione contabile: il cliente è nel paese del fornitore ({country})",
-  "generic.trace.tax": "{label} al {rate} sull’imponibile",
-  "generic.trace.tax.line": "{label} al {rate} su “{description}”",
-  "generic.trace.tax.per-line": "{label} al {rate}: imposta di ogni riga, arrotondata e sommata",
+  "generic.trace.tax": "{label} (aliquota {rate}) sull’imponibile",
+  "generic.trace.tax.line": "{label} (aliquota {rate}) su “{description}”",
+  "generic.trace.tax.per-line":
+    "{label} (aliquota {rate}): imposta di ogni riga, arrotondata e sommata",
   "generic.trace.tax.none": "Nessuna imposta ({label}): non c’è imponibile",
+  "generic.trace.tax.reverse-charge":
+    "Nessuna imposta ({label}) addebitata: si applica l’inversione contabile",
   "generic.trace.withholding":
     "{label}: {rate} dell’importo prima dell’imposta, spese anticipate escluse",
   "generic.trace.withholding.not-agent":

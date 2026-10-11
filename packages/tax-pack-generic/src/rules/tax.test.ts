@@ -1,8 +1,24 @@
 import { ROUNDING_MODES, type RoundingMode } from "@fairhour/money";
 import { describe, expect, it } from "vitest";
-import { amount, compute, format, line, NO_TAX, traceKeys, VAT20 } from "../../test/helpers";
+import {
+  amount,
+  CLIENTS,
+  compute,
+  format,
+  line,
+  NO_TAX,
+  traceKeys,
+  VAT20,
+  type ClientJson,
+  type LineJson,
+} from "../../test/helpers";
 import type { GenericConfigInput, TaxScope } from "../config";
 import { TAX_COMPONENT_ID, TAX_RULE_ID } from "./tax";
+
+const RC: GenericConfigInput = {
+  ...VAT20,
+  reverseCharge: { mode: "foreign-business-clients", supplierCountry: "DE" },
+};
 
 const gst = (mode: RoundingMode, taxScope: TaxScope): GenericConfigInput => ({
   taxLabel: "GST",
@@ -130,6 +146,42 @@ describe("generic.tax component", () => {
     expect(traceKeys(c, TAX_RULE_ID)).toEqual(["generic.trace.tax.none"]);
   });
 
+  it.each<[string, GenericConfigInput, readonly LineJson[], ClientJson, Record<string, string>]>([
+    ["automatic, to a foreign business", RC, [line("100")], CLIENTS.frBusiness, {}],
+    [
+      "automatic, with exempt and excluded lines too",
+      RC,
+      [line("100"), line("10", { kind: "exempt" }), line("10", { kind: "excluded" })],
+      CLIENTS.frBusiness,
+      {},
+    ],
+    ["forced by the option", VAT20, [line("100")], CLIENTS.gbBusiness, { reverseCharge: "apply" }],
+  ])(
+    "is absent under a reverse charge (%s), and the trace says so",
+    (_n, config, lines, client, options) => {
+      const c = compute(config, lines, { client, options });
+      expect(c.components).toEqual([]);
+      const steps = c.trace.filter((step) => step.ruleId === TAX_RULE_ID);
+      expect(steps.map((step) => step.message.key)).toEqual(["generic.trace.tax.reverse-charge"]);
+      const [step] = steps;
+      expect(step && format(step.message, "en")).toBe("No VAT charged: the reverse charge applies");
+      expect(step && format(step.message, "it")).toBe(
+        "Nessuna imposta (VAT) addebitata: si applica l’inversione contabile",
+      );
+      expect(step?.componentId).toBeUndefined();
+      expect(step?.amount).toBeUndefined();
+    },
+  );
+
+  it("keeps “no taxable amount” when no line is in the reverse-charge group", () => {
+    // Skipped on this invoice: the line is taxed, so a zero line shows "no taxable amount".
+    const c = compute(RC, [line("0")], {
+      client: CLIENTS.frBusiness,
+      options: { reverseCharge: "skip" },
+    });
+    expect(traceKeys(c, TAX_RULE_ID)).toEqual(["generic.trace.tax.none"]);
+  });
+
   it("does not run without tax", () => {
     const c = compute(NO_TAX, [line("100")]);
     expect(c.components).toEqual([]);
@@ -185,6 +237,39 @@ describe("generic.tax trace", () => {
     );
     expect(sum?.formula && format(sum.formula, "it")).toContain("arrotondato riga per riga");
   });
+
+  // "{label} al {rate}" read "al 8,875%" and "al 11%": the Italian text names the rate instead.
+  it.each<[string, string, TaxScope, string, readonly string[]]>([
+    [
+      "8.875 per document",
+      "8.875",
+      "per-document",
+      "USD",
+      ["Sales tax (aliquota 8,875%) sull’imponibile"],
+    ],
+    ["11 per document", "11", "per-document", "USD", ["Sales tax (aliquota 11%) sull’imponibile"]],
+    [
+      "8 per line",
+      "8",
+      "per-line",
+      "USD",
+      [
+        "Sales tax (aliquota 8%) su “Consulting”",
+        "Sales tax (aliquota 8%): imposta di ogni riga, arrotondata e sommata",
+      ],
+    ],
+  ])(
+    "Italian: names the rate without an article (%s)",
+    (_name, rate, taxScope, currency, texts) => {
+      const c = compute(
+        { taxLabel: "Sales tax", tax: { kind: "rate", rate }, rounding: { taxScope } },
+        [line("100", undefined, { description: "Consulting" })],
+        { currency },
+      );
+      const steps = c.trace.filter((step) => step.ruleId === TAX_RULE_ID);
+      expect(steps.map((step) => format(step.message, "it"))).toEqual(texts);
+    },
+  );
 
   it("per line: the line steps add up to each allocation", () => {
     const c = compute(gst("halfEven", "per-line"), [

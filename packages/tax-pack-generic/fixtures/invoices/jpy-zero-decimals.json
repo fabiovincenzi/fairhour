@@ -79,6 +79,9 @@
     "taxTotal": "6250",
     "total": "68748",
     "withholdingTotal": "0",
-    "netPayable": "68748"
+    "netPayable": "68748",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
   }
 }

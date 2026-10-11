@@ -119,8 +119,9 @@ Group ids replace the dot of a decimal rate with `-` (`tax-20`, `tax-7-7` for 7.
 The reverse charge applies when the per-invoice option is `apply`, or when it is `auto`, the mode
 is `foreign-business-clients`, the client is a `business` and `client.country !==
 supplierCountry`. Warning `generic.reverse-charge-without-vat-id` when the client has no `vatId`.
-The pack does not check EU membership, VIES registration or the place-of-supply rules: that is
-the user's responsibility, stated in the trace.
+The decision does not check EU membership, VIES registration or the place-of-supply rules: that is
+the user's responsibility, stated in the trace. (A list of EU Member States only chooses which
+sources the trace cites, section 2.5.)
 
 ### 2.2 `generic.tax`
 
@@ -151,6 +152,35 @@ art. 196 (customer liable for B2B services) and art. 226 point 11a (the invoice 
 charge"), marked `verified` against `secondary` sources (see section 8: the official pages could
 not be reached while implementing); the pack does not apply EU law, it only prints the user's
 wording.
+
+**When the Directive is cited.** Only the trace step and the legal note of an automatic reverse
+charge (decision `foreign-business`) carry the two Directive sources, and only when the supplier's
+and the client's countries are two different EU Member States on the issue date, from 2013-01-01.
+Everything else cites the configuration only: a forced reverse charge (option `apply`, for
+example a domestic scheme, which rests on national law), a party outside the EU, and invoices
+issued before 2013-01-01. The pack cites the provisions only between parties in different Member
+States, the case its automatic reverse charge models. Art. 196 can also make an EU customer liable
+for services from a supplier established outside the EU, and point 11a applies wherever the
+customer is liable, but the pack cannot check where a party is established or which provision
+makes the customer liable. So it does not cite them there: the conservative default is to cite
+less rather than cite wrongly. The rule's own `sources` still list all three (everything its steps
+may cite).
+
+The Member State list (`src/eu.ts`) serves only this choice:
+
+| Countries (ISO 3166-1)                                                                                 | Member State for the citation | Basis                                                                                                                                                  | Checked                                  |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| AT, BE, BG, CY, CZ, DE, DK, EE, ES, FI, FR, GR, HU, IE, IT, LT, LU, LV, MT, NL, PL, PT, RO, SE, SI, SK | from 2013-01-01               | Treaty on European Union, art. 52(1)                                                                                                                   | to be verified (primary text not read)   |
+| HR                                                                                                     | from 2013-07-01               | Treaty of Accession of Croatia (OJ L 112, 24.4.2012)                                                                                                   | to be verified (OJ reference not read)   |
+| GB                                                                                                     | 2013-01-01 to 2020-12-31      | Withdrawal Agreement (OJ L 29, 31.1.2020), art. 126 and 127: Union VAT law applied to and in the United Kingdom until the transition period ended      | `secondary` (2020 tax-authority notices) |
+| (start of every row)                                                                                   | 2013-01-01                    | Council Directive 2010/45/EU, art. 2: point 11a applies from 2013-01-01 (art. 196 in its current wording applies from 2010-01-01, Directive 2008/8/EC) | `secondary`                              |
+
+Codes are ISO 3166-1 alpha-2, as in the invoice input (`GR` for Greece, not its VAT prefix `EL`).
+Territories with their own code (Åland `AX`, Réunion `RE`, ...) are not listed. Territories outside
+the EU VAT territory that share a Member State's code (Directive art. 6: the Canary Islands, Mount
+Athos, Livigno, ...) cannot be told apart by a country code, so an invoice to them still cites the
+Directive as context. Council Directive (EU) 2025/516 replaces point 11a from 2030-07-01 and keeps
+the mention "Reverse charge" (`secondary`): re-check the citation before that day.
 
 ---
 
@@ -270,8 +300,8 @@ an exact tie), `reverse-charge-forced`, `reverse-charge-skipped`,
   engine ADR, see the engine design's open points).
 - No thresholds, registration limits, stamp duties, social-security contributions or
   regime-specific wording.
-- Reverse-charge detection compares countries only; it does not know the EU, VIES, the
-  place-of-supply rules or exceptions.
+- Reverse-charge detection compares countries only; it does not know VIES, the place-of-supply
+  rules or exceptions. EU membership (section 2.5) only decides which sources are cited.
 - No cash rounding (CHF 0.05 and similar).
 - The pack never validates the legal correctness of the user's rates or wording.
 
@@ -325,7 +355,9 @@ notes}.title`; `generic.trace.classify`, `generic.trace.no-tax`,
   words). Every user-supplied label and note is a `text` parameter.
 - **Sources.** `generic.classify-lines` cites the user configuration and, for its reverse-charge
   part, the two Directive provisions; each trace step and legal note carries only the sources that
-  apply to it (the reverse-charge step and note: all three; everything else: the configuration).
+  apply to it (the reverse-charge step and note: all three when the reverse charge applies
+  automatically between two EU Member States, see 2.5 and the review follow-ups below; everything
+  else: the configuration).
   The Directive provisions are marked `verified` on 2026-10-10 against `secondary` sources, not
   `official-summary` as section 2.5 first said: EUR-Lex and the Commission's pages could not be
   reached from the build environment. Art. 226 point 11a was confirmed by a quoted extract ("where
@@ -333,3 +365,31 @@ notes}.title`; `generic.trace.classify`, `generic.trace.no-tax`,
   by professional commentary. **To do before a release:** read both provisions in the consolidated
   text on EUR-Lex and upgrade the verification to `primary-text`. The user-configuration source
   stays `to-be-verified` on purpose.
+
+Review follow-ups (2026-10-11). The configuration, the public exports and the amounts are
+unchanged.
+
+- **Directive sources only between Member States.** The trace step and the legal note of every
+  reverse charge used to cite art. 196 and art. 226 point 11a, even for a forced (domestic)
+  reverse charge or a party outside the EU. They now cite them only for the `foreign-business`
+  decision between two EU Member States on the issue date, from 2013-01-01, and the configuration
+  otherwise (2.5). The membership list is date-aware (Croatia from 2013-07-01, the United Kingdom
+  until 2020-12-31) and lives in `src/eu.ts`, not in the parameters: it computes nothing and only
+  chooses citations. The notes of `vatDirectiveArt196` and `vatDirectiveArt226` say when the pack
+  cites them. `reverseChargeSources` keeps its three sources.
+- **Tax trace under a reverse charge.** With lines in the `reverse-charge` group, the tax rule's
+  step is `generic.trace.tax.reverse-charge` ("No {label} charged: the reverse charge applies" /
+  "Nessuna imposta ({label}) addebitata: si applica l’inversione contabile") instead of
+  `generic.trace.tax.none` ("there is no taxable amount"), which stays for invoices with nothing
+  taxable.
+- **Italian wording.** `generic.trace.tax`, `generic.trace.tax.line` and
+  `generic.trace.tax.per-line` read "{label} (aliquota {rate}) …" instead of "{label} al {rate} …",
+  which was ungrammatical for rates read with an initial vowel ("al 8,875%", "al 11%").
+- **Verbatim text.** `src/verbatim-text.test.ts` runs every scenario (taxed, per-line, reverse
+  charge, forced, no tax) with ICU-like text (`{`, `}`, `'{`, `{x, plural, one {#} other {#}}`,
+  apostrophes, `{label}`, `#`) in `taxLabel`, `tax.note`, `exemptNote`, `reverseCharge.note`,
+  `documentNote` and `withholding.label`, in `en` and `it`, and checks that group labels, component
+  labels, trace steps, legal notes and warnings print it verbatim.
+- **Fixtures.** `sales-tax-usd-tie-half-up`, `sales-tax-usd-tie-half-even`, `gst-10-single-line`,
+  `jpy-zero-decimals` and `kwd-three-decimals` now also pin `legalNotes: []`, `warnings: []`, the
+  line's `groupId` and the trace's rule ids. Their amounts are unchanged.

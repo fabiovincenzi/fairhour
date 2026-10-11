@@ -39,6 +39,7 @@ export const en = {
   "generic.trace.tax.line": "{label} at {rate} on “{description}”",
   "generic.trace.tax.per-line": "{label} at {rate}: the tax of each line, rounded and added up",
   "generic.trace.tax.none": "No {label}: there is no taxable amount",
+  "generic.trace.tax.reverse-charge": "No {label} charged: the reverse charge applies",
   "generic.trace.withholding": "{label}: {rate} of the amount before tax, disbursements excluded",
   "generic.trace.withholding.not-agent": "No {label}: the client is not a withholding agent",
   "generic.trace.withholding.individual": "No {label}: the client is a private individual",

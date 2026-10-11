@@ -44,6 +44,13 @@
   },
   "expected": {
     "parameters": "generic-v1",
+    "lines": [
+      {
+        "id": "l1",
+        "net": "1212.00",
+        "groupId": "tax-8-875"
+      }
+    ],
     "subtotal": "1212.00",
     "components": [
       {
@@ -64,6 +71,9 @@
     ],
     "taxTotal": "107.56",
     "total": "1319.56",
-    "netPayable": "1319.56"
+    "netPayable": "1319.56",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "generic.classify-lines", "generic.tax", "core"]
   }
 }
