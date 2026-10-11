@@ -1,11 +1,28 @@
 /**
  * Locale completeness checks. English (`en`) is the source locale: every other locale must have
- * every English key, with the same ICU placeholders. Dependency-free on purpose so CI can run it
+ * every English key, with the same ICU arguments and tags. Messages are read with
+ * `@formatjs/icu-messageformat-parser`, the parser next-intl renders them with, so what this check
+ * accepts is what the app can display (apostrophes and quoting included). The only dependency, so
+ * CI installs just this package (`pnpm install --filter @fairhour/i18n-scripts`) before running it
  * with plain Node.
  */
 
+import {
+  parse,
+  TYPE,
+  type Location,
+  type MessageFormatElement,
+} from "@formatjs/icu-messageformat-parser";
+
 export interface Messages {
   readonly [key: string]: string | Messages;
+}
+
+/** A message the ICU parser rejects. */
+export interface SyntaxIssue {
+  readonly key: string;
+  /** The parser's error kind and position, e.g. `UNCLOSED_TAG (line 1, column 9)`. */
+  readonly error: string;
 }
 
 export interface LocaleReport {
@@ -16,7 +33,9 @@ export interface LocaleReport {
   readonly missing: readonly string[];
   /** Keys present here but not in English (stale). */
   readonly extra: readonly string[];
-  /** Keys whose placeholders differ from English. */
+  /** Messages that are not valid ICU MessageFormat (stale keys included). */
+  readonly syntaxErrors: readonly SyntaxIssue[];
+  /** Keys whose arguments or tags differ from English. */
   readonly placeholderMismatches: readonly string[];
   /** Keys whose value is identical to English (possibly untranslated). */
   readonly identical: readonly string[];
@@ -38,136 +57,99 @@ export function flatten(messages: Messages, prefix = ""): Map<string, string> {
   return result;
 }
 
-const BRANCHING_TYPES = new Set(["plural", "selectordinal", "select"]);
+/** What `parse` throws: a `SyntaxError` named after the error kind, with the position. */
+type ParserError = Error & { readonly location: Location };
 
-function skipSpaces(text: string, index: number): number {
-  let i = index;
-  while (i < text.length && /\s/.test(text[i] ?? "")) i++;
-  return i;
-}
+export type ParsedMessage =
+  | {
+      readonly ok: true;
+      /** Sorted, without duplicates: argument names (`count`) and tag names (`<link>`). */
+      readonly names: readonly string[];
+    }
+  | { readonly ok: false; readonly error: string };
 
-function readToken(text: string, index: number, stop: RegExp): [string, number] {
-  let i = index;
-  while (i < text.length && !stop.test(text[i] ?? "")) i++;
-  return [text.slice(index, i), i];
-}
-
-/**
- * Returns the index after the apostrophe (or quoted text) that starts at `index`, following the
- * ICU MessageFormat default, `ApostropheMode.DOUBLE_OPTIONAL`, as implemented by FormatJS
- * (`@formatjs/icu-messageformat-parser`, which next-intl uses to render the messages):
- *
- * - `''` is a literal apostrophe.
- * - A single `'` starts quoted literal text only when it is immediately followed by `{`, `}`, `<`
- *   or `>` (in every context) or, inside a `plural`/`selectordinal` branch, `#`. The text is
- *   quoted up to the next single `'` (`''` inside it is a literal apostrophe), or to the end of
- *   the message when there is none. Quoted text hides arguments and rich-text tags alike.
- * - Any other `'` is a literal apostrophe: `L'area {name}` has the argument `name`.
- *
- * (ICU also quotes `'|` inside a `choice` argument. This parser skips the style of `choice` as a
- * whole, so that case never reaches it.) Note the consequence for languages with elisions: in
- * `dell'{name}` or `l'<link>area</link>` the apostrophe is followed by a quote starter, so the
- * text is quoted; write `dell''{name}` or the typographic `’` instead.
- */
-function skipApostrophe(text: string, index: number, inPlural: boolean): number {
-  const next = text[index + 1];
-  if (next === "'") return index + 2;
-  const startsQuote =
-    next === "{" || next === "}" || next === "<" || next === ">" || (inPlural && next === "#");
-  if (!startsQuote) return index + 1;
-  let i = index + 2;
-  for (;;) {
-    const end = text.indexOf("'", i);
-    if (end === -1) return text.length;
-    if (text[end + 1] !== "'") return end + 1;
-    i = end + 2;
-  }
-}
-
-/** A rich-text tag as FormatJS reads it: `<b>`, `</b>` or self-closing `<br/>`. */
-const TAG = /<\/?([A-Za-z][\w.-]*)\s*\/?>/y;
-
-/**
- * Parses message text until an unmatched `}` (returned index points at it) or the end, adding the
- * argument names and rich-text tags (`<link>`) it finds. Tags are collected here, not with a
- * regular expression over the whole message, so that quoted text hides them like it hides
- * arguments. `inPlural` is true in the branches of a `plural` or `selectordinal` argument, where
- * `#` is the number and `'#` therefore starts quoted text.
- */
-function parseText(text: string, index: number, names: Set<string>, inPlural = false): number {
-  let i = index;
-  while (i < text.length) {
-    const char = text[i];
-    if (char === "'") {
-      i = skipApostrophe(text, i, inPlural);
-    } else if (char === "{") {
-      i = parseArgument(text, i + 1, names);
-    } else if (char === "}") {
-      return i;
-    } else if (char === "<") {
-      TAG.lastIndex = i;
-      const match = TAG.exec(text);
-      if (match?.[1] === undefined) {
-        i++;
-      } else {
-        names.add(`<${match[1]}>`);
-        i += match[0].length;
-      }
-    } else {
-      i++;
+function collectNames(elements: readonly MessageFormatElement[], names: Set<string>): void {
+  for (const element of elements) {
+    switch (element.type) {
+      case TYPE.literal:
+      case TYPE.pound:
+        break;
+      case TYPE.argument:
+      case TYPE.number:
+      case TYPE.date:
+      case TYPE.time:
+        names.add(element.value);
+        break;
+      case TYPE.select:
+      case TYPE.plural:
+        names.add(element.value);
+        for (const option of Object.values(element.options)) collectNames(option.value, names);
+        break;
+      case TYPE.tag:
+        names.add(`<${element.value}>`);
+        collectNames(element.children, names);
+        break;
     }
   }
-  return i;
-}
-
-/** Parses `{name}`, `{name, type}`, `{name, type, style}` or a plural/select argument. */
-function parseArgument(text: string, index: number, names: Set<string>): number {
-  let i = skipSpaces(text, index);
-  const [name, afterName] = readToken(text, i, /[\s,}]/);
-  if (name !== "") names.add(name);
-  i = skipSpaces(text, afterName);
-  if (text[i] !== ",") return i + 1; // `}` or malformed: consume one char and move on
-  const [type, afterType] = readToken(text, skipSpaces(text, i + 1), /[\s,}]/);
-  i = skipSpaces(text, afterType);
-  if (text[i] !== ",") return i + 1;
-  i++;
-  const inPlural = type === "plural" || type === "selectordinal";
-  if (!BRANCHING_TYPES.has(type)) {
-    // Simple style such as `short` or `::currency/EUR`: skip to the closing brace.
-    const end = text.indexOf("}", i);
-    return end === -1 ? text.length : end + 1;
-  }
-  for (;;) {
-    i = skipSpaces(text, i);
-    if (i >= text.length) return i;
-    if (text[i] === "}") return i + 1;
-    const [selector, afterSelector] = readToken(text, i, /[\s{}]/);
-    i = skipSpaces(text, afterSelector);
-    if (selector.startsWith("offset:")) continue;
-    if (text[i] !== "{") return i; // malformed
-    i = parseText(text, i + 1, names, inPlural) + 1;
-  }
 }
 
 /**
- * Extracts ICU argument names (`{count}`, `{count, plural, …}`, `{date, date, short}`) and rich
- * text tags (`<link>`), skipping quoted text. Plural/select branches are parsed as text, so `{n}`
- * inside `one {…}` counts but the branch text itself does not.
+ * Parses an ICU message the way the app does (rich-text tags on, `other` required in every
+ * `plural` and `select`) and returns the names of its arguments and tags, found anywhere in the
+ * tree: in `plural`/`select` options and between a tag's brackets. Text that an apostrophe quotes
+ * is literal text to the parser, so an argument or a tag hidden by a quote is not in the result,
+ * and an apostrophe that leaves a tag or a brace open is a syntax error.
  */
-export function placeholders(message: string): string[] {
-  const names = new Set<string>();
-  let i = 0;
-  while (i < message.length) {
-    // A stray `}` at the top level is literal text.
-    i = parseText(message, i, names) + 1;
+export function parseMessage(message: string): ParsedMessage {
+  try {
+    const names = new Set<string>();
+    collectNames(parse(message, { ignoreTag: false }), names);
+    return { ok: true, names: [...names].sort() };
+  } catch (error) {
+    // `parse` only throws its own errors, and they always carry the position.
+    const { message: kind, location } = error as ParserError;
+    const { line, column } = location.start;
+    return { ok: false, error: `${kind} (line ${String(line)}, column ${String(column)})` };
   }
-  return [...names].sort();
 }
 
-function comparablePlaceholders(message: string): string {
-  return placeholders(message).join(",");
+function sameNames(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((name, index) => name === b[index]);
 }
 
+/** Every message that the ICU parser rejects, in file order. */
+function syntaxIssues(messages: ReadonlyMap<string, string>): SyntaxIssue[] {
+  const issues: SyntaxIssue[] = [];
+  for (const [key, message] of messages) {
+    const parsed = parseMessage(message);
+    if (!parsed.ok) issues.push({ key, error: parsed.error });
+  }
+  return issues;
+}
+
+/**
+ * Checks the source locale on its own: it is complete by definition, but its messages must be
+ * valid ICU, because a broken English message breaks the app and cannot be compared with.
+ */
+export function checkSource(source: Messages): LocaleReport {
+  const english = flatten(source);
+  return {
+    locale: "en",
+    total: english.size,
+    translated: english.size,
+    missing: [],
+    extra: [],
+    syntaxErrors: syntaxIssues(english),
+    placeholderMismatches: [],
+    identical: [],
+  };
+}
+
+/**
+ * Compares a translation with the English source. Every message of the translation must parse
+ * (stale keys included); a message that parses must have the same set of arguments and tags as
+ * the English one. A broken English message is reported by {@link checkSource}, not here.
+ */
 export function compareLocale(locale: string, source: Messages, target: Messages): LocaleReport {
   const english = flatten(source);
   const translated = flatten(target);
@@ -180,7 +162,9 @@ export function compareLocale(locale: string, source: Messages, target: Messages
       missing.push(key);
       continue;
     }
-    if (comparablePlaceholders(value) !== comparablePlaceholders(other)) {
+    const expected = parseMessage(value);
+    const actual = parseMessage(other);
+    if (expected.ok && actual.ok && !sameNames(expected.names, actual.names)) {
       placeholderMismatches.push(key);
     }
     if (other === value && /[A-Za-z]{3,}/.test(value)) identical.push(key);
@@ -192,13 +176,18 @@ export function compareLocale(locale: string, source: Messages, target: Messages
     translated: english.size - missing.length,
     missing,
     extra,
+    syntaxErrors: syntaxIssues(translated),
     placeholderMismatches,
     identical,
   };
 }
 
 export function isFailing(report: LocaleReport): boolean {
-  return report.missing.length > 0 || report.placeholderMismatches.length > 0;
+  return (
+    report.missing.length > 0 ||
+    report.syntaxErrors.length > 0 ||
+    report.placeholderMismatches.length > 0
+  );
 }
 
 export function coverage(report: LocaleReport): number {
@@ -212,18 +201,21 @@ export function formatReports(reports: readonly AppReport[]): string {
     lines.push(
       `### ${app.app}`,
       "",
-      "| Locale | Coverage | Missing | Placeholder issues | Same as English | Stale keys |",
-      "|---|---|---|---|---|---|",
+      "| Locale | Coverage | Missing | Syntax errors | Placeholder issues | Same as English | Stale keys |",
+      "|---|---|---|---|---|---|---|",
     );
     for (const r of app.locales) {
       const status = isFailing(r) ? "❌" : "✅";
       lines.push(
-        `| ${status} ${r.locale} | ${String(coverage(r))}% (${String(r.translated)}/${String(r.total)}) | ${String(r.missing.length)} | ${String(r.placeholderMismatches.length)} | ${String(r.identical.length)} | ${String(r.extra.length)} |`,
+        `| ${status} ${r.locale} | ${String(coverage(r))}% (${String(r.translated)}/${String(r.total)}) | ${String(r.missing.length)} | ${String(r.syntaxErrors.length)} | ${String(r.placeholderMismatches.length)} | ${String(r.identical.length)} | ${String(r.extra.length)} |`,
       );
     }
     for (const r of app.locales.filter(isFailing)) {
       lines.push("", `**${app.app} / ${r.locale}**`);
       for (const key of r.missing.slice(0, 50)) lines.push(`- missing: \`${key}\``);
+      for (const issue of r.syntaxErrors) {
+        lines.push(`- syntax error: \`${issue.key}\`: ${issue.error}`);
+      }
       for (const key of r.placeholderMismatches) lines.push(`- placeholders differ: \`${key}\``);
     }
     lines.push("");

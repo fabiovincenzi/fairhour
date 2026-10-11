@@ -234,9 +234,10 @@ In place today:
 
 To be added (follow-up work, outside this ADR's PR):
 
-- When the tax packs are scaffolded (TAX-002, TAX-009): an MIT `LICENSE` file and
-  `"license": "MIT"` in each. `tax-pack-template` carries both, so every new pack inherits them.
-  (`pnpm license:check` already fails for a pack that lacks them.)
+- `@fairhour/money`, `@fairhour/tax-core`, `@fairhour/tax-pack-generic` and `@fairhour/tax-pack-it`
+  exist and each carries an MIT `LICENSE` file and `"license": "MIT"`. The one MIT package still to
+  scaffold is `tax-pack-template` (TAX-009); it must carry both too, so that every pack copied from
+  it inherits them. (`pnpm license:check` already fails for a pack that lacks them.)
 - Extend `pnpm license:check` so that it also fails when the `license` field and the `LICENSE`
   file of any package (not only an MIT one) disagree, and so that it follows transitive
   dependencies.

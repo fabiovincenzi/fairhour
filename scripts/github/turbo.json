@@ -9,7 +9,11 @@
         "$TURBO_ROOT$/.github/backlog/*.yml",
         "$TURBO_ROOT$/.github/labels.yml",
         "$TURBO_ROOT$/.github/milestones.yml",
-        "$TURBO_ROOT$/turbo.json"
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/apps/*/turbo.json",
+        "$TURBO_ROOT$/packages/*/turbo.json",
+        "$TURBO_ROOT$/scripts/*/turbo.json",
+        "$TURBO_ROOT$/pnpm-workspace.yaml"
       ]
     }
   }

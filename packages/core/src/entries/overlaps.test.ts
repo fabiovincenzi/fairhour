@@ -171,30 +171,56 @@ describe("findOverlaps", () => {
     );
   });
 
-  it("scales as n log n, not n squared (a ratio of timings, so a slow machine does not matter)", () => {
-    const disjoint = (count: number): E[] => {
-      const base = epochSeconds("2026-01-01T00:00:00Z");
-      return Array.from({ length: count }, (_, i) => {
-        const start = base + BigInt(i) * 120n;
-        return {
-          id: String(i),
-          start: new Date(Number(start) * 1000).toISOString(),
-          end: new Date(Number(start + 60n) * 1000).toISOString(),
-        };
-      });
-    };
-    const fastest = (entries: E[]): number => {
-      const times = [0, 1, 2].map(() => {
+  // A ratio of timings, so a slow machine does not matter; sizes are kept small so that the test
+  // stays cheap when Turborepo runs every package's tests at once (about 0.3 s per run at 16k).
+  it(
+    "scales as n log n, not n squared",
+    // Generous on purpose: the budget is for a machine that is busy with other test runs, not for
+    // the algorithm (a quiet machine finishes in about 3 s).
+    { timeout: 120_000 },
+    () => {
+      const disjoint = (count: number): E[] => {
+        const base = epochSeconds("2026-01-01T00:00:00Z");
+        return Array.from({ length: count }, (_, i) => {
+          const start = base + BigInt(i) * 120n;
+          return {
+            id: String(i),
+            start: new Date(Number(start) * 1000).toISOString(),
+            end: new Date(Number(start + 60n) * 1000).toISOString(),
+          };
+        });
+      };
+      const timeOnce = (entries: E[]): number => {
         const started = performance.now();
         expect(findOverlaps(entries)).toEqual([]);
         return performance.now() - started;
-      });
-      return Math.min(...times);
-    };
-    const small = disjoint(10_000);
-    const large = disjoint(80_000);
-    fastest(small); // warm up the JIT: the first run is the slowest
-    // 8 times the entries: about 9 times the work for n log n, 64 times for n squared
-    expect(fastest(large) / fastest(small)).toBeLessThan(30);
-  });
+      };
+      const small = disjoint(2_000);
+      const large = disjoint(16_000);
+      // 8 times the entries: about 9 times the work for n log n, 64 times for n squared.
+      const bound = 30;
+      // The cost of the large input over the cost of the small one. Runs alternate between the
+      // two and each side keeps its fastest run, so a burst of load or a garbage collection hits
+      // both sides alike and cannot inflate one of them.
+      const measureRatio = (): number => {
+        timeOnce(small); // warm up the JIT: the first run is the slowest
+        timeOnce(large);
+        let fastestSmall = Infinity;
+        let fastestLarge = Infinity;
+        for (let run = 0; run < 7; run++) {
+          fastestSmall = Math.min(fastestSmall, timeOnce(small));
+          fastestLarge = Math.min(fastestLarge, timeOnce(large));
+        }
+        return fastestLarge / fastestSmall;
+      };
+      // A quadratic algorithm is about 64 in every attempt; only a machine that stays overloaded
+      // for the whole attempt can push a linearithmic one over the bound, and a fresh attempt
+      // then measures it again. The test passes on the first attempt that is under the bound.
+      const ratios: number[] = [];
+      for (let attempt = 0; attempt < 3 && !ratios.some((ratio) => ratio < bound); attempt++) {
+        ratios.push(measureRatio());
+      }
+      expect(Math.min(...ratios)).toBeLessThan(bound);
+    },
+  );
 });

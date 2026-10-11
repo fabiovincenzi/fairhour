@@ -14,10 +14,10 @@
  *
  * 4. the `license` field of their `package.json` is exactly the string `MIT` (a missing field, an
  *    expression such as `MIT OR Apache-2.0`, another case or another type all fail);
- * 5. their ESLint config (`eslint.config.js`, or the `.mjs`, `.cjs`, `.ts` variants) enables the
- *    import guard with `mitLibrary: true`. This is a plain text check, not an evaluation of the
- *    config: the text must contain `mitLibrary: true` outside comments, so the option has to be
- *    written out literally (not behind a variable or a spread).
+ * 5. their ESLint config (`eslint.config.js`, or the `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`
+ *    variants) enables the import guard with `mitLibrary: true`. This is a plain text check, not
+ *    an evaluation of the config: the text must contain `mitLibrary: true` outside comments, so
+ *    the option has to be written out literally (not behind a variable or a spread).
  *
  * `devDependencies` are ignored: they are neither distributed with the package nor compiled into
  * it. Only the direct dependencies are inspected, not their own dependencies.

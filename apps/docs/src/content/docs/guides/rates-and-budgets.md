@@ -15,7 +15,8 @@ the screens in v0.4 (Web MVP). Details may change before then.
 
 ## Which rate applies
 
-You can set an hourly rate at four levels. Fairhour uses the most specific one:
+A rate is either **per hour** or **per day**. You can set one at four levels, and Fairhour uses
+the most specific one:
 
 1. the **task**,
 2. the **project**,
@@ -24,15 +25,27 @@ You can set an hourly rate at four levels. Fairhour uses the most specific one:
 
 The interface tells you where a rate comes from, for example "inherited from client: €60/h".
 
+### Hourly and day rates are separate
+
+Fairhour resolves the hourly rate and the day rate separately, each through the four levels
+above. A level that only has the other kind of rate is skipped:
+
+- An **hourly** project looks for an hourly rate. A day rate is never used for it.
+- A **day-rate** project needs a day rate. Fairhour does not fall back to an hourly rate and does
+  not multiply it by the hours of a day, because €80 an hour and €560 a day are two different
+  numbers that you set on purpose.
+- There is no conversion between the two. When no level has a rate of the kind the project needs,
+  Fairhour reports a missing rate instead of guessing.
+
 ## Billing modes
 
 Each project bills in one of three ways:
 
-- **Hourly.** Billable hours times the resolved rate.
+- **Hourly.** Billable hours times the resolved hourly rate.
 - **Fixed price.** The agreed amount, whatever the hours. Fairhour still tracks the time and
   shows the [effective hourly rate](#effective-hourly-rate).
-- **Day rate.** A full day or a half day. You configure how many hours make a full day and the
-  threshold from which time counts as a half day.
+- **Day rate.** A full day or a half day, times the resolved day rate. You configure how many
+  hours make a full day and the threshold from which time counts as a half day.
 
 ## Extra lines
 

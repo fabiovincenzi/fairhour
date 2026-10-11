@@ -1,6 +1,7 @@
 import { appendFile, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  checkSource,
   compareLocale,
   formatReports,
   isFailing,
@@ -21,7 +22,8 @@ for (const app of (await readdir(appsDir).catch(() => [])).sort()) {
   const files = await readdir(messagesDir).catch(() => [] as string[]);
   if (!files.includes("en.json")) continue;
   const english = await readJson(path.join(messagesDir, "en.json"));
-  const locales = [];
+  // English is checked too: a message that does not parse breaks the app in every language.
+  const locales = [checkSource(english)];
   for (const file of files.filter((f) => f.endsWith(".json") && f !== "en.json").sort()) {
     locales.push(
       compareLocale(
@@ -39,6 +41,8 @@ console.log(summary);
 const summaryFile = process.env.GITHUB_STEP_SUMMARY;
 if (summaryFile) await appendFile(summaryFile, summary);
 if (reports.some((app) => app.locales.some(isFailing))) {
-  console.error("Some locales are missing keys or have mismatched placeholders.");
+  console.error(
+    "Some locales are missing keys, have messages that are not valid ICU, or have mismatched placeholders.",
+  );
   process.exit(1);
 }

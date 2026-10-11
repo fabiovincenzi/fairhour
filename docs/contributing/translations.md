@@ -64,8 +64,13 @@ A made-up excerpt, to show what changes and what does not:
 For every locale of every app, the check compares your file with `en.json`:
 
 - **Missing keys** fail the check: every English key needs a translation.
+- **Syntax errors** fail the check: every message, in every locale (English included), must be
+  valid ICU, as the app's own parser reads it: balanced braces and tags, an `other` category in
+  every plural and select, no duplicated category. The report gives the key, the kind of error
+  (`UNCLOSED_TAG`, `EXPECT_ARGUMENT_CLOSING_BRACE`, ...) and the line and column.
 - **Placeholder mismatches** fail the check: the set of ICU arguments (`{name}`, `{count}`) and
-  tags (`<link>`) of a message must be the same as in English.
+  tags (`<link>`) of a message must be the same as in English. They are read from the parsed
+  message, wherever they are: in a plural or select option, inside a tag.
 - **Stale keys** (in your file, not in English) and values **identical to English** (possibly
   untranslated) are reported but do not fail it.
 
@@ -95,19 +100,29 @@ through [next-intl](https://next-intl.dev/docs/usage/messages).
   (which the app reads through next-intl and FormatJS), an ASCII apostrophe **immediately before
   `{`, `}`, `<` or `>`** (or before `#` inside a plural) starts quoted text. Everything up to the
   next single `'`, or to the end of the message, is then shown literally: the argument or the tag
-  stops working. So write `’` (typographic) or `''` (two straight apostrophes, which ICU turns into
-  one) in those places, and a plain `'` is fine everywhere else:
+  stops working, or the message does not parse at all. So write `’` (typographic) or `''` (two
+  straight apostrophes, which ICU turns into one) in those places, and a plain `'` is fine
+  everywhere else:
 
-  | Write                                | Not                                  |
-  | ------------------------------------ | ------------------------------------ |
-  | `dell’{name}` or `dell''{name}`      | `dell'{name}`                        |
-  | `Apri l’<link>area di lavoro</link>` | `Apri l'<link>area di lavoro</link>` |
+  | Write                                     | Not                                       |
+  | ----------------------------------------- | ----------------------------------------- |
+  | `dell’{name}` or `dell''{name}`           | `dell'{name}`                             |
+  | `Apri l’<link>area di lavoro</link>`      | `Apri l'<link>area di lavoro</link>`      |
+  | `Aspetta <i>un po’</i>`                   | `Aspetta <i>un po'</i>`                   |
+  | `{n, plural, one {un po’} other {molto}}` | `{n, plural, one {un po'} other {molto}}` |
 
-  This includes a closing tag: in `<b>dell'</b> {name}` the apostrophe is followed by `<`, so
-  write `dell’` there. Texts such as `L'area {name}`, `un'ora fa` and `c'era` are fine as they are.
+  The usual trap is a word that ends in an apostrophe (such as Italian _po'_) right before a
+  closing tag or a closing brace: in `<i>un po'</i>` the apostrophe is followed by `<`, and in
+  `one {un po'}` by `}`, so each one quotes what comes after it, the closing `</i>` or `}`
+  included. Write `po’` (or `po''`) there. Texts such as `L'area {name}`, `un'ora fa` and `c'era`
+  are fine as they are.
 
-  `i18n:check` reads apostrophes the same way, so it reports a placeholder mismatch when an
-  apostrophe quotes an argument or a tag away.
+  `i18n:check` reads messages with the same parser as the app (`@formatjs/icu-messageformat-parser`),
+  so it agrees with what the app can display. A quote that leaves a tag or a brace open is a
+  **syntax error** (`Aspetta <i>un po'</i>` is `UNCLOSED_TAG`; `one {un po'}` is
+  `EXPECT_ARGUMENT_CLOSING_BRACE`). A quote that hides an argument or a tag but still parses, such
+  as `Apri l'<link>area di lavoro</link> di {name}` (the whole rest of the message becomes plain
+  text), is a **placeholder mismatch**. Either way the check fails until you use `’` or `''`.
 
 ## Style
 

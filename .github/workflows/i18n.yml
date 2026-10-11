@@ -1,7 +1,8 @@
 name: i18n
 
-# Fails when a locale is missing keys present in English (the source locale) and reports the
-# translation coverage of every locale in the job summary.
+# Fails when a locale is missing keys present in English (the source locale), has a message that
+# is not valid ICU, or has arguments or tags that differ from English, and reports the translation
+# coverage of every locale in the job summary.
 
 on:
   push:
@@ -29,9 +30,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: ./.github/actions/setup
         with:
-          node-version-file: .nvmrc
+          install: "false"
+      # The check reads messages with the FormatJS ICU parser (the one next-intl uses), so it needs
+      # this package's dependencies: install those, not the whole workspace.
+      - name: Install script dependencies
+        run: pnpm install --frozen-lockfile --filter @fairhour/i18n-scripts
       - name: Check locales
-        # Dependency-free script, runs with Node's built-in TypeScript support.
-        run: node scripts/i18n/check-locales.ts
+        run: pnpm i18n:check

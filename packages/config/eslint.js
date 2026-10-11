@@ -23,10 +23,14 @@ import tseslint from "typescript-eslint";
  *   For the MIT-licensed packages (`money`, `tax-core`, `tax-pack-*`): forbids importing any
  *   `@fairhour/*` package except `@fairhour/money`, `@fairhour/tax-core` and
  *   `@fairhour/tax-pack-*` (config files may also import `@fairhour/config`). ADR-0002, rule 2.
+ *   Also keeps `src` code pure and deterministic (rule G5 of the tax engine design): no
+ *   `Date.now()`, `new Date()` without arguments, `Date()`, `Math.random`, `performance`,
+ *   `crypto`, `process`, `globalThis.process` or `import.meta.env`.
  * @property {boolean} [moneySafety]
- *   For code that handles money or tax: forbids float-prone APIs (`parseFloat`, `Number(...)`,
- *   `.toFixed(...)`, `Math.round/floor/ceil/trunc`). Use `@fairhour/money`. `Number(...)` stays
- *   allowed in test files, which need it to build inputs and oracles.
+ *   For code that handles money or tax: forbids float-prone APIs (`parseFloat`, `parseInt`,
+ *   `Number(...)`, unary `+x`, `.toFixed(...)`, `Math.round/floor/ceil/trunc`). Use
+ *   `@fairhour/money`. `Number(...)` stays allowed in test files, which need it to build inputs
+ *   and oracles.
  */
 
 /** Build output, caches and generated files that are never linted. */
@@ -57,6 +61,11 @@ const JS_FILES = ["**/*.{js,jsx,mjs,cjs}"];
 export const CODE_FILES = [...JS_FILES, ...TS_FILES];
 /** Tool configuration files: `eslint.config.js`, `vitest.config.ts`, `tsdown.config.js`, ... */
 const CONFIG_FILES = ["**/*.config.{js,mjs,cjs,ts,mts,cts}"];
+/**
+ * Library source code: where the purity guard of `mitLibrary` applies. Test files that live in
+ * `src` and tool configuration files are excluded from it (see `PURITY_EXEMPT_FILES`).
+ */
+const SRC_GLOB = "**/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}";
 const TEST_FILES = [
   "**/*.test.{ts,tsx}",
   "**/*.spec.{ts,tsx}",
@@ -64,6 +73,8 @@ const TEST_FILES = [
   "**/tests/**/*.{ts,tsx}",
   "**/e2e/**/*.{ts,tsx}",
 ];
+/** Not library code: tests (they may read a clock or the environment) and tool configuration. */
+const PURITY_EXEMPT_FILES = [...TEST_FILES, ...CONFIG_FILES];
 
 const MIT_LIBRARY_MESSAGE =
   "MIT packages may only depend on @fairhour/money, @fairhour/tax-core and @fairhour/tax-pack-* " +
@@ -121,10 +132,20 @@ const MONEY_MESSAGE =
   "Floating point is not allowed for money and tax: use @fairhour/money (bigint minor units " +
   "with explicit rounding).";
 
-const MONEY_RESTRICTED_GLOBALS = [{ name: "parseFloat", message: MONEY_MESSAGE }];
+const MONEY_RESTRICTED_GLOBALS = [
+  { name: "parseFloat", message: MONEY_MESSAGE },
+  {
+    name: "parseInt",
+    message: `${MONEY_MESSAGE} parseInt(...) stops at the first non-digit and returns a number.`,
+  },
+];
 
 const MONEY_RESTRICTED_PROPERTIES = [
   { object: "Number", property: "parseFloat", message: MONEY_MESSAGE },
+  { object: "Number", property: "parseInt", message: MONEY_MESSAGE },
+  // The same globals reached through `globalThis`.
+  { object: "globalThis", property: "parseFloat", message: MONEY_MESSAGE },
+  { object: "globalThis", property: "parseInt", message: MONEY_MESSAGE },
   // Any receiver: `price.toFixed(2)` rounds a binary float, not a decimal amount.
   { property: "toFixed", message: MONEY_MESSAGE },
   ...["round", "floor", "ceil", "trunc"].map((property) => ({
@@ -134,10 +155,21 @@ const MONEY_RESTRICTED_PROPERTIES = [
   })),
 ];
 
+/** Forbidden in code, allowed in test files, which build inputs and oracles with `Number(...)`. */
 const MONEY_RESTRICTED_SYNTAX = [
   {
     selector: ":matches(CallExpression, NewExpression)[callee.name='Number']",
     message: `${MONEY_MESSAGE} Number(...) converts to a float and loses precision above 2^53.`,
+  },
+];
+
+/** Forbidden everywhere, test files included: `Number(...)` does the same job, visibly. */
+const MONEY_RESTRICTED_SYNTAX_EVERYWHERE = [
+  {
+    // `+x` is `Number(x)` in disguise, and so is `+"1.5"`. `+1` (a number literal) is harmless;
+    // `-x` and `x + y` are not it.
+    selector: "UnaryExpression[operator='+']:not([argument.value=type(number)])",
+    message: `${MONEY_MESSAGE} Unary + converts to a float, like Number(...).`,
   },
 ];
 
@@ -155,27 +187,112 @@ function moneySafetyConfigs() {
   ];
 }
 
+const PURITY_MESSAGE =
+  "MIT library code must be pure and deterministic (rule G5 of docs/design/tax-engine.md): no " +
+  "clock, randomness, environment or runtime globals. Take the value as a parameter instead " +
+  "(an explicit date, an injected clock).";
+
+const PURITY_RESTRICTED_GLOBALS = ["performance", "crypto", "process"].map((name) => ({
+  name,
+  message: PURITY_MESSAGE,
+}));
+
+const PURITY_RESTRICTED_PROPERTIES = [
+  { object: "Date", property: "now", message: PURITY_MESSAGE },
+  { object: "Math", property: "random", message: PURITY_MESSAGE },
+  // The same globals reached through `globalThis`.
+  ...["process", "performance", "crypto"].map((property) => ({
+    object: "globalThis",
+    property,
+    message: PURITY_MESSAGE,
+  })),
+];
+
+const PURITY_RESTRICTED_SYNTAX = [
+  {
+    // `new Date(input)` is a pure conversion; `new Date()` reads the clock.
+    selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+    message: PURITY_MESSAGE,
+  },
+  {
+    // Without `new`, `Date(...)` ignores its arguments and returns the current time as text.
+    selector: "CallExpression[callee.name='Date']",
+    message: PURITY_MESSAGE,
+  },
+  {
+    // `import.meta.env.X`, `import.meta["env"]`, but not `import.meta.url` or `.dirname`.
+    selector:
+      "MemberExpression[object.type='MetaProperty'][object.property.name='meta']" +
+      ":matches([computed=false][property.name='env'], [property.type='Literal'][property.value='env'])",
+    message: PURITY_MESSAGE,
+  },
+  {
+    // `const { env } = import.meta`
+    selector:
+      "VariableDeclarator[init.type='MetaProperty'] > ObjectPattern > Property" +
+      ":matches([computed=false][key.name='env'], [key.type='Literal'][key.value='env'])",
+    message: PURITY_MESSAGE,
+  },
+];
+
+/**
+ * The purity guard of `mitLibrary`: the clock, randomness and the environment are inputs, and a
+ * pure function takes its inputs as parameters. `no-restricted-globals` and
+ * `no-restricted-properties` replace their options from one entry to the next, so the money
+ * lists are repeated here for the files that have both guards (the non-test code in `src`).
+ *
+ * @param {boolean} moneySafety
+ * @returns {Config[]}
+ */
+function purityConfigs(moneySafety) {
+  return [
+    {
+      name: "fairhour/purity",
+      files: [SRC_GLOB],
+      ignores: PURITY_EXEMPT_FILES,
+      rules: {
+        "no-restricted-globals": [
+          "error",
+          ...(moneySafety ? MONEY_RESTRICTED_GLOBALS : []),
+          ...PURITY_RESTRICTED_GLOBALS,
+        ],
+        "no-restricted-properties": [
+          "error",
+          ...(moneySafety ? MONEY_RESTRICTED_PROPERTIES : []),
+          ...PURITY_RESTRICTED_PROPERTIES,
+        ],
+      },
+    },
+  ];
+}
+
 /**
  * `no-restricted-syntax` is one rule whose options are replaced, not merged, from one config
- * entry to the next, so the selectors of every enabled option are collected here:
+ * entry to the next, so the selectors of every enabled option are collected here, from the most
+ * general entry to the most specific one:
  *
  * - `mitLibrary` adds the dynamic `import("@fairhour/...")` check (`no-restricted-imports` only
- *   looks at static imports);
+ *   looks at static imports), and the purity selectors (`new Date()`, `Date()`, `import.meta.env`)
+ *   in the non-test code of `src`;
  * - `moneySafety` adds `Number(...)`, except in test files, which build inputs and oracles with it
- *   (for example from fast-check values). `parseFloat`, `toFixed` and `Math.round/floor/ceil/
- *   trunc` stay forbidden there.
+ *   (for example from fast-check values), and unary `+x`, everywhere. `parseFloat`, `parseInt`,
+ *   `toFixed` and `Math.round/floor/ceil/trunc` (other rules) stay forbidden in test files too.
  *
  * @param {{ mitLibrary: boolean, moneySafety: boolean }} enabled
  * @returns {Config[]}
  */
 function restrictedSyntaxConfigs({ mitLibrary, moneySafety }) {
   if (!mitLibrary && !moneySafety) return [];
+  const moneyInCode = moneySafety
+    ? [...MONEY_RESTRICTED_SYNTAX, ...MONEY_RESTRICTED_SYNTAX_EVERYWHERE]
+    : [];
+  const moneyInTests = moneySafety ? MONEY_RESTRICTED_SYNTAX_EVERYWHERE : [];
   /**
    * @param {string[]} allowed
-   * @param {boolean} money
+   * @param {typeof MONEY_RESTRICTED_SYNTAX} moreSelectors
    * @returns {NonNullable<Config["rules"]>}
    */
-  const rules = (allowed, money) => {
+  const rules = (allowed, moreSelectors) => {
     const selectors = [
       ...(mitLibrary
         ? [
@@ -185,22 +302,23 @@ function restrictedSyntaxConfigs({ mitLibrary, moneySafety }) {
             },
           ]
         : []),
-      ...(money ? MONEY_RESTRICTED_SYNTAX : []),
+      ...moreSelectors,
     ];
-    return { "no-restricted-syntax": selectors.length > 0 ? ["error", ...selectors] : "off" };
+    // Never empty: every caller has the dynamic import check (`mitLibrary`) or a money selector.
+    return { "no-restricted-syntax": ["error", ...selectors] };
   };
   return [
     {
       name: "fairhour/restricted-syntax",
       files: CODE_FILES,
-      rules: rules(MIT_ALLOWED_PACKAGES, moneySafety),
+      rules: rules(MIT_ALLOWED_PACKAGES, moneyInCode),
     },
     ...(mitLibrary
       ? [
           {
             name: "fairhour/restricted-syntax-config-files",
             files: CONFIG_FILES,
-            rules: rules([...MIT_ALLOWED_PACKAGES, "config"], moneySafety),
+            rules: rules([...MIT_ALLOWED_PACKAGES, "config"], moneyInCode),
           },
         ]
       : []),
@@ -209,7 +327,17 @@ function restrictedSyntaxConfigs({ mitLibrary, moneySafety }) {
           {
             name: "fairhour/restricted-syntax-tests",
             files: TEST_FILES,
-            rules: rules(MIT_ALLOWED_PACKAGES, false),
+            rules: rules(MIT_ALLOWED_PACKAGES, moneyInTests),
+          },
+        ]
+      : []),
+    ...(mitLibrary
+      ? [
+          {
+            name: "fairhour/restricted-syntax-purity",
+            files: [SRC_GLOB],
+            ignores: PURITY_EXEMPT_FILES,
+            rules: rules(MIT_ALLOWED_PACKAGES, [...moneyInCode, ...PURITY_RESTRICTED_SYNTAX]),
           },
         ]
       : []),
@@ -316,6 +444,7 @@ export function createConfig(options) {
     },
     ...(mitLibrary ? mitLibraryConfigs() : []),
     ...(moneySafety ? moneySafetyConfigs() : []),
+    ...(mitLibrary ? purityConfigs(moneySafety) : []),
     ...restrictedSyntaxConfigs({ mitLibrary, moneySafety }),
     ...extraConfigs,
     {

@@ -107,6 +107,31 @@ dependencies and licenses, and fails when `money`, `tax-core` or a `tax-pack-*` 
 write `mitLibrary: true` in its `eslint.config.js` (a plain text check outside comments, so spell
 the option out as above).
 
+It also keeps the non-test `src` code of these packages **pure and deterministic** (rule G5 of the
+[tax engine design](../../docs/design/tax-engine.md#2-global-invariants): the clock, randomness and
+the environment are inputs, and a pure function takes its inputs as parameters). In files under
+`src/` these are errors, each with a message that says so:
+
+| Forbidden                                | Why                                          |
+| ---------------------------------------- | -------------------------------------------- |
+| `Date.now()`                             | reads the clock                              |
+| `new Date()` with no arguments, `Date()` | read the clock (`new Date(input)` is fine)   |
+| `Math.random()`                          | randomness                                   |
+| `performance` (the global)               | reads the clock                              |
+| `crypto` (the global)                    | randomness                                   |
+| `process`, `globalThis.process`          | the environment (`process.env`, `argv`, ...) |
+| `import.meta.env`                        | the build environment                        |
+
+`globalThis.performance` and `globalThis.crypto` are rejected too, as are the destructured forms
+(`const { now } = Date`, `const { env } = import.meta`). `import.meta.url` and
+`import.meta.dirname` are fine, and so is a local variable or a property that happens to be called
+`process` or `performance`. Test files (`*.test.ts`, `*.spec.ts`, `test/`, `tests/`, `e2e/`, also
+when they live in `src/`), code outside `src/` (`scripts/`, `cli/`) and tool configuration files
+such as `vitest.config.ts` are not covered. It is a lint-level backstop: the `purity.test.ts` of
+each package scans the sources too, and the conformance suite checks that a computation is
+deterministic. Use a targeted `// eslint-disable-next-line <rule> -- <reason>` for a legitimate
+exception.
+
 ### `moneySafety: true`: no floats for money
 
 For code that handles money or tax (`money`, `tax-core`, `tax-pack-*`, and anywhere else that
@@ -116,18 +141,30 @@ computes amounts):
 export default createConfig({ tsconfigRootDir: import.meta.dirname, moneySafety: true });
 ```
 
-These float-prone APIs are errors, each with a message that points to `@fairhour/money`:
-`parseFloat(...)`, `Number.parseFloat(...)`, `Number(...)` (and `new Number(...)`), `.toFixed(...)`
-on anything, and `Math.round`, `Math.floor`, `Math.ceil`, `Math.trunc`. Other `Number` members
-(`Number.isInteger`, `Number.MAX_SAFE_INTEGER`) and other `Math` functions are fine.
+These float-prone APIs are errors, each with a message that points to `@fairhour/money` (rule
+G1 of the [tax engine design](../../docs/design/tax-engine.md#2-global-invariants) and
+[ADR-0003](../../docs/adr/0003-money-representation.md)):
+
+- `parseFloat(...)` and `Number.parseFloat(...)`;
+- `parseInt(...)` and `Number.parseInt(...)`: they stop at the first non-digit and return a
+  `number`. To read a count from digits, use `BigInt(...)` or a plain digit loop;
+- `Number(...)` (and `new Number(...)`);
+- unary `+` on anything that is not a number literal (`+x`, `+(a + b)`, `+"1.5"`): it is
+  `Number(x)` in disguise. `+1`, `-x`, `a + b` and string concatenation are fine;
+- `.toFixed(...)` on anything;
+- `Math.round`, `Math.floor`, `Math.ceil`, `Math.trunc`.
+
+Other `Number` members (`Number.isInteger`, `Number.MAX_SAFE_INTEGER`) and other `Math` functions
+are fine.
 
 Test files may call `Number(...)`, because tests build inputs and oracles from fast-check values;
-`parseFloat`, `toFixed` and the `Math` rounding functions stay forbidden there too. Use a targeted
-`// eslint-disable-next-line <rule> -- <reason>` for the rare legitimate exception.
+everything else in the list, `parseInt` and unary `+` included, stays forbidden there too. Use a
+targeted `// eslint-disable-next-line <rule> -- <reason>` for the rare legitimate exception.
 
-Both options can be combined. They configure `no-restricted-imports`, `no-restricted-globals`,
-`no-restricted-properties` and `no-restricted-syntax`: do not set those rules again in
-`extraConfigs` (a later entry replaces the options, it does not add to them).
+Both options can be combined (in `src` the two lists of restrictions are merged). They configure
+`no-restricted-imports`, `no-restricted-globals`, `no-restricted-properties` and
+`no-restricted-syntax`: do not set those rules again in `extraConfigs` (a later entry replaces the
+options, it does not add to them).
 
 ## Prettier
 

@@ -11,11 +11,14 @@ fa i calcoli, spiega ogni passaggio citando la norma e permette alla community d
 paesi. L'Italia è il pacchetto di riferimento.
 
 :::caution[Sviluppo iniziale]
-Fairhour è all'inizio della sua roadmap: oggi il repository contiene gli strumenti di sviluppo, il
-sito della documentazione e il progetto del motore fiscale. Le pagine di questo sito che
-descrivono una funzione non ancora disponibile lo dicono e indicano la versione che la porterà. Gli
-importi fiscali sono **indicativi**: verificali sempre con il tuo commercialista prima di emettere
-una fattura.
+Fairhour è agli inizi della sua roadmap. La v0.1 (fondamenta) è completata e la v0.2 (core e
+motore fiscale) è in corso: il repository contiene gli strumenti di sviluppo, il sito della
+documentazione e, sotto forma di librerie, il denaro esatto, il calcolo del tempo, tariffe e
+budget, il motore fiscale, il pacchetto per l'Italia e quello generico. Non esiste ancora
+un'applicazione che li usi (niente database, accesso o schermate: v0.3 e v0.4). Le pagine di
+questo sito che descrivono una funzione non ancora disponibile lo dicono e indicano la versione
+che la porterà. Gli importi fiscali sono **indicativi**: verificali sempre con il tuo
+commercialista prima di emettere una fattura.
 :::
 
 ## Perché Fairhour
@@ -27,7 +30,9 @@ semplicemente 1.000,00 €: sono 1.000,00 € più 40,00 € di _rivalsa INPS_ a
 imposta di bollo, con la dicitura di esenzione richiesta dalla legge, per un totale di 1.042,00 €.
 Nel _regime ordinario_ lo stesso lavoro diventa IVA in più e una _ritenuta d'acconto_ del 20%
 trattenuta da ciò che il cliente ti paga. Fairhour è pensato per fare questi calcoli per te,
-mostrare ogni passaggio e citare la regola che lo prevede (il motore arriva con la v0.2). Il
+mostrare ogni passaggio e citare la regola che lo prevede. Il motore e il pacchetto per l'Italia
+che lo fanno esistono già come librerie (v0.2, in corso); l'applicazione che te li mette davanti
+arriva con la v0.4. Il
 [pacchetto fiscale per l'Italia](/fairhour/it/tax-packs/it/#9-worked-examples) (in inglese)
 contiene gli esempi svolti.
 
@@ -40,11 +45,11 @@ previsto, non qualcosa che puoi usare oggi. Ognuno indica la versione che lo por
 1. **Organizza** (v0.4, sul database della v0.3). Un'area di lavoro conterrà clienti, che
    conterranno progetti, che conterranno attività. Ogni livello potrà avere una tariffa e vincerà
    quella più specifica ([tariffe e budget](/fairhour/it/guides/rates-and-budgets/), in inglese).
-2. **Registra** (v0.4; il calcolo del tempo arriva con la v0.2). Avvierai un timer, aggiungerai le
-   registrazioni a mano oppure scriverai `2h design Acme ieri`
+2. **Registra** (v0.4; il calcolo del tempo è già nella libreria core, v0.2). Avvierai un timer,
+   aggiungerai le registrazioni a mano oppure scriverai `2h design Acme ieri`
    ([registrazione del tempo](/fairhour/it/guides/time-tracking/), in inglese).
-3. **Fattura** (il motore fiscale arriva con la v0.2, la schermata di calcolo con la v0.4).
-   Sceglierai un cliente e un periodo. Fairhour costruirà le righe della fattura dal tempo
+3. **Fattura** (il motore fiscale è nelle librerie della v0.2, la schermata di calcolo arriva con
+   la v0.4). Sceglierai un cliente e un periodo. Fairhour costruirà le righe della fattura dal tempo
    fatturabile, le passerà al pacchetto fiscale dell'area di lavoro e mostrerà ogni importo con la
    sua spiegazione ([fatture e imposte](/fairhour/it/guides/invoices-and-taxes/), in inglese).
 4. **Analizza** (v0.5). Dashboard, fogli ore in PDF ed esportazioni CSV mostreranno dove sono
@@ -55,13 +60,14 @@ previsto, non qualcosa che puoi usare oggi. Ognuno indica la versione che lo por
 Sono gli impegni attorno ai quali è costruito il progetto. La versione tra parentesi indica quando
 ciascuno diventa vero nel software; le licenze valgono già oggi.
 
-- **Denaro esatto** (v0.2). Gli importi saranno interi nelle unità minori (`bigint`), mai numeri
-  in virgola mobile, e ogni arrotondamento dichiarerà la sua modalità
-  ([ADR-0003](/fairhour/it/adr/0003-money-representation/), già accettato, in inglese).
-- **Ogni numero è spiegato** (il motore con la v0.2, la schermata della fattura con la v0.4). Un
-  pacchetto fiscale citerà la legge per ogni regola e la schermata della fattura mostrerà la
-  traccia passo dopo passo ([ADR-0004](/fairhour/it/adr/0004-tax-engine-architecture/), in
-  inglese).
+- **Denaro esatto** (v0.2, realizzato nella libreria del denaro). Gli importi sono interi nelle
+  unità minori (`bigint`), mai numeri in virgola mobile, e ogni arrotondamento dichiara la sua
+  modalità ([ADR-0003](/fairhour/it/adr/0003-money-representation/), in inglese). L'applicazione
+  li mostrerà così dalla v0.4.
+- **Ogni numero è spiegato** (il motore e i pacchetti con la v0.2, la schermata della fattura con
+  la v0.4). Un pacchetto fiscale cita la legge per ogni regola e la schermata della fattura
+  mostrerà la traccia passo dopo passo
+  ([ADR-0004](/fairhour/it/adr/0004-tax-engine-architecture/), in inglese).
 - **Self-hosting al primo posto** (v0.8). Serviranno un container più PostgreSQL, senza
   dipendenza da un fornitore di hosting e senza che alcun dato lasci la tua istanza se non lo
   configuri tu ([self-hosting](/fairhour/it/self-hosting/), in inglese).
@@ -79,7 +85,7 @@ ne segue i dettagli.
 | Versione | Nome                  | Cosa porta                                                                                | Stato       |
 | -------- | --------------------- | ----------------------------------------------------------------------------------------- | ----------- |
 | v0.1     | Foundation            | Strumenti del monorepo, CI, governance, backlog come codice, questo sito                  | Completata  |
-| v0.2     | Core & Tax Engine     | Denaro esatto, calcolo del tempo, tariffe, motore `TaxPack`, pacchetti Italia e generico  | Prossima    |
+| v0.2     | Core & Tax Engine     | Denaro esatto, calcolo del tempo, tariffe, motore `TaxPack`, pacchetti Italia e generico  | In corso    |
 | v0.3     | Data & Auth           | Schema PostgreSQL, migrazioni, accesso, aree di lavoro e ruoli, isolamento dei tenant     | Pianificata |
 | v0.4     | Web MVP               | Clienti, progetti, timer, registrazioni, tariffe, schermata di calcolo, en e it           | Pianificata |
 | v0.5     | Reports               | Dashboard, grafici, fogli ore PDF, esportazione CSV, link di condivisione firmati         | Pianificata |

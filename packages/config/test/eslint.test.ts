@@ -270,6 +270,149 @@ describe("mitLibrary option", { timeout: TYPE_AWARE_TIMEOUT }, () => {
   });
 });
 
+describe("mitLibrary option: purity", { timeout: TYPE_AWARE_TIMEOUT }, () => {
+  const mit = { mitLibrary: true };
+  const both = { mitLibrary: true, moneySafety: true };
+  const restricted = new Set([
+    "no-restricted-globals",
+    "no-restricted-properties",
+    "no-restricted-syntax",
+  ]);
+  const restrictedRules = async (code: string, file = "src/sample.ts", options: Options = mit) =>
+    (await rules(code, file, options)).filter((rule) => restricted.has(rule ?? ""));
+
+  // The clock, randomness, the environment and the runtime globals that give access to them.
+  const impure = [
+    ["Date.now()", "no-restricted-properties"],
+    ["Date['now']()", "no-restricted-properties"],
+    ["(() => { const { now } = Date; return now(); })()", "no-restricted-properties"],
+    ["new Date()", "no-restricted-syntax"],
+    ["new Date().getTime()", "no-restricted-syntax"],
+    ["Date()", "no-restricted-syntax"],
+    ["Date(0)", "no-restricted-syntax"],
+    ["Math.random()", "no-restricted-properties"],
+    ["performance.now()", "no-restricted-globals"],
+    ["crypto.randomUUID()", "no-restricted-globals"],
+    ["crypto.getRandomValues(new Uint8Array(1))", "no-restricted-globals"],
+    ["process.env", "no-restricted-globals"],
+    ["typeof process", "no-restricted-globals"],
+    ["globalThis.process", "no-restricted-properties"],
+    ["globalThis['process']", "no-restricted-properties"],
+    ["(() => { const { process } = globalThis; return process; })()", "no-restricted-properties"],
+    ["globalThis.performance", "no-restricted-properties"],
+    ["globalThis.crypto", "no-restricted-properties"],
+    ["import.meta.env", "no-restricted-syntax"],
+    ["import.meta.env.MODE", "no-restricted-syntax"],
+    ["import.meta['env']", "no-restricted-syntax"],
+    ["(() => { const { env } = import.meta; return env; })()", "no-restricted-syntax"],
+  ] as const;
+
+  const pure = [
+    "new Date(0)",
+    "new Date('2024-01-01T00:00:00Z')",
+    "new Date(Date.UTC(2024, 0, 1)).toISOString()",
+    "Date.parse('2024-01-01')",
+    "Math.max(1, 2)",
+    "import.meta.url",
+    "import.meta.dirname",
+    "(() => { const { url } = import.meta; return url; })()",
+    // A local binding is not the global, and a property is not a variable.
+    "((performance: number) => performance)(1)",
+    "({ process: 1, crypto: 2, performance: 3 }).process",
+    "({ now: () => 1 }).now()",
+    "((now: () => number) => now())(() => 1)",
+  ];
+
+  it("is off by default and with moneySafety alone", async () => {
+    for (const [expression] of impure) {
+      const code = `export const x = ${expression};\n`;
+      expect(await restrictedRules(code, "src/sample.ts", {}), expression).toEqual([]);
+      expect(
+        await restrictedRules(code, "src/sample.ts", { moneySafety: true }),
+        expression,
+      ).toEqual([]);
+    }
+  });
+
+  it.each(impure)("forbids %s in src code", async (expression, rule) => {
+    expect(await restrictedRules(`export const x = ${expression};\n`)).toEqual([rule]);
+  });
+
+  it.each(pure)("allows %s", async (expression) => {
+    expect(await restrictedRules(`export const x = ${expression};\n`)).toEqual([]);
+  });
+
+  it("leaves test files alone, even when they live in src (a test may read a clock)", async () => {
+    for (const [expression] of impure) {
+      const code = `export const x = ${expression};\n`;
+      expect(await restrictedRules(code, "src/sample.test.ts"), expression).toEqual([]);
+      expect(await restrictedRules(code, "src/sample.test.ts", both), expression).toEqual([]);
+      expect(await restrictedRules(code, "src/test/helpers.ts", both), expression).toEqual([]);
+    }
+  });
+
+  it("leaves code outside src and tool config files alone", async () => {
+    const code = "export const x = [Date.now(), new Date(), Math.random(), process.env];\n";
+    expect(await restrictedRules(code, "other.ts")).toEqual([]);
+    expect(await restrictedRules(code, "sample.test.ts")).toEqual([]);
+    expect(await restrictedRules(code, "cli/tool.ts")).toEqual([]);
+    expect(await restrictedRules(code, "vitest.config.ts")).toEqual([]);
+    // A configuration file inside src is still a configuration file.
+    expect(await restrictedRules(code, "src/tool.config.ts")).toEqual([]);
+  });
+
+  it("explains the rule and how to fix it", async () => {
+    const messages = await lint("export const x = Date.now();\n", "src/sample.ts", mit);
+    const message = messages.find((m) => m.rule === "no-restricted-properties")?.message;
+    expect(message).toContain("pure");
+    expect(message).toContain("G5");
+    expect(message).toContain("parameter");
+  });
+
+  it("keeps the license boundary and the money guard in src when combined", async () => {
+    const forbidden = [
+      ["parseFloat('1')", "no-restricted-globals"],
+      ["parseInt('1', 10)", "no-restricted-globals"],
+      ["Math.round(1.5)", "no-restricted-properties"],
+      ["Number('1')", "no-restricted-syntax"],
+      ["+String(1)", "no-restricted-syntax"],
+      ["Date.now()", "no-restricted-properties"],
+      ["process.env", "no-restricted-globals"],
+      ["new Date()", "no-restricted-syntax"],
+    ] as const;
+    for (const [expression, rule] of forbidden) {
+      expect(
+        await restrictedRules(`export const x = ${expression};\n`, "src/sample.ts", both),
+        expression,
+      ).toEqual([rule]);
+    }
+    const imports = 'export const load = () => import("@fairhour/core");\n';
+    expect(await restrictedRules(imports, "src/sample.ts", both)).toEqual(["no-restricted-syntax"]);
+    expect(await restrictedRules(imports, "src/sample.test.ts", both)).toEqual([
+      "no-restricted-syntax",
+    ]);
+  });
+
+  it("keeps Number(...) allowed in test files, and nothing else", async () => {
+    expect(
+      await restrictedRules("export const x = Number(1n);\n", "src/sample.test.ts", both),
+    ).toEqual([]);
+    const forbidden = ["parseFloat('1')", "parseInt('1', 10)", "+String(1)", "Math.round(1.5)"];
+    for (const expression of forbidden) {
+      expect(
+        await restrictedRules(`export const x = ${expression};\n`, "src/sample.test.ts", both),
+        expression,
+      ).toHaveLength(1);
+    }
+  });
+
+  it("restricts a config file inside src like any other config file", async () => {
+    const imports = 'import "@fairhour/config/eslint";\nimport "@fairhour/core";\n';
+    const messages = await lint(imports, "src/tool.config.ts", both);
+    expect(messages.filter((m) => m.rule === "no-restricted-imports")).toHaveLength(1);
+  });
+});
+
 describe("moneySafety option", { timeout: TYPE_AWARE_TIMEOUT }, () => {
   const money = { moneySafety: true };
   const restricted = new Set([
@@ -288,6 +431,16 @@ describe("moneySafety option", { timeout: TYPE_AWARE_TIMEOUT }, () => {
   it.each([
     ['parseFloat("1.5")', "no-restricted-globals"],
     ['Number.parseFloat("1.5")', "no-restricted-properties"],
+    ['parseInt("15", 10)', "no-restricted-globals"],
+    ["[1].map(parseInt)", "no-restricted-globals"],
+    ['Number.parseInt("15", 10)', "no-restricted-properties"],
+    ['globalThis.parseFloat("1.5")', "no-restricted-properties"],
+    ['globalThis.parseInt("15", 10)', "no-restricted-properties"],
+    ["+String(1)", "no-restricted-syntax"],
+    ["+(1 + 2)", "no-restricted-syntax"],
+    // A string literal is converted to a float just the same.
+    ['+"1.5"', "no-restricted-syntax"],
+    ["+1n", "no-restricted-syntax"],
     ['Number("1.5")', "no-restricted-syntax"],
     ['new Number("1.5")', "no-restricted-syntax"],
     ["(1.5).toFixed(2)", "no-restricted-properties"],
@@ -309,8 +462,17 @@ describe("moneySafety option", { timeout: TYPE_AWARE_TIMEOUT }, () => {
     "Math.abs(-1)",
     "String(1)",
     "(1.5).toString()",
+    "-String(1).length",
+    "1 + 2",
+    "String(1) + String(2)",
+    "BigInt('15')",
+    "'15'.padStart(4, '0')",
   ])("allows %s", async (expression) => {
     expect(await rules(`export const x = ${expression};\n`, "sample.ts", money)).toEqual([]);
+  });
+
+  it("leaves a unary plus on a literal alone (other rules may still have a say)", async () => {
+    expect(await restrictedRules("export const x = +1;\n")).toEqual([]);
   });
 
   it("points to @fairhour/money", async () => {
@@ -324,6 +486,9 @@ describe("moneySafety option", { timeout: TYPE_AWARE_TIMEOUT }, () => {
     const forbidden = [
       "parseFloat('1')",
       "Number.parseFloat('1')",
+      "parseInt('1', 10)",
+      "Number.parseInt('1', 10)",
+      "+String(1)",
       "(1.5).toFixed(2)",
       "Math.round(1.5)",
     ];
