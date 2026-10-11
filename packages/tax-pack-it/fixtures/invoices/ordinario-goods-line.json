@@ -1,0 +1,126 @@
+{
+  "name": "ordinario-goods-line",
+  "description": "Ordinario, INPS rivalsa, Italian business client (withholding agent): fees €1,000.00 and goods €200.00 (both VAT 22 %). Goods are not fees: rivalsa 4 % × 1,000.00 = €40.00; VAT 22 % × (1,000.00 + 200.00 + 40.00 = 1,240.00) = €272.80; withholding 20 % × (1,000.00 + 40.00) = €208.00. Total 1,240.00 + 272.80 = €1,512.80; net payable 1,512.80 − 208.00 = €1,304.80; info warning it.goods-lines.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 1996, n. 662",
+      "citation": "art. 1, comma 212 (rivalsa INPS 4 %)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    },
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25, comma 1 (ritenuta del 20 per cento)"
+    },
+    {
+      "title": "Agenzia delle Entrate, F24 Ritenute reddito lavoro autonomo – Importi su cui si applica la ritenuta",
+      "citation": "scheda informativa",
+      "url": "https://www.agenziaentrate.gov.it/portale/web/guest/schede/pagamenti/versamento-modello-f24-ritenute-su-reddito-di-lavoro-autonomo-f24_rit_red_lav_aut/importi-su-cui-si-applica-la-ritenuta-f24_rit_red_lav_aut"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "inps-gestione-separata",
+      "rivalsa": true
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      },
+      {
+        "id": "l2",
+        "kind": "goods",
+        "description": "Equipment",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "200"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.inps-rivalsa",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "4",
+        "amount": "40.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "40.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.TipoCassa": "TC22",
+          "fatturapa.Ritenuta": "SI"
+        }
+      },
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1240.00",
+        "rate": "22",
+        "amount": "272.80",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1240.00",
+            "amount": "272.80"
+          }
+        ]
+      },
+      {
+        "id": "it.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1040.00",
+        "rate": "20",
+        "amount": "208.00",
+        "exportCodes": {
+          "fatturapa.TipoRitenuta": "RT01",
+          "fatturapa.CausalePagamento": "A"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-22",
+        "treatment": "taxable",
+        "rate": "22",
+        "base": "1240.00",
+        "tax": "272.80"
+      }
+    ],
+    "subtotal": "1200.00",
+    "taxableBase": "1240.00",
+    "taxTotal": "272.80",
+    "total": "1512.80",
+    "withholdingTotal": "208.00",
+    "netPayable": "1304.80",
+    "legalNotes": [],
+    "warnings": ["it.goods-lines"]
+  }
+}

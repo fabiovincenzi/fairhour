@@ -1,0 +1,40 @@
+{
+  "name": "error-before-2019",
+  "description": "An invoice dated 2018-12-31, before the first parameter version (it-2019-01-01): ParameterNotFoundError.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2018-12-31",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "parameters-not-found"
+  }
+}

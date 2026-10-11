@@ -1,0 +1,78 @@
+{
+  "name": "ordinario-agent-withholding-50",
+  "description": "Commercial agent (art. 25-bis DPR 600/1973): withholding rate 23 % on 50 % of the commissions, no social security, Italian business client (withholding agent). Commissions €1,000.00; VAT 22 % = €220.00; total €1,220.00; withholding base 50 % × 1,000.00 = €500.00; withholding 23 % × 500.00 = €115.00; net payable 1,220.00 − 115.00 = €1,105.00.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25-bis (agenti: 23 per cento sul 50 per cento)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    },
+    "withholding": {
+      "rate": "23",
+      "baseShare": "50"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Commissions, March",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "1000"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "22",
+        "amount": "220.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "220.00"
+          }
+        ]
+      },
+      {
+        "id": "it.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "500.00",
+        "rate": "23",
+        "amount": "115.00"
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1000.00",
+    "taxTotal": "220.00",
+    "total": "1220.00",
+    "withholdingTotal": "115.00",
+    "netPayable": "1105.00"
+  }
+}

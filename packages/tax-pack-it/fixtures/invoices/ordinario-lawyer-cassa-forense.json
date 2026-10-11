@@ -1,0 +1,151 @@
+{
+  "name": "ordinario-lawyer-cassa-forense",
+  "description": "Worked example (c). Lawyer in ordinario, Cassa Forense, Italian business client (withholding agent): fee €1,000.00; spese generali 15 % = €150.00; CPA 4 % × (1,000.00 + 150.00) = €46.00; VAT 22 % × (1,000.00 + 150.00 + 46.00 = 1,196.00) = €263.12; withholding 20 % × (1,000.00 + 150.00) = €230.00 (CPA excluded). Total 1,196.00 + 263.12 = €1,459.12; net payable 1,459.12 − 230.00 = €1,229.12.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Decreto del Ministro della giustizia 10 marzo 2014, n. 55",
+      "citation": "art. 2, comma 2 (spese generali 15 %), as amended by DM 147/2022"
+    },
+    {
+      "title": "Decreto-legge 23 febbraio 1995, n. 41",
+      "citation": "art. 16 (contributo integrativo soggetto a IVA)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    },
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25, comma 1 (ritenuta del 20 per cento)"
+    },
+    {
+      "title": "Agenzia delle Entrate, F24 Ritenute reddito lavoro autonomo – Importi su cui si applica la ritenuta",
+      "citation": "scheda informativa",
+      "url": "https://www.agenziaentrate.gov.it/portale/web/guest/schede/pagamenti/versamento-modello-f24-ritenute-su-reddito-di-lavoro-autonomo-f24_rit_red_lav_aut/importi-su-cui-si-applica-la-ritenuta-f24_rit_red_lav_aut"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "cassa",
+      "preset": "cassa-forense"
+    },
+    "generalExpenses": {
+      "rate": "15"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.general-expenses",
+        "kind": "surcharge",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "15",
+        "amount": "150.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "150.00"
+          }
+        ],
+        "exportCodes": {}
+      },
+      {
+        "id": "it.cassa",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "1150.00",
+        "rate": "4",
+        "amount": "46.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1150.00",
+            "amount": "46.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.TipoCassa": "TC01",
+          "fatturapa.Ritenuta": "NO"
+        }
+      },
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1196.00",
+        "rate": "22",
+        "amount": "263.12",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1196.00",
+            "amount": "263.12"
+          }
+        ]
+      },
+      {
+        "id": "it.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1150.00",
+        "rate": "20",
+        "amount": "230.00",
+        "exportCodes": {
+          "fatturapa.TipoRitenuta": "RT01",
+          "fatturapa.CausalePagamento": "A"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-22",
+        "treatment": "taxable",
+        "rate": "22",
+        "base": "1196.00",
+        "tax": "263.12"
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1196.00",
+    "taxTotal": "263.12",
+    "total": "1459.12",
+    "withholdingTotal": "230.00",
+    "netPayable": "1229.12",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.common.general-expenses",
+      "it.common.cassa",
+      "it.ordinario.vat",
+      "it.ordinario.withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}

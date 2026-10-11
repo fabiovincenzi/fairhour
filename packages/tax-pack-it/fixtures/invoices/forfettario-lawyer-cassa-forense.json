@@ -1,0 +1,143 @@
+{
+  "name": "forfettario-lawyer-cassa-forense",
+  "description": "Worked example (g). Forfettario lawyer: fee €1,000.00 (N2.2); spese generali 15 % × 1,000.00 = €150.00; CPA (Cassa Forense, 4 %) on fee + spese generali 1,150.00 = €46.00; amount not subject to VAT 1,196.00 > 77.47, so €2.00 of stamp duty charged. Total 1,000.00 + 150.00 + 46.00 + 2.00 = €1,198.00; no VAT, no withholding. Countable revenue for the ceiling would be 1,152.00 (CPA excluded).",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    },
+    {
+      "title": "Decreto del Ministro della giustizia 10 marzo 2014, n. 55",
+      "citation": "art. 2, comma 2 (spese generali 15 %), as amended by DM 147/2022"
+    },
+    {
+      "title": "Decreto-legge 23 febbraio 1995, n. 41",
+      "citation": "art. 16 (contributo integrativo soggetto a IVA)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "cassa",
+      "preset": "cassa-forense"
+    },
+    "generalExpenses": {
+      "rate": "15"
+    },
+    "stampDuty": {
+      "charge": "client"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.general-expenses",
+        "kind": "surcharge",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "15",
+        "amount": "150.00",
+        "allocations": [
+          {
+            "groupId": "n2.2",
+            "base": "1000.00",
+            "amount": "150.00"
+          }
+        ],
+        "exportCodes": {}
+      },
+      {
+        "id": "it.cassa",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "1150.00",
+        "rate": "4",
+        "amount": "46.00",
+        "allocations": [
+          {
+            "groupId": "n2.2",
+            "base": "1150.00",
+            "amount": "46.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.TipoCassa": "TC01",
+          "fatturapa.Ritenuta": "NO"
+        }
+      },
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "adds-to-total",
+        "base": "1196.00",
+        "amount": "2.00",
+        "allocations": [
+          {
+            "groupId": "n2.2",
+            "base": "1196.00",
+            "amount": "2.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "n2.2",
+        "treatment": "out-of-scope",
+        "base": "1198.00",
+        "tax": "0.00"
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1196.00",
+    "taxTotal": "0.00",
+    "total": "1198.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1198.00",
+    "legalNotes": [
+      "it.note.forfettario",
+      "it.note.forfettario-no-withholding",
+      "it.note.stamp-duty"
+    ],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.common.general-expenses",
+      "it.common.cassa",
+      "it.forfettario.no-vat",
+      "it.forfettario.no-withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}

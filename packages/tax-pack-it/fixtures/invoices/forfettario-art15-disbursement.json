@@ -1,0 +1,120 @@
+{
+  "name": "forfettario-art15-disbursement",
+  "description": "Forfettario, private client: fee 10 h × €50.00 = €500.00 (N2.2) and a €50.00 court fee paid in the client's name (reimbursement, default treatment excluded -> N1). The disbursement counts for the stamp duty threshold (Risposta 491/2021): 500.00 + 50.00 = 550.00 > 77.47, €2.00 charged and allocated to N2.2 (part of the fee, Risposta 428/2022). Total 500.00 + 50.00 + 2.00 = €552.00; taxable base 500.00.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 15, primo comma, n. 3) (pinpoint to be verified)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    },
+    {
+      "title": "Agenzia delle Entrate, Risposta n. 428 del 12 agosto 2022",
+      "citation": "riaddebito del bollo da parte del forfettario"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 10 hours",
+        "quantity": "10",
+        "unit": "hour",
+        "unitPrice": "50"
+      },
+      {
+        "id": "l2",
+        "kind": "reimbursement",
+        "description": "Court fee paid in the client's name",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "lines": [
+      {
+        "id": "l1",
+        "net": "500.00",
+        "groupId": "n2.2"
+      },
+      {
+        "id": "l2",
+        "net": "50.00",
+        "groupId": "n1"
+      }
+    ],
+    "components": [
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "adds-to-total",
+        "base": "550.00",
+        "amount": "2.00",
+        "allocations": [
+          {
+            "groupId": "n2.2",
+            "base": "550.00",
+            "amount": "2.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "n2.2",
+        "treatment": "out-of-scope",
+        "base": "502.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "n1",
+        "treatment": "excluded",
+        "base": "50.00",
+        "tax": "0.00"
+      }
+    ],
+    "subtotal": "550.00",
+    "taxableBase": "500.00",
+    "taxTotal": "0.00",
+    "total": "552.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "552.00",
+    "legalNotes": ["it.note.forfettario", "it.note.stamp-duty"],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.forfettario.no-vat",
+      "it.forfettario.no-withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "name": "ordinario-reduced-rate-mixed",
+  "description": "Private client, no social security: a standard line 20 h × €50.00 = €1,000.00 (VAT 22 %) and a line of €500.00 at the reduced rate of 10 %. VAT per rate on the summary: 22 % × 1,000.00 = €220.00 and 10 % × 500.00 = €50.00, one component with two allocations (€270.00). Total 1,500.00 + 270.00 = €1,770.00.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "Tabella A, parte III (aliquota del 10 per cento)"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      },
+      {
+        "id": "l2",
+        "kind": "service",
+        "description": "Reduced-rate service",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "500",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "lines": [
+      {
+        "id": "l1",
+        "net": "1000.00",
+        "groupId": "vat-22"
+      },
+      {
+        "id": "l2",
+        "net": "500.00",
+        "groupId": "vat-10"
+      }
+    ],
+    "components": [
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1500.00",
+        "amount": "270.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "220.00"
+          },
+          {
+            "groupId": "vat-10",
+            "base": "500.00",
+            "amount": "50.00"
+          }
+        ]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-22",
+        "treatment": "taxable",
+        "rate": "22",
+        "base": "1000.00",
+        "tax": "220.00"
+      },
+      {
+        "groupId": "vat-10",
+        "treatment": "taxable",
+        "rate": "10",
+        "base": "500.00",
+        "tax": "50.00"
+      }
+    ],
+    "subtotal": "1500.00",
+    "taxableBase": "1500.00",
+    "taxTotal": "270.00",
+    "total": "1770.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1770.00",
+    "legalNotes": [],
+    "warnings": []
+  }
+}

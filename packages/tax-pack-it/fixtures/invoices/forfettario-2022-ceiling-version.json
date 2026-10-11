@@ -1,0 +1,71 @@
+{
+  "name": "forfettario-2022-ceiling-version",
+  "description": "Invoice dated 2022-06-01: parameter version it-2021-01-01 (EU-27, forfettario ceiling €65,000, no immediate exit). Fee €1,000.00 + €2.00 stamp duty (1,000.00 > 77.47) = €1,002.00.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2022-06-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "it-2021-01-01",
+    "components": [
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "amount": "2.00",
+        "allocations": [
+          {
+            "groupId": "n2.2",
+            "base": "1000.00",
+            "amount": "2.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1000.00",
+    "taxTotal": "0.00",
+    "total": "1002.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1002.00",
+    "legalNotes": ["it.note.forfettario", "it.note.stamp-duty"],
+    "warnings": []
+  }
+}

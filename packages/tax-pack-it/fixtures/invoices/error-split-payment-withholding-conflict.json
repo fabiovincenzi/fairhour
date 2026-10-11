@@ -1,0 +1,48 @@
+{
+  "name": "error-split-payment-withholding-conflict",
+  "description": "Ordinario, withholding agent client and the option splitPayment = apply: split payment cannot apply to fees subject to withholding (art. 17-ter, c. 1-sexies): it.split-payment.withholding-conflict.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 17-ter (scissione dei pagamenti), comma 1-sexies"
+    },
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25, comma 1 (ritenuta del 20 per cento)"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ],
+    "options": {
+      "splitPayment": "apply"
+    }
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["it.split-payment.withholding-conflict"]
+  }
+}

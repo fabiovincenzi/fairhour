@@ -843,6 +843,40 @@ Golden fixtures (`packages/tax-pack-it/fixtures/invoices/`):
 | `error-currency-usd`                       | `expectedError: unsupported-input`, `it.currency-not-eur` |
 | `error-before-2019`                        | `expectedError: parameters-not-found`                     |
 | `forfettario-2022-ceiling-version`         | dated 2022-06-01, parameters `it-2021-01-01`              |
+| `forfettario-bollo-below-threshold`        | (f) 77.46: no duty                                        |
+| `forfettario-stamp-option-not-due`         | option `stampDuty: 'not-due'`: no duty, warning           |
+| `ordinario-art15-bollo-absorbed-option`    | (e) with option `stampDuty: 'absorb'`: total 1,368.80     |
+| `ordinario-credit-note-art15`              | (e) as a credit note: duty informational                  |
+| `ordinario-pa-split-payment-expired`       | (i) second case dated 2029-07-01: no split payment        |
+| `ordinario-lawyer-rounding-tie`            | spese generali 15.045 -> 15.05 (contribution tie)         |
+| `ordinario-agent-base-share-tie`           | base share 500.025 -> 500.03 (withholding tie)            |
+| `error-forfettario-rate-line`              | `it.forfettario.rate-not-allowed`                         |
+| `error-ordinario-unknown-vat-rate`         | `it.ordinario.unknown-vat-rate`                           |
+| `error-split-payment-withholding-conflict` | `it.split-payment.withholding-conflict`                   |
+
+### Changes during implementation (TAX-004 to TAX-007)
+
+Recorded while implementing `packages/tax-pack-it`. The rules, amounts and source marks above
+are unchanged; these are additions where the text above was silent.
+
+- **Out-of-scope lines without a reference** (ordinario, 7.1): the note is
+  `it.note.out-of-scope-generic` ("Operazione non soggetta a IVA."), and the warning
+  `it.out-of-scope.missing-reference` asks the user to add the provision to the line.
+- **Summary order**: groups are registered in a canonical order independent of the line order:
+  VAT groups by descending rate, then `n2.1`, `n2.2`, `n4`, `n1`. The legal notes of
+  `it.common.classify-lines` follow the same order.
+- **Revenue tracker warnings** (section 10): `it.forfettario.ceiling-approaching` (info),
+  `it.forfettario.ceiling-exceeded` and `it.forfettario.immediate-exit` (warning), and the info
+  warning `it.forfettario.prorating-leap-year` when the pro-rated year is a leap year (open point
+  9). A pro-rated ceiling never exceeds the full ceiling (366 days from 1 January). `crossedOn` is
+  reported only when the year's total is still above the limit (refunds are negative receipts).
+  The ratio in messages is shown in percent with at most two decimals.
+- **Revenue tracker refusals**: non-EUR receipts throw `UnsupportedInputError`
+  (`it.currency-not-eur`), years before 2019 `ParameterNotFoundError`, like invoices.
+- **Split payment**: the conditions are checked in the order withholding, authorisation, VAT; a
+  withholding component excludes the split payment even when its amount rounds to zero.
+- **Reserved line ids** (`__proto__`, `constructor`, `prototype`) are refused by `tax-core`
+  (`invalid-line-id`); the pack never writes `record[line.id]` anyway.
 
 ---
 

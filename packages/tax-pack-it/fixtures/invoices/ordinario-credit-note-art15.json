@@ -1,0 +1,129 @@
+{
+  "name": "ordinario-credit-note-art15",
+  "description": "Example (e) as a credit note: same rivalsa (€40.00), VAT (€228.80) and withholding (€208.00); the €2.00 stamp duty is informational on credit notes (warning it.stamp-duty.credit-note-absorbed). Total €1,368.80; net payable €1,160.80 (positive magnitudes).",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 1996, n. 662",
+      "citation": "art. 1, comma 212 (rivalsa INPS 4 %)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 15, primo comma, n. 3) (pinpoint to be verified)"
+    },
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25, comma 1 (ritenuta del 20 per cento)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "inps-gestione-separata",
+      "rivalsa": true
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "documentKind": "credit-note",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      },
+      {
+        "id": "l2",
+        "kind": "reimbursement",
+        "description": "Court fee paid in the client's name",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.inps-rivalsa",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "4",
+        "amount": "40.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "40.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.TipoCassa": "TC22",
+          "fatturapa.Ritenuta": "SI"
+        }
+      },
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1040.00",
+        "rate": "22",
+        "amount": "228.80",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1040.00",
+            "amount": "228.80"
+          }
+        ]
+      },
+      {
+        "id": "it.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1040.00",
+        "rate": "20",
+        "amount": "208.00",
+        "exportCodes": {
+          "fatturapa.TipoRitenuta": "RT01",
+          "fatturapa.CausalePagamento": "A"
+        }
+      },
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "informational",
+        "base": "100.00",
+        "amount": "2.00",
+        "allocations": [],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "subtotal": "1100.00",
+    "taxableBase": "1040.00",
+    "taxTotal": "228.80",
+    "total": "1368.80",
+    "withholdingTotal": "208.00",
+    "netPayable": "1160.80",
+    "legalNotes": ["it.note.art15", "it.note.stamp-duty"],
+    "warnings": ["it.stamp-duty.credit-note-absorbed"]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "error-forfettario-rate-line",
+  "description": "Forfettario with a line at an explicit VAT rate of 10 %: the regime has no VAT, so the pack refuses the line (it.forfettario.rate-not-allowed).",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "rate",
+          "rate": "10"
+        }
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["it.forfettario.rate-not-allowed"]
+  }
+}

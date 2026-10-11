@@ -1,0 +1,107 @@
+{
+  "name": "ordinario-agent-base-share-tie",
+  "description": "Rounding tie of the withholding base share (section 8: half up, once per document). Commercial agent (art. 25-bis DPR 600/1973), withholding 23 % on 50 % of the commissions, Italian business client (withholding agent), commissions €1,000.05. VAT 22 % × 1,000.05 = 220.011 -> €220.01; total 1,000.05 + 220.01 = €1,220.06. Withholding base 50 % × 1,000.05 = 500.025 -> €500.03 (halfUp; halfEven would give 500.02); withholding 23 % × 500.03 = 115.0069 -> €115.01 (on 500.02 it would be 115.0046 -> 115.00); net payable 1,220.06 − 115.01 = €1,105.05.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25-bis (agenti: 23 per cento sul 50 per cento)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    },
+    {
+      "title": "Regolamento (CE) n. 1103/97 del Consiglio del 17 giugno 1997",
+      "citation": "art. 5 (arrotondamento al centesimo)",
+      "url": "https://eur-lex.europa.eu/eli/reg/1997/1103/oj"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    },
+    "withholding": {
+      "rate": "23",
+      "baseShare": "50"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Commissions, April",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "1000.05"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "it-2023-01-01",
+    "subtotal": "1000.05",
+    "components": [
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.05",
+        "rate": "22",
+        "amount": "220.01",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.05",
+            "amount": "220.01"
+          }
+        ]
+      },
+      {
+        "id": "it.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "500.03",
+        "rate": "23",
+        "amount": "115.01",
+        "exportCodes": {
+          "fatturapa.TipoRitenuta": "RT01",
+          "fatturapa.CausalePagamento": "A"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-22",
+        "treatment": "taxable",
+        "rate": "22",
+        "base": "1000.05",
+        "tax": "220.01"
+      }
+    ],
+    "taxableBase": "1000.05",
+    "taxTotal": "220.01",
+    "total": "1220.06",
+    "withholdingTotal": "115.01",
+    "netPayable": "1105.05",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.ordinario.vat",
+      "it.ordinario.withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}

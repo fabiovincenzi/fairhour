@@ -1,0 +1,67 @@
+{
+  "name": "forfettario-bollo-at-threshold",
+  "description": "Worked example (f), first case. Fee €77.47: the amount not subject to VAT is equal to 77.47, which is not greater than 77.47 (nota 2, lett. a): no stamp duty, total €77.47. Private client: no request not to withhold.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consultation",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "77.47"
+      }
+    ]
+  },
+  "expected": {
+    "components": [],
+    "vatSummary": [
+      {
+        "groupId": "n2.2",
+        "treatment": "out-of-scope",
+        "base": "77.47",
+        "tax": "0.00"
+      }
+    ],
+    "subtotal": "77.47",
+    "taxableBase": "77.47",
+    "taxTotal": "0.00",
+    "total": "77.47",
+    "withholdingTotal": "0.00",
+    "netPayable": "77.47",
+    "legalNotes": ["it.note.forfettario"],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.forfettario.no-vat",
+      "it.forfettario.no-withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}

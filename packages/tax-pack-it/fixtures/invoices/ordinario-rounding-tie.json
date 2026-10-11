@@ -1,0 +1,70 @@
+{
+  "name": "ordinario-rounding-tie",
+  "description": "Tie example of section 8: private client, no social security, fee €12.75; VAT 22 % = 2.805 -> €2.81 (halfUp; halfEven would give €2.80). Total 12.75 + 2.81 = €15.56.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 21, comma 2, lett. l) (to be verified)"
+    },
+    {
+      "title": "Regolamento (CE) n. 1103/97",
+      "citation": "art. 5 (arrotondamento)"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Short call",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "12.75"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "12.75",
+        "rate": "22",
+        "amount": "2.81",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "12.75",
+            "amount": "2.81"
+          }
+        ]
+      }
+    ],
+    "subtotal": "12.75",
+    "taxableBase": "12.75",
+    "taxTotal": "2.81",
+    "total": "15.56",
+    "withholdingTotal": "0.00",
+    "netPayable": "15.56",
+    "warnings": []
+  }
+}

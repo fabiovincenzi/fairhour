@@ -1,0 +1,90 @@
+{
+  "name": "ordinario-pa-split-payment",
+  "description": "Worked example (i), second case: activity not subject to withholding (withholding disabled), no social security, Italian public administration: fee €1,000.00, VAT 22 % = €220.00, total €1,220.00; split payment deducts the VAT (€220.00, EsigibilitaIVA S): net payable €1,000.00, note 'Scissione dei pagamenti'.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 17-ter (scissione dei pagamenti), comma 1-sexies"
+    },
+    {
+      "title": "Council Implementing Decision (EU) 2026/1728",
+      "citation": "split payment authorised until 30 June 2029",
+      "url": "https://www.finanze.gov.it/it/archivi/notizie/dettaglio-notizie/Pubblicata-la-decisione-di-proroga-dello-Split-Payment/"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    },
+    "withholding": {
+      "enabled": false
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "public-administration",
+      "isWithholdingAgent": true
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "22",
+        "amount": "220.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "220.00"
+          }
+        ]
+      },
+      {
+        "id": "it.split-payment",
+        "kind": "other",
+        "effect": "deducted-from-payable",
+        "base": "220.00",
+        "amount": "220.00",
+        "allocations": [],
+        "exportCodes": {
+          "fatturapa.EsigibilitaIVA": "S"
+        }
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1000.00",
+    "taxTotal": "220.00",
+    "total": "1220.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1000.00",
+    "legalNotes": ["it.note.split-payment"],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.ordinario.vat",
+      "it.common.stamp-duty",
+      "it.ordinario.split-payment",
+      "core"
+    ]
+  }
+}

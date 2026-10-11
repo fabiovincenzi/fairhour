@@ -1,0 +1,106 @@
+{
+  "name": "ordinario-rounding",
+  "description": "Rounding example of section 8: fees €333.33; rivalsa 4 % = 13.3332 -> €13.33; VAT 22 % × 346.66 = 76.2652 -> €76.27; withholding 20 % × 346.66 = 69.332 -> €69.33 (all half up to the cent). Total 346.66 + 76.27 = €422.93; net payable 422.93 − 69.33 = €353.60.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 1996, n. 662",
+      "citation": "art. 1, comma 212 (rivalsa INPS 4 %)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 21, comma 2, lett. l) (to be verified)"
+    },
+    {
+      "title": "Regolamento (CE) n. 1103/97",
+      "citation": "art. 5 (arrotondamento)"
+    },
+    {
+      "title": "DPR 29 settembre 1973, n. 600",
+      "citation": "art. 25, comma 1 (ritenuta del 20 per cento)"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "inps-gestione-separata",
+      "rivalsa": true
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Fixed-price review",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "333.33"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.inps-rivalsa",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "333.33",
+        "rate": "4",
+        "amount": "13.33",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "333.33",
+            "amount": "13.33"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.TipoCassa": "TC22",
+          "fatturapa.Ritenuta": "SI"
+        }
+      },
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "346.66",
+        "rate": "22",
+        "amount": "76.27",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "346.66",
+            "amount": "76.27"
+          }
+        ]
+      },
+      {
+        "id": "it.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "346.66",
+        "rate": "20",
+        "amount": "69.33",
+        "exportCodes": {
+          "fatturapa.TipoRitenuta": "RT01",
+          "fatturapa.CausalePagamento": "A"
+        }
+      }
+    ],
+    "subtotal": "333.33",
+    "taxableBase": "346.66",
+    "taxTotal": "76.27",
+    "total": "422.93",
+    "withholdingTotal": "69.33",
+    "netPayable": "353.60"
+  }
+}

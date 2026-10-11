@@ -1,0 +1,116 @@
+{
+  "name": "ordinario-eu-business-reverse-charge",
+  "description": "Worked example (h). Ordinario, INPS rivalsa, business client in Germany with a VAT number (not a withholding agent): fees 40 h × €50.00 = €2,000.00 -> N2.1 (art. 7-ter, note 'Inversione contabile'); rivalsa 4 % = €80.00 allocated to N2.1; no VAT; amount not subject to VAT 2,080.00 > 77.47 -> €2.00 stamp duty in N1. Total 2,000.00 + 80.00 + 2.00 = €2,082.00; no withholding.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 7-ter e art. 21, comma 6-bis"
+    },
+    {
+      "title": "Legge 23 dicembre 1996, n. 662",
+      "citation": "art. 1, comma 212 (rivalsa INPS 4 %)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "inps-gestione-separata",
+      "rivalsa": true
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "DE",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "DE123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 40 hours",
+        "quantity": "40",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "lines": [
+      {
+        "id": "l1",
+        "net": "2000.00",
+        "groupId": "n2.1"
+      }
+    ],
+    "components": [
+      {
+        "id": "it.inps-rivalsa",
+        "kind": "contribution",
+        "effect": "adds-to-total",
+        "base": "2000.00",
+        "rate": "4",
+        "amount": "80.00",
+        "allocations": [
+          {
+            "groupId": "n2.1",
+            "base": "2000.00",
+            "amount": "80.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.TipoCassa": "TC22",
+          "fatturapa.Ritenuta": "NO"
+        }
+      },
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "adds-to-total",
+        "base": "2080.00",
+        "amount": "2.00",
+        "allocations": [
+          {
+            "groupId": "n1",
+            "base": "2080.00",
+            "amount": "2.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "n2.1",
+        "treatment": "out-of-scope",
+        "base": "2080.00",
+        "tax": "0.00"
+      },
+      {
+        "groupId": "n1",
+        "treatment": "excluded",
+        "base": "2.00",
+        "tax": "0.00"
+      }
+    ],
+    "subtotal": "2000.00",
+    "taxableBase": "2080.00",
+    "taxTotal": "0.00",
+    "total": "2082.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "2082.00",
+    "legalNotes": ["it.note.reverse-charge-eu", "it.note.stamp-duty"],
+    "warnings": []
+  }
+}

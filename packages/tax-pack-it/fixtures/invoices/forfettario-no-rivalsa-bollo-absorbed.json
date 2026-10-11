@@ -1,0 +1,88 @@
+{
+  "name": "forfettario-no-rivalsa-bollo-absorbed",
+  "description": "Example (a) without social security and with the stamp duty absorbed by the professional: fees €1,000.00 in N2.2; amount not subject to VAT 1,000.00 > 77.47, so the €2.00 duty is due but informational (stampDuty.charge = absorbed): total and net payable €1,000.00.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    },
+    "stampDuty": {
+      "charge": "absorbed"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "informational",
+        "base": "1000.00",
+        "amount": "2.00",
+        "allocations": [],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "n2.2",
+        "treatment": "out-of-scope",
+        "base": "1000.00",
+        "tax": "0.00"
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1000.00",
+    "taxTotal": "0.00",
+    "total": "1000.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1000.00",
+    "legalNotes": [
+      "it.note.forfettario",
+      "it.note.forfettario-no-withholding",
+      "it.note.stamp-duty"
+    ],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.forfettario.no-vat",
+      "it.forfettario.no-withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}

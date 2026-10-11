@@ -1,0 +1,72 @@
+{
+  "name": "ordinario-pa-split-payment-expired",
+  "description": "As ordinario-pa-split-payment, dated 2029-07-01 (parameter version it-2026-07-01): the EU authorisation ended on 2029-06-30, so no split payment and the warning it.split-payment.authorisation-expired. Total and net payable €1,220.00.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 17-ter (scissione dei pagamenti), comma 1-sexies"
+    },
+    {
+      "title": "Council Implementing Decision (EU) 2026/1728",
+      "citation": "split payment authorised until 30 June 2029",
+      "url": "https://www.finanze.gov.it/it/archivi/notizie/dettaglio-notizie/Pubblicata-la-decisione-di-proroga-dello-Split-Payment/"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    },
+    "withholding": {
+      "enabled": false
+    }
+  },
+  "input": {
+    "issueDate": "2029-07-01",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "public-administration",
+      "isWithholdingAgent": true
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting, 20 hours",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "it-2026-07-01",
+    "components": [
+      {
+        "id": "it.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "22",
+        "amount": "220.00",
+        "allocations": [
+          {
+            "groupId": "vat-22",
+            "base": "1000.00",
+            "amount": "220.00"
+          }
+        ]
+      }
+    ],
+    "subtotal": "1000.00",
+    "taxableBase": "1000.00",
+    "taxTotal": "220.00",
+    "total": "1220.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1220.00",
+    "legalNotes": [],
+    "warnings": ["it.split-payment.authorisation-expired"]
+  }
+}

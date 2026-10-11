@@ -1,0 +1,49 @@
+{
+  "name": "error-ordinario-unknown-vat-rate",
+  "description": "Ordinario with a line at 7 %, not an Italian VAT rate (allowed 22, 10, 5, 4): it.ordinario.unknown-vat-rate.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "art. 16, comma 1 (aliquota del 22 per cento)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 633",
+      "citation": "Tabella A, parte III (aliquota del 10 per cento)"
+    }
+  ],
+  "config": {
+    "regime": "ordinario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": {
+          "kind": "rate",
+          "rate": "7"
+        }
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["it.ordinario.unknown-vat-rate"]
+  }
+}

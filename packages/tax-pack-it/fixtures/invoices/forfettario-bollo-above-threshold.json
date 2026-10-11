@@ -1,0 +1,86 @@
+{
+  "name": "forfettario-bollo-above-threshold",
+  "description": "Worked example (f), second case. Fee €77.48 > 77.47: the €2.00 stamp duty is due and charged to the client (N2.2): total 77.48 + 2.00 = €79.48. Private client: no request not to withhold.",
+  "pack": "it",
+  "sources": [
+    {
+      "title": "Legge 23 dicembre 2014, n. 190",
+      "citation": "art. 1, commi 54-89 (c. 58, lett. a: no VAT; c. 67: no withholding)"
+    },
+    {
+      "title": "DPR 26 ottobre 1972, n. 642",
+      "citation": "Tariffa, parte I, art. 13, comma 1 e nota 2, lett. a); Tabella, art. 6"
+    }
+  ],
+  "config": {
+    "regime": "forfettario",
+    "socialSecurity": {
+      "kind": "none"
+    }
+  },
+  "input": {
+    "issueDate": "2026-03-15",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "individual",
+      "isWithholdingAgent": false
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consultation",
+        "quantity": "1",
+        "unit": "lump-sum",
+        "unitPrice": "77.48"
+      }
+    ]
+  },
+  "expected": {
+    "components": [
+      {
+        "id": "it.stamp-duty",
+        "kind": "stamp-duty",
+        "effect": "adds-to-total",
+        "base": "77.48",
+        "amount": "2.00",
+        "allocations": [
+          {
+            "groupId": "n2.2",
+            "base": "77.48",
+            "amount": "2.00"
+          }
+        ],
+        "exportCodes": {
+          "fatturapa.BolloVirtuale": "SI",
+          "fatturapa.ImportoBollo": "2.00"
+        }
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "n2.2",
+        "treatment": "out-of-scope",
+        "base": "79.48",
+        "tax": "0.00"
+      }
+    ],
+    "subtotal": "77.48",
+    "taxableBase": "77.48",
+    "taxTotal": "0.00",
+    "total": "79.48",
+    "withholdingTotal": "0.00",
+    "netPayable": "79.48",
+    "legalNotes": ["it.note.forfettario", "it.note.stamp-duty"],
+    "warnings": [],
+    "traceRuleIds": [
+      "core",
+      "it.common.classify-lines",
+      "it.forfettario.no-vat",
+      "it.forfettario.no-withholding",
+      "it.common.stamp-duty",
+      "core"
+    ]
+  }
+}
