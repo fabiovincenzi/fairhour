@@ -1,4 +1,12 @@
-import { decimal, money, price } from "@fairhour/money";
+import {
+  InvalidAmountError,
+  decimal,
+  isDecimalString,
+  isPrice,
+  money,
+  multiplyDecimal,
+  price,
+} from "@fairhour/money";
 import { describe, expect, it } from "vitest";
 import { ParameterNotFoundError } from "../errors";
 import type { ParameterVersion } from "../pack/types";
@@ -129,6 +137,28 @@ describe("toJsonValue", () => {
     ["a Map", new Map()],
   ])("rejects %s", (_label, value) => {
     expect(() => toJsonValue(value)).toThrow(TypeError);
+  });
+
+  // 50 digits squared: 99 digits, more than MAX_DECIMAL_DIGITS (80), which no reader accepts.
+  const huge = multiplyDecimal(decimal("9".repeat(50)), decimal("9".repeat(50)));
+  const hugePrice = { amount: huge, currency: "EUR" };
+
+  it.each([
+    ["a Decimal", huge],
+    ["a Price", hugePrice],
+    ["a Money", money(10n ** 90n, "EUR")],
+    ["a nested Decimal", { params: [huge] }],
+  ])("rejects %s with more digits than a decimal string may have", (_label, value) => {
+    expect(isPrice(hugePrice)).toBe(true);
+    expect(() => toJsonValue(value)).toThrow(InvalidAmountError);
+    expect(() => toJsonValue(value)).toThrow(/out of range/i);
+  });
+
+  it("writes only decimal strings that decimal() reads back", () => {
+    const longest = decimal(`${"9".repeat(40)}.${"9".repeat(40)}`);
+    const text = toJsonValue(longest);
+    expect(text).toBe(`${"9".repeat(40)}.${"9".repeat(40)}`);
+    expect(isDecimalString(text as string)).toBe(true);
   });
 });
 

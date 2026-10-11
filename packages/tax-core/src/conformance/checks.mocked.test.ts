@@ -120,6 +120,30 @@ describe("property checks against a corrupted engine", () => {
     expect(failuresOf(id)).toMatch(pattern);
   });
 
+  it("property.rounding-bounds detects a doubled tax that each allocation check accepts", () => {
+    // What an engine without the one-tax-per-group contract let through: a second tax component
+    // with the same allocations, so every summary row carries twice its tax.
+    control.corrupt = (c) => ({
+      ...c,
+      components: c.components.flatMap((component) =>
+        component.kind === "tax"
+          ? [component, { ...component, id: `${component.id}-again` }]
+          : [component],
+      ),
+      vatSummary: c.vatSummary.map((entry) => ({
+        ...entry,
+        tax: money(entry.tax.amount * 2n, entry.tax.currency),
+      })),
+    });
+    const found = runConformanceCheck(
+      testPack,
+      { ...options, properties: { numRuns: 100 } },
+      "property.rounding-bounds",
+    ).failures.join("\n");
+    expect(found).toMatch(/vatSummary "vat-[\d-]+": tax \d+ is too far/);
+    expect(found).not.toMatch(/tax "xx\.tax(-again)?" on/);
+  });
+
   it("property.invalid-input detects malformed inputs that are accepted", () => {
     control.onError = "swallow";
     expect(failuresOf("property.invalid-input")).toMatch(/a negative quantity was accepted/);

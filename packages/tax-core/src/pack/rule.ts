@@ -144,11 +144,20 @@ export interface ComputationState<F extends PackFacts> {
 /** What a rule adds. Everything is append-only; the engine merges and checks it. */
 export interface RuleOutput<F extends PackFacts> {
   readonly groups?: readonly TaxGroup[];
+  /**
+   * Line id -> group id. Line ids come from the caller: build records keyed by them (or by any
+   * other caller text, such as references or option keys) with `Object.fromEntries`,
+   * `Object.defineProperty` or a `Map`, never with `record[id] = value` on an object literal,
+   * where `"__proto__"` would hit the prototype setter. The engine rejects the ids
+   * `RESERVED_LINE_IDS` ("__proto__", "constructor", "prototype") as `invalid-line-id`, but
+   * other caller text has no such guarantee.
+   */
   readonly lineGroups?: Readonly<Record<string, string>>;
   readonly components?: readonly ComponentDraft[];
   readonly legalNotes?: readonly LegalNoteDraft[];
   readonly warnings?: readonly WarningDraft[];
   readonly trace?: readonly TraceDraft[];
+  /** Keys of `initialFacts` only; a key that is present needs a FactValue (not `undefined`). */
   readonly facts?: Partial<F>;
 }
 

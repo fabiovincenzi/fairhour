@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 import { computationToJson } from "../computation/json";
 import { invoiceInputArbitrary } from "../conformance/arbitraries";
 import { amountsOf } from "../conformance/util";
+import type { InvoiceComputation } from "../computation/types";
+import { parseInvoiceInput } from "../input/json";
 import type { InvoiceInput } from "../input/types";
 import { countryCode, isoDate } from "../primitives";
 import { testPack } from "../testing/test-pack";
@@ -45,6 +47,70 @@ const cases = (documentKinds?: readonly ("invoice" | "credit-note")[]) =>
 
 const compute = (item: { config: object; options: object; input: InvoiceInput }) =>
   computeInvoice(testPack, item.config, { ...item.input, options: item.options as never });
+
+/** Quantities rounded down to integers and unit prices to the minor unit: exact line totals. */
+function exactInput(input: InvoiceInput): InvoiceInput {
+  const exponent = minorUnitExponent(input.currency);
+  return {
+    ...input,
+    lines: input.lines.map((line) => ({
+      ...line,
+      quantity: rescaleDecimal(line.quantity, 0, "down"),
+      unitPrice: price(
+        decimalToString(rescaleDecimal(line.unitPrice.amount, exponent, "down")),
+        input.currency,
+      ),
+    })),
+  };
+}
+
+/**
+ * Computes `item` (made exact) and the same invoice with every quantity times `k`, and asserts the
+ * scaling invariant: the subtotal scales exactly, and the tax total within the rounding bound.
+ * Each rounded tax is within one unit of its exact value in any mode, so one rounding gives
+ * |tax(k·x) − k·tax(x)| < 1 + k. Taxes are rounded once per taxable group (per-group scope) or
+ * once per item of the group, lines and non-tax allocations (per-line scope).
+ */
+function checkScaling(
+  item: { config: object; options: object; input: InvoiceInput },
+  k: number,
+): { readonly one: InvoiceComputation; readonly many: InvoiceComputation } {
+  const config = { ...item.config, contribution: false, fixedCharge: "absorb" };
+  const input = exactInput(item.input);
+  const scaled = {
+    ...input,
+    lines: input.lines.map((line) => ({
+      ...line,
+      quantity: multiplyDecimal(line.quantity, decimal(`${k}`)),
+    })),
+  };
+  const one = compute({ ...item, config, input });
+  const many = compute({ ...item, config, input: scaled });
+  const factor = BigInt(k);
+  expect(many.subtotal.amount).toBe(one.subtotal.amount * factor);
+  const perLine = "taxScope" in config && config.taxScope === "per-line";
+  let roundings = 0n;
+  for (const entry of one.vatSummary) {
+    if (entry.treatment !== "taxable") continue;
+    if (!perLine) {
+      roundings += 1n;
+      continue;
+    }
+    const lines = one.lines.filter((line) => line.groupId === entry.groupId).length;
+    const others = one.components.filter(
+      (component) =>
+        component.kind !== "tax" &&
+        component.allocations.some((allocation) => allocation.groupId === entry.groupId),
+    ).length;
+    roundings += BigInt(lines + others);
+  }
+  const difference = many.taxTotal.amount - one.taxTotal.amount * factor;
+  const absolute = difference < 0n ? -difference : difference;
+  expect(absolute <= roundings * (factor + 1n), `|${difference}| > ${roundings} × ${k + 1}`).toBe(
+    true,
+  );
+  return { one, many };
+}
 
 describe("computeInvoice properties (test pack)", () => {
   it("reconciles (R1 to R8) for random valid inputs", () => {
@@ -105,45 +171,32 @@ describe("computeInvoice properties (test pack)", () => {
   });
 
   it("scales: k × quantities gives k × subtotal exactly and taxes within rounding", () => {
-    const exact = (input: InvoiceInput): InvoiceInput => {
-      const exponent = minorUnitExponent(input.currency);
-      return {
-        ...input,
-        lines: input.lines.map((line) => ({
-          ...line,
-          quantity: rescaleDecimal(line.quantity, 0, "down"),
-          unitPrice: price(
-            decimalToString(rescaleDecimal(line.unitPrice.amount, exponent, "down")),
-            input.currency,
-          ),
-        })),
-      };
-    };
     fc.assert(
       fc.property(cases(["invoice"]), fc.integer({ min: 2, max: 5 }), (item, k) => {
-        const config = { ...item.config, contribution: false, fixedCharge: "absorb" };
-        const input = exact(item.input);
-        const scaled = {
-          ...input,
-          lines: input.lines.map((line) => ({
-            ...line,
-            quantity: multiplyDecimal(line.quantity, decimal(`${k}`)),
-          })),
-        };
-        const one = compute({ ...item, config, input });
-        const many = compute({ ...item, config, input: scaled });
-        const factor = BigInt(k);
-        expect(many.subtotal.amount).toBe(one.subtotal.amount * factor);
-        // Per group, each tax is within one unit of its exact value (any mode), so
-        // |tax(k·x) − k·tax(x)| < 1 + k per taxable group.
-        const groups = BigInt(
-          one.vatSummary.filter((entry) => entry.treatment === "taxable").length,
-        );
-        const difference = many.taxTotal.amount - one.taxTotal.amount * factor;
-        const absolute = difference < 0n ? -difference : difference;
-        expect(absolute <= groups * (factor + 1n)).toBe(true);
+        checkScaling(item, k);
       }),
       { numRuns: 100 },
     );
+  });
+
+  it("scales per-line taxes within one rounding per line (regression)", () => {
+    // Three 0.03 goods lines taxed per line: 3 × round(0.006) = 0.03, and with k = 4,
+    // 3 × round(0.024) = 0.06, so |tax(4x) − 4 tax(x)| = 0.06 (6 units). A bound of one rounding
+    // per group (5 units) is wrong for per-line scope; one per line (15 units) holds.
+    const input = parseInvoiceInput({
+      issueDate: "2025-03-15",
+      currency: "EUR",
+      client: { country: "IT", kind: "individual", isWithholdingAgent: false },
+      lines: ["a", "b", "c"].map((id) => ({
+        id,
+        kind: "goods" as const,
+        description: id,
+        quantity: "1",
+        unit: "item" as const,
+        unitPrice: "0.03",
+      })),
+    });
+    const { one, many } = checkScaling({ config: { taxScope: "per-line" }, options: {}, input }, 4);
+    expect(many.taxTotal.amount - one.taxTotal.amount * 4n).toBe(-6n);
   });
 });

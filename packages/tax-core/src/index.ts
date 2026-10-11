@@ -79,7 +79,10 @@ export {
   LINE_ID_PATTERN,
   MAX_INPUT_SCALE,
   MAX_INVOICE_LINES,
+  MAX_OPTIONS_DEPTH,
+  MAX_OPTIONS_ENTRIES,
   MAX_RATE_SCALE,
+  RESERVED_LINE_IDS,
   VAT_ID_PATTERN,
   validateInvoiceInput,
 } from "./input/schema";

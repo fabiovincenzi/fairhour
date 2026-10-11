@@ -32,7 +32,8 @@ export function defineConformanceSuite<C, P, F extends PackFacts, O>(
       test(
         id,
         async (context) => {
-          const result = runConformanceCheck(pack, options, id);
+          // The suite compares the parameter snapshot below, so that check has no note.
+          const result = runConformanceCheck(pack, options, id, { snapshotCompared: true });
           for (const note of result.notes) await context.annotate(note, "notice");
           if (id === "parameters.snapshot") {
             // Editing a released parameter version changes this snapshot, so it shows up in review.

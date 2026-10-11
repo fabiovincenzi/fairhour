@@ -213,11 +213,204 @@ describe("computation JSON", () => {
     }
   });
 
+  it("rejects a 20,000-level message with InvalidInputError, never a stack overflow", () => {
+    const json = jsonOf(computation);
+    (json.trace as Json[])[0]!.message = deepMessage(20_000);
+    try {
+      computationFromJson(json);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidInputError);
+      const [issue] = (error as InvalidInputError).issues;
+      expect(issue?.code).toBe("too-deep");
+      expect(issue?.path.slice(0, 3)).toEqual(["trace", 0, "message"]);
+    }
+  });
+
+  it.each<[string, (json: Json) => void, string, readonly (string | number)[]]>([
+    [
+      "totals that do not reconcile",
+      (json) => {
+        json.total = "1.00";
+      },
+      "reconciliation-failed",
+      [],
+    ],
+    [
+      "a duplicate line id",
+      (json) => {
+        (json.lines as Json[])[1]!.id = "l1";
+      },
+      "duplicate-id",
+      ["lines", 1, "id"],
+    ],
+    [
+      "a duplicate component id",
+      (json) => {
+        const components = json.components as Json[];
+        components[1]!.id = components[0]!.id;
+      },
+      "duplicate-id",
+      ["components", 1, "id"],
+    ],
+    [
+      "a duplicate legal note id",
+      (json) => {
+        const notes = json.legalNotes as Json[];
+        notes[1]!.id = notes[0]!.id;
+      },
+      "duplicate-id",
+      ["legalNotes", 1, "id"],
+    ],
+    [
+      "a duplicate warning code",
+      (json) => {
+        const warnings = json.warnings as Json[];
+        warnings.push({ ...warnings[0]! });
+      },
+      "duplicate-id",
+      ["warnings", 1, "code"],
+    ],
+    [
+      "a negative quantity",
+      (json) => {
+        (json.lines as Json[])[0]!.quantity = "-2.5";
+      },
+      "out-of-range",
+      ["lines", 0, "quantity"],
+    ],
+    [
+      "a negative unit price",
+      (json) => {
+        (json.lines as Json[])[0]!.unitPrice = "-50.00";
+      },
+      "out-of-range",
+      ["lines", 0, "unitPrice"],
+    ],
+    [
+      "a negative line rate",
+      (json) => {
+        (json.lines as Json[])[1]!.treatment = { kind: "rate", rate: "-10" };
+      },
+      "out-of-range",
+      ["lines", 1, "treatment", "rate"],
+    ],
+    [
+      "a negative component rate",
+      (json) => {
+        (json.components as Json[])[0]!.rate = "-10";
+      },
+      "out-of-range",
+      ["components", 0, "rate"],
+    ],
+    [
+      "a negative summary rate",
+      (json) => {
+        (json.vatSummary as Json[])[0]!.rate = "-20";
+      },
+      "out-of-range",
+      ["vatSummary", 0, "rate"],
+    ],
+    [
+      "a zero exchange rate",
+      (json) => {
+        (json.exchangeRates as Json[])[0]!.rate = "0";
+      },
+      "out-of-range",
+      ["exchangeRates", 0, "rate"],
+    ],
+    [
+      "an http source URL",
+      (json) => {
+        const source = ((json.components as Json[])[0]!.sources as Json[])[0]!;
+        source.url = "http://example.com/act";
+      },
+      "invalid-source",
+      ["components", 0, "sources", 0],
+    ],
+    [
+      "a blank source title in a trace step",
+      (json) => {
+        const step = (json.trace as Json[]).find((item) => (item.sources as Json[]).length > 0)!;
+        (step.sources as Json[])[0]!.title = "   ";
+      },
+      "invalid-source",
+      ["trace"],
+    ],
+    [
+      "a blank source citation in a legal note",
+      (json) => {
+        ((json.legalNotes as Json[])[0]!.sources as Json[])[0]!.citation = " ";
+      },
+      "invalid-source",
+      ["legalNotes", 0, "sources", 0],
+    ],
+    [
+      "a message nested deeper than MAX_MESSAGE_DEPTH",
+      (json) => {
+        (json.warnings as Json[])[0]!.message = deepMessage(5);
+      },
+      "invalid-message",
+      ["warnings", 0, "message"],
+    ],
+    [
+      "a summary reference nested too deep",
+      (json) => {
+        (json.vatSummary as Json[])[0]!.reference = deepMessage(5);
+      },
+      "invalid-message",
+      ["vatSummary", 0, "reference"],
+    ],
+    [
+      "a trace formula nested too deep",
+      (json) => {
+        (json.trace as Json[])[0]!.formula = deepMessage(5);
+      },
+      "invalid-message",
+      ["trace", 0, "formula"],
+    ],
+  ])("rejects %s", (_label, tamper, code, path) => {
+    const json = jsonOf(computation);
+    tamper(json);
+    try {
+      computationFromJson(json);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidInputError);
+      const issue = (error as InvalidInputError).issues.find((found) => found.code === code);
+      expect(issue, JSON.stringify((error as InvalidInputError).issues)).toBeDefined();
+      expect(issue?.path.slice(0, path.length)).toEqual(path);
+    }
+  });
+
+  it("reports every consistency problem, not only the first", () => {
+    const json = jsonOf(computation);
+    (json.lines as Json[])[1]!.id = "l1";
+    (json.lines as Json[])[0]!.quantity = "-2.5";
+    json.total = "1.00";
+    try {
+      computationFromJson(json);
+      expect.unreachable();
+    } catch (error) {
+      const found = new Set((error as InvalidInputError).issues.map((issue) => issue.code));
+      expect([...found].sort()).toEqual(["duplicate-id", "out-of-range", "reconciliation-failed"]);
+    }
+  });
+
   it("exposes the zod schema", () => {
     expect(InvoiceComputationJsonSchema.safeParse(jsonOf(computation)).success).toBe(true);
     expect(InvoiceComputationJsonSchema.safeParse({}).success).toBe(false);
   });
 });
+
+/** A message ref in JSON form with `levels` nested messages. */
+function deepMessage(levels: number): Json {
+  let deep: Json = { key: "leaf" };
+  for (let level = 0; level < levels; level += 1) {
+    deep = { key: "nested", params: { next: { type: "message", value: deep } } };
+  }
+  return deep;
+}
 
 function jsonOfInput(): unknown {
   return {

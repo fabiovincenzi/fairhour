@@ -8,7 +8,7 @@ const fixture = (): GoldenFixtureJson => ({
   sources: [{ title: "Act", citation: "art. 1", url: "https://example.com/act" }],
   config: {},
   input: {},
-  expected: { total: "10.00" },
+  expected: { total: "10.00", netPayable: "10.00" },
 });
 
 describe("GoldenFixtureSchema", () => {
@@ -52,7 +52,47 @@ describe("GoldenFixtureSchema", () => {
       (value) => ({ ...value, expected: undefined, expectedError: { code: "rule-failed" } }),
     ],
     ["an unknown top-level key", (value) => ({ ...value, notes: "x" })],
+    ["an expectation that pins nothing", (value) => ({ ...value, expected: {} })],
+    ["no total", (value) => ({ ...value, expected: { netPayable: "10.00" } })],
+    ["no netPayable", (value) => ({ ...value, expected: { total: "10.00" } })],
+    [
+      "no netPayable with a non-exhaustive component list",
+      (value) => ({
+        ...value,
+        expected: { total: "10.00", components: [], componentsExhaustive: false },
+      }),
+    ],
+    [
+      "no netPayable with a component whose effect is not stated",
+      (value) => ({
+        ...value,
+        expected: { total: "10.00", components: [{ id: "w", amount: "1.00" }] },
+      }),
+    ],
   ])("rejects %s", (_label, mutate) => {
     expect(GoldenFixtureSchema.safeParse(mutate(fixture())).success).toBe(false);
+  });
+
+  it("names the missing totals", () => {
+    const result = GoldenFixtureSchema.safeParse({ ...fixture(), expected: {} });
+    expect(result.error?.issues.map((issue) => [issue.path.join("."), issue.message])).toEqual([
+      ["expected.total", "expected.total is required"],
+      [
+        "expected.netPayable",
+        "expected.netPayable is required (or an exhaustive components list that states every effect)",
+      ],
+    ]);
+  });
+
+  it("lets an exhaustive component list with every effect pin netPayable", () => {
+    for (const components of [
+      [],
+      [{ id: "w", effect: "deducted-from-payable" as const, amount: "1.00" }],
+    ]) {
+      expect(
+        GoldenFixtureSchema.safeParse({ ...fixture(), expected: { total: "10.00", components } })
+          .success,
+      ).toBe(true);
+    }
   });
 });

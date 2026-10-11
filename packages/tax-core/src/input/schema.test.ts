@@ -1,10 +1,18 @@
 import { decimal, price } from "@fairhour/money";
 import { describe, expect, it } from "vitest";
+import * as z from "zod";
 import { InvalidInputError, type SchemaIssue } from "../errors";
 import { isDeeplyFrozen } from "../engine/freeze";
 import { countryCode, isoDate } from "../primitives";
 import { invoiceInputToJson, parseInvoiceInput } from "./json";
-import { InvoiceInputJsonSchema, MAX_INVOICE_LINES, validateInvoiceInput } from "./schema";
+import {
+  InvoiceInputJsonSchema,
+  MAX_INVOICE_LINES,
+  MAX_OPTIONS_DEPTH,
+  MAX_OPTIONS_ENTRIES,
+  RESERVED_LINE_IDS,
+  validateInvoiceInput,
+} from "./schema";
 import type { InvoiceInput, InvoiceInputJson, InvoiceLineInput } from "./types";
 
 const baseJson = (): InvoiceInputJson => ({
@@ -54,6 +62,13 @@ function issuesOf(run: () => unknown): readonly SchemaIssue[] {
 }
 
 const codes = (run: () => unknown): string[] => issuesOf(run).map((issue) => issue.code);
+
+/** `{ k: { k: ... { k: 1 } } }`: an options object with `levels` levels, built without recursion. */
+function nestedOptions(levels: number): Record<string, never> {
+  let value: unknown = 1;
+  for (let level = 0; level < levels; level += 1) value = { k: value };
+  return value as Record<string, never>;
+}
 
 describe("parseInvoiceInput (JSON form)", () => {
   it("parses and fills the defaults", () => {
@@ -255,6 +270,24 @@ describe("parseInvoiceInput (JSON form)", () => {
       ["invalid_union"],
     ],
     ["non-JSON options", (json) => ({ ...json, options: { a: Number.NaN } }), ["invalid_union"]],
+    ...RESERVED_LINE_IDS.map((id): [string, (json: InvoiceInputJson) => unknown, string[]] => [
+      `the reserved line id "${id}"`,
+      (json) => ({ ...json, lines: [{ ...json.lines[0]!, id }] }),
+      ["invalid-line-id"],
+    ]),
+    [
+      "options nested too deep",
+      (json) => ({ ...json, options: nestedOptions(MAX_OPTIONS_DEPTH + 1) }),
+      ["too-deep"],
+    ],
+    [
+      "options with too many entries",
+      (json) => ({
+        ...json,
+        options: { list: Array.from({ length: MAX_OPTIONS_ENTRIES }, (_, index) => index) },
+      }),
+      ["too-large"],
+    ],
   ])("reports %s", (_label, mutate, expected) => {
     expect(codes(() => parseInvoiceInput(mutate(baseJson())))).toEqual(expected);
   });
@@ -294,6 +327,50 @@ describe("parseInvoiceInput (JSON form)", () => {
     expect(parseInvoiceInput({ ...baseJson(), lines: [] }).lines).toEqual([]);
   });
 
+  it("rejects deeply nested options with InvalidInputError, never a stack overflow", () => {
+    const issues = issuesOf(() =>
+      parseInvoiceInput({ ...baseJson(), options: nestedOptions(20_000) }),
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.code).toBe("too-deep");
+    expect(issues[0]?.path).toEqual(["options", ...Array<string>(MAX_OPTIONS_DEPTH).fill("k")]);
+  });
+
+  it("leaves inputs that are not objects to the schema", () => {
+    for (const value of [null, [], "input", 1]) {
+      expect(codes(() => parseInvoiceInput(value))).toEqual(["invalid_type"]);
+    }
+  });
+
+  it("accepts options at the limits", () => {
+    const deep = nestedOptions(MAX_OPTIONS_DEPTH);
+    expect(parseInvoiceInput({ ...baseJson(), options: deep }).options).toEqual(deep);
+    const wide = { list: Array.from({ length: MAX_OPTIONS_ENTRIES - 1 }, () => 0) };
+    expect(parseInvoiceInput({ ...baseJson(), options: wide }).options).toEqual(wide);
+  });
+
+  it("checks the size limits first and reports only them", () => {
+    const issues = issuesOf(() =>
+      parseInvoiceInput({
+        ...baseJson(),
+        issueDate: "nope",
+        lines: Array.from({ length: MAX_INVOICE_LINES + 1 }, () => "not a line"),
+        options: nestedOptions(MAX_OPTIONS_DEPTH + 1),
+      }),
+    );
+    expect(issues.map((found) => [found.code, found.path[0]])).toEqual([
+      ["too-many-lines", "lines"],
+      ["too-deep", "options"],
+    ]);
+  });
+
+  it("documents the line limit in the generated JSON Schema", () => {
+    const schema = z.toJSONSchema(InvoiceInputJsonSchema, { io: "input" }) as unknown as {
+      properties: { lines: { maxItems?: number } };
+    };
+    expect(schema.properties.lines.maxItems).toBe(MAX_INVOICE_LINES);
+  });
+
   it("exposes the issue code on the zod schema", () => {
     const result = InvoiceInputJsonSchema.safeParse({ ...baseJson(), issueDate: "nope" });
     expect(result.success).toBe(false);
@@ -314,6 +391,43 @@ describe("validateInvoiceInput (typed form)", () => {
     expect(isDeeplyFrozen(result)).toBe(true);
     expect(Object.isFrozen(input)).toBe(false);
     expect(Object.isFrozen(input.lines)).toBe(false);
+  });
+
+  it("applies the same limits and reserved ids to the typed form", () => {
+    expect(codes(() => validateInvoiceInput(typed({ options: nestedOptions(20_000) })))).toEqual([
+      "too-deep",
+    ]);
+    expect(
+      codes(() =>
+        validateInvoiceInput(
+          typed({
+            lines: Array.from({ length: MAX_INVOICE_LINES + 1 }, (_, index) =>
+              line({ id: `l${index}` }),
+            ),
+          }),
+        ),
+      ),
+    ).toEqual(["too-many-lines"]);
+    for (const id of RESERVED_LINE_IDS) {
+      expect(codes(() => validateInvoiceInput(typed({ lines: [line({ id })] })))).toEqual([
+        "invalid-line-id",
+      ]);
+    }
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(codes(() => validateInvoiceInput(typed({ options: cyclic as never })))).toEqual([
+      "too-deep",
+    ]);
+    // An input that is a class instance is guarded too (z.object accepts it).
+    class Input {
+      readonly issueDate = isoDate("2026-03-15");
+      readonly documentKind = "invoice";
+      readonly currency = "EUR";
+      readonly client = typed().client;
+      readonly lines = [line()];
+      readonly options = nestedOptions(20_000);
+    }
+    expect(codes(() => validateInvoiceInput(new Input() as never))).toEqual(["too-deep"]);
   });
 
   it("copies hand-built decimals instead of freezing them", () => {

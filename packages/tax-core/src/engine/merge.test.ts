@@ -307,6 +307,81 @@ describe("merge contract (design 4.7)", () => {
     expect(reasonOf([rule])).toBe("mini.test:invalid-component");
   });
 
+  describe("one main tax per line (ADR-0004)", () => {
+    /** A 20 % tax on group "std" (base 150.00, amount 30.00), as a rule's output. */
+    const taxOutput = (id: string, overrides: Overrides = {}): RuleOutput<MiniFacts> => ({
+      components: [
+        {
+          id,
+          kind: "tax",
+          label,
+          effect: "adds-to-total",
+          base: eur(15000n),
+          amount: eur(3000n),
+          allocations: [{ groupId: "std", base: eur(15000n), amount: eur(3000n) }],
+          ...overrides,
+        },
+      ],
+      trace: [{ message: label, componentId: id }],
+    });
+
+    it("accepts one tax per group, with or without its group's rate", () => {
+      const c = computeInvoice(
+        miniPack([bad(taxOutput("t", { rate: decimal("20.00") }))]),
+        {},
+        input,
+      );
+      expect(c.taxTotal).toEqual(eur(3000n));
+      expect(c.vatSummary.map((entry) => [entry.groupId, entry.tax])).toEqual([
+        ["std", eur(3000n)],
+      ]);
+      expect(reasonOf([bad(taxOutput("t"))])).toBe("no error");
+    });
+
+    it("rejects a second tax on a group that an earlier rule already taxed (doubled tax)", () => {
+      const first = bad(taxOutput("t1"));
+      const second = { ...bad(taxOutput("t2")), id: "mini.second" };
+      expect(reasonOf([first, second])).toBe("mini.second:invalid-allocations");
+    });
+
+    it("rejects two taxes on one group from the same rule", () => {
+      const output = taxOutput("t1");
+      const doubled = {
+        components: [...(output.components ?? []), ...(taxOutput("t2").components ?? [])],
+        trace: [
+          { message: label, componentId: "t1" },
+          { message: label, componentId: "t2" },
+        ],
+      };
+      expect(reasonOf([bad(doubled)])).toBe("mini.test:invalid-allocations");
+    });
+
+    it("rejects a tax rate that differs from the rate of its group", () => {
+      expect(reasonOf([bad(taxOutput("t", { rate: decimal("22") }))])).toBe(
+        "mini.test:invalid-allocations",
+      );
+    });
+
+    it("lets a non-tax component and a tax share a group", () => {
+      const contribution = bad(added());
+      const tax = {
+        ...bad(
+          taxOutput("t", {
+            base: eur(16500n),
+            amount: eur(3300n),
+            allocations: [{ groupId: "std", base: eur(16500n), amount: eur(3300n) }],
+          }),
+        ),
+        id: "mini.tax",
+      };
+      expect(reasonOf([contribution, tax])).toBe("no error");
+    });
+  });
+
+  it("rejects a fact update with an explicit undefined value", () => {
+    expect(reasonOf([bad({ facts: { flag: undefined } })])).toBe("mini.test:invalid-fact");
+  });
+
   it("rejects a component id that an earlier rule used", () => {
     expect(reasonOf([bad(info()), bad(info()), { ...bad(info()), id: "mini.second" }])).toBe(
       "mini.test:invalid-component",

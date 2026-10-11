@@ -19,6 +19,7 @@ import { miniPack, miniRule, miniSource, type MiniPack } from "../testing/mini-p
 import { testPack, xxMessages, xxParameters } from "../testing/test-pack";
 import {
   CONFORMANCE_CHECK_IDS,
+  SNAPSHOT_NOT_COMPARED,
   runConformanceCheck,
   runConformanceChecks,
   type ConformanceCheckId,
@@ -97,7 +98,7 @@ describe("runConformanceChecks", () => {
       sources: [{ title: "T", citation: "C" }],
       config: {},
       input: sampleInputs[0],
-      expected: { componentsExhaustive: false, total: "1336.00" },
+      expected: { componentsExhaustive: false, total: "1336.00", netPayable: "1226.00" },
     };
     const { fixturesDir: _ignored, ...rest } = options;
     const inline = {
@@ -123,6 +124,25 @@ describe("runConformanceChecks", () => {
       runConformanceCheck(anyPack(italian), rest as ConformanceOptions, "property.currency")
         .failures,
     ).toEqual([]);
+  });
+
+  it("notes that parameters.snapshot compares no snapshot outside defineConformanceSuite", () => {
+    const result = runConformanceCheck(testPack, options, "parameters.snapshot");
+    expect(result).toEqual({
+      id: "parameters.snapshot",
+      ok: true,
+      failures: [],
+      notes: [SNAPSHOT_NOT_COMPARED],
+    });
+    expect(
+      runConformanceCheck(testPack, options, "parameters.snapshot", { snapshotCompared: true })
+        .notes,
+    ).toEqual([]);
+    expect(
+      runConformanceChecks(testPack, { ...options, properties: { numRuns: 1 } }).find(
+        (check) => check.id === "parameters.snapshot",
+      )?.notes,
+    ).toEqual([SNAPSHOT_NOT_COMPARED]);
   });
 
   it("reports a check that throws as a failure", () => {
@@ -447,6 +467,8 @@ describe("fixture checks", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  /** The totals every expectation must pin (design section 6), for sampleInputs[0]. */
+  const pinned = { componentsExhaustive: true, total: "1336.00", netPayable: "1226.00" } as const;
   const fixture = (overrides: Partial<GoldenFixture> = {}): GoldenFixture => ({
     name: "case",
     description: "case",
@@ -454,7 +476,7 @@ describe("fixture checks", () => {
     sources: [{ title: "T", citation: "C" }],
     config: {},
     input: sampleInputs[0],
-    expected: { componentsExhaustive: true, total: "1336.00" },
+    expected: pinned,
     ...overrides,
   });
 
@@ -485,19 +507,19 @@ describe("fixture checks", () => {
   it.each<[string, GoldenFixture, RegExp]>([
     [
       "a wrong total",
-      fixture({ expected: { componentsExhaustive: true, total: "1.00" } }),
+      fixture({ expected: { ...pinned, total: "1.00" } }),
       /total: expected 1\.00, got 1336\.00/,
     ],
     [
       "a wrong parameter version",
-      fixture({ expected: { componentsExhaustive: true, parameters: "xx-2024-01-01" } }),
+      fixture({ expected: { ...pinned, parameters: "xx-2024-01-01" } }),
       /parameters: expected "xx-2024-01-01"/,
     ],
     [
       "missing and wrong lines",
       fixture({
         expected: {
-          componentsExhaustive: true,
+          ...pinned,
           lines: [
             { id: "l9", net: "1.00" },
             { id: "l1", net: "1.00", groupId: "x" },
@@ -509,7 +531,7 @@ describe("fixture checks", () => {
     [
       "exhaustive component ids",
       fixture({
-        expected: { componentsExhaustive: true, components: [{ id: "xx.tax", amount: "220.00" }] },
+        expected: { ...pinned, components: [{ id: "xx.tax", amount: "220.00" }] },
       }),
       /component ids/,
     ],
@@ -517,6 +539,7 @@ describe("fixture checks", () => {
       "component details",
       fixture({
         expected: {
+          ...pinned,
           componentsExhaustive: false,
           components: [
             {
@@ -540,6 +563,7 @@ describe("fixture checks", () => {
       "a rate on a component without one",
       fixture({
         expected: {
+          ...pinned,
           componentsExhaustive: false,
           components: [{ id: "xx.fixed-charge", rate: "1", amount: "0.00" }],
         },
@@ -550,7 +574,7 @@ describe("fixture checks", () => {
       "the tax summary",
       fixture({
         expected: {
-          componentsExhaustive: true,
+          ...pinned,
           vatSummary: [
             { groupId: "vat-20", treatment: "exempt", rate: "10", base: "0.00", tax: "0.00" },
             { groupId: "nope", base: "0.00", tax: "0.00" },
@@ -563,7 +587,7 @@ describe("fixture checks", () => {
       "notes, warnings and the trace",
       fixture({
         expected: {
-          componentsExhaustive: true,
+          ...pinned,
           legalNotes: [],
           warnings: ["w"],
           traceRuleIds: ["core"],
@@ -610,11 +634,12 @@ describe("fixture checks", () => {
   });
 
   it("fixtures.golden reports errors that are not engine errors", () => {
+    // Pack hooks and rules are wrapped in RuleExecutionError; a throwing zod refinement is not.
     const throwing = {
       ...testPack,
-      validateInput: () => {
+      invoiceOptionsSchema: z.unknown().refine(() => {
         throw new TypeError("pack bug");
-      },
+      }),
     };
     const { fixturesDir: _ignored, ...rest } = options;
     const golden = fixture({ expected: undefined, expectedError: { code: "unsupported-input" } });
@@ -771,6 +796,62 @@ describe("property checks", () => {
       trace: [{ message: message("mini.trace"), componentId: "i" }],
     }));
     expectFailure(informational, "property.rounding-bounds", /"i" : 2000 is too far/, miniOptions);
+  });
+
+  it("property.rounding-bounds catches a taxable group left without its tax", () => {
+    // The mini pack puts every line in a 20 % taxable group and has no tax rule: each allocation
+    // check passes vacuously, only the summary row shows that the tax is missing.
+    expectFailure(
+      miniPack([]),
+      "property.rounding-bounds",
+      /vatSummary "std": tax 0 is too far from \d+ × 20e-0%/,
+      { ...miniOptions, properties: { numRuns: 50 } },
+    );
+  });
+
+  it("a doubled tax rule fails: the engine rejects a second tax on a group", () => {
+    // Two rules that both tax group "std" (base 1100.00 would get 440.00 at 20 %): each
+    // allocation alone matches base × rate, so the engine contract has to catch it.
+    const taxRule = (id: string) =>
+      miniRule(
+        (state, ctx) => {
+          const base = sum(
+            state.lines.map((line) => line.net),
+            ctx.currency,
+          );
+          if (base.amount === 0n) return {};
+          const amount = percentage(base, decimal("20"), "halfUp");
+          return {
+            components: [
+              {
+                id,
+                kind: "tax",
+                label: message("mini.label"),
+                effect: "adds-to-total",
+                base,
+                amount,
+                allocations: [{ groupId: "std", base, amount }],
+              },
+            ],
+            trace: [{ message: message("mini.trace"), componentId: id }],
+          };
+        },
+        { id },
+      );
+    const doubled = miniPack([taxRule("mini.tax-a"), taxRule("mini.tax-b")]);
+    for (const id of ["property.rounding-bounds", "property.reconciliation"] as const) {
+      expectFailure(doubled, id, /mini\.tax-b[\s\S]*invalid-allocations/, {
+        ...miniOptions,
+        properties: { numRuns: 50 },
+      });
+    }
+    // One of the two rules alone taxes the group correctly.
+    expect(
+      failures(miniPack([taxRule("mini.tax-a")]), "property.rounding-bounds", {
+        ...miniOptions,
+        properties: { numRuns: 50 },
+      }),
+    ).toEqual([]);
   });
 
   it("property.trace formats every message in every locale", () => {

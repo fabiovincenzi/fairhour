@@ -37,6 +37,7 @@
     "parameters": "xx-2024-01-01",
     "components": [],
     "total": "77.47",
+    "netPayable": "77.47",
     "legalNotes": ["xx.note.out-of-scope"]
   }
 }

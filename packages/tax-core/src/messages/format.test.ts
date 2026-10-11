@@ -93,6 +93,24 @@ describe("formatMessage", () => {
     expect(formatMessage(ref, catalogs, "en")).toBe("A and A and B");
   });
 
+  it("canonicalizes the locale tag and rejects invalid ones", () => {
+    const ref = message("t.money", { amount: p.money(eur) });
+    expect(normalize(formatMessage(ref, catalogs, "it-it"))).toBe(
+      normalize(formatMessage(ref, catalogs, "it-IT")),
+    );
+    expect(normalize(formatMessage(ref, catalogs, "DE-de"))).toBe("Total 1.234,56 €");
+    for (const invalid of ["", "en_US", "constructor", "x", "it--IT"]) {
+      expect(() => formatMessage(ref, catalogs, invalid), invalid).toThrow(MessageFormatError);
+    }
+    expect(() => formatMessage(ref, catalogs, "en_US")).toThrow(
+      /"en_US" is not a valid BCP 47 locale tag/,
+    );
+    expect(() => formatMessage(ref, catalogs, undefined as unknown as string)).toThrow(
+      MessageFormatError,
+    );
+    expect(() => formatMessage(ref, catalogs, 42 as unknown as string)).toThrow(MessageFormatError);
+  });
+
   it("falls back from region to language to English", () => {
     const ref = message("t.money", { amount: p.money(money(500n, "EUR")) });
     expect(normalize(formatMessage(ref, catalogs, "it-CH"))).toMatch(/^Totale /);
@@ -145,7 +163,7 @@ describe("formatMessage", () => {
   });
 
   it("ignores inherited properties of catalogs and params", () => {
-    expect(() => formatMessage(message("toString"), catalogs, "constructor")).toThrow(
+    expect(() => resolveMessageText("toString", catalogs, "constructor")).toThrow(
       MissingMessageError,
     );
     const ref = message(

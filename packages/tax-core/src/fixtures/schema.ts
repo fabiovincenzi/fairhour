@@ -66,14 +66,37 @@ const ExpectedSchema = z
     /** Rule ids of the trace in order, consecutive duplicates collapsed ("core" included). */
     traceRuleIds: z.array(z.string()).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((expected, ctx) => {
+    // An expectation that pins nothing passes anything: the document total and the amount
+    // payable are required. netPayable may be left out only when it follows from what is pinned:
+    // an exhaustive component list with every effect stated gives every deduction, and the
+    // engine enforces netPayable = total − deductions (R5).
+    if (expected.total === undefined) {
+      ctx.addIssue({ code: "custom", path: ["total"], message: "expected.total is required" });
+    }
+    const deductionsPinned =
+      expected.components !== undefined &&
+      expected.componentsExhaustive &&
+      expected.components.every((component) => component.effect !== undefined);
+    if (expected.netPayable === undefined && !deductionsPinned) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["netPayable"],
+        message:
+          "expected.netPayable is required (or an exhaustive components list that states every effect)",
+      });
+    }
+  });
 
 /**
  * A golden fixture (design section 6): one real-world scenario per file in
  * `fixtures/invoices/<name>.json`. Matching: amounts compare as strings against
  * `toDecimalString` ("1042.00", not "1042"), rates by value; absent fields are not checked;
- * exhaustive lists match in content and order. `expectedError.issueCodes`, when present, equals
- * the set of distinct issue codes of the error (order-insensitive).
+ * exhaustive lists match in content and order. `expected` must pin `total` and `netPayable`
+ * (netPayable may be omitted when `components` is exhaustive and states every `effect`, which
+ * determines it). `expectedError.issueCodes`, when present, equals the set of distinct issue
+ * codes of the error (order-insensitive).
  */
 export const GoldenFixtureSchema = z
   .object({

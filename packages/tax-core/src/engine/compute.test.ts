@@ -12,7 +12,7 @@ import {
 } from "../errors";
 import { parseInvoiceInput } from "../input/json";
 import type { InvoiceInputJson } from "../input/types";
-import { message } from "../messages/params";
+import { message, p } from "../messages/params";
 import { testPack } from "../testing/test-pack";
 import { miniPack, miniRule } from "../testing/mini-pack";
 import { ENGINE_VERSION } from "../version";
@@ -210,16 +210,134 @@ describe("computeInvoice", () => {
   });
 
   it("gives rules frozen state, context and configuration", () => {
+    // Recorded here and asserted after computeInvoice: an expect() failing inside the rule would
+    // only become a RuleExecutionError, which this test expects anyway.
+    const seen: { state?: boolean; ctx?: boolean; input?: boolean; config?: boolean } = {};
     const mutating = miniRule((state, ctx) => {
-      expect(Object.isFrozen(state.lines)).toBe(true);
-      expect(Object.isFrozen(ctx)).toBe(true);
-      expect(isDeeplyFrozen(ctx.input)).toBe(true);
+      seen.state = Object.isFrozen(state.lines);
+      seen.ctx = Object.isFrozen(ctx);
+      seen.input = isDeeplyFrozen(ctx.input);
+      seen.config = isDeeplyFrozen(ctx.config);
       (ctx.config as { mode: string }).mode = "halfEven";
       return {};
     });
-    expect(() => computeInvoice(miniPack([mutating]), {}, parseInvoiceInput(json()))).toThrow(
-      RuleExecutionError,
-    );
+    let error: unknown;
+    try {
+      computeInvoice(miniPack([mutating]), {}, parseInvoiceInput(json()));
+    } catch (caught) {
+      error = caught;
+    }
+    expect(seen).toEqual({ state: true, ctx: true, input: true, config: true });
+    expect(error).toBeInstanceOf(RuleExecutionError);
+    // Assigning to a frozen object throws a TypeError in strict mode (ES modules).
+    expect((error as RuleExecutionError).cause).toBeInstanceOf(TypeError);
+  });
+
+  describe("pack hooks and initial facts", () => {
+    const input = parseInvoiceInput(json());
+    const errorOf = (run: () => unknown): unknown => {
+      try {
+        run();
+      } catch (caught) {
+        return caught;
+      }
+      return undefined;
+    };
+
+    it.each([
+      [
+        "validateInput",
+        miniPack([], {
+          validateInput: () => {
+            throw new TypeError("refusal bug");
+          },
+        }),
+        /^The pack's validateInput failed: TypeError: refusal bug$/,
+      ],
+      [
+        "roundingPolicy",
+        miniPack([], {
+          roundingPolicy: () => {
+            throw new TypeError("policy bug");
+          },
+        }),
+        /^The pack's roundingPolicy failed: TypeError: policy bug$/,
+      ],
+    ])("wraps an exception of %s in RuleExecutionError (core)", (_hook, pack, text) => {
+      const error = errorOf(() => computeInvoice(pack, {}, input));
+      expect(error).toBeInstanceOf(RuleExecutionError);
+      expect((error as RuleExecutionError).ruleId).toBe("core");
+      expect((error as RuleExecutionError).message).toMatch(text);
+      expect((error as RuleExecutionError).cause).toBeInstanceOf(TypeError);
+    });
+
+    it("copies and freezes the issues of validateInput", () => {
+      const issue = {
+        path: ["lines", 0, "unit"],
+        code: "mini.unit",
+        message: message("mini.label", { unit: p.text("hour") }),
+      };
+      const error = errorOf(() =>
+        computeInvoice(miniPack([], { validateInput: () => [issue] }), {}, input),
+      );
+      expect(error).toBeInstanceOf(UnsupportedInputError);
+      const issues = (error as UnsupportedInputError).issues;
+      expect(issues).toEqual([issue]);
+      expect(issues[0]).not.toBe(issue);
+      expect(isDeeplyFrozen(issues)).toBe(true);
+      expect(Object.isFrozen(issue)).toBe(false);
+    });
+
+    it.each<[string, unknown]>([
+      ["not an array", undefined],
+      ["an issue that is not an object", ["x"]],
+      ["a path that is not an array", [{ path: "lines", code: "c", message: message("m") }]],
+      ["a negative index in the path", [{ path: [-1], code: "c", message: message("m") }]],
+      ["a fractional index in the path", [{ path: [0.5], code: "c", message: message("m") }]],
+      ["an empty code", [{ path: [], code: "", message: message("m") }]],
+      ["a code that is not a string", [{ path: [], code: 1, message: message("m") }]],
+      ["a malformed message", [{ path: [], code: "c", message: { key: "" } }]],
+    ])("rejects validateInput returning %s", (_label, returned) => {
+      const pack = miniPack([], { validateInput: () => returned as never });
+      const error = errorOf(() => computeInvoice(pack, {}, input));
+      expect(error).toBeInstanceOf(RuleContractError);
+      expect([(error as RuleContractError).ruleId, (error as RuleContractError).reason]).toEqual([
+        "core",
+        "invalid-output",
+      ]);
+    });
+
+    it.each<[string, unknown]>([
+      ["not an object", null],
+      ["a value that is not a FactValue", { flag: 1 }],
+      ["an explicit undefined", { flag: undefined }],
+      ["Money in another currency", { flag: false, note: money(0n, "USD") }],
+    ])("rejects initial facts that are %s", (_label, facts) => {
+      const error = errorOf(() =>
+        computeInvoice(miniPack([], { initialFacts: facts as never }), {}, input),
+      );
+      expect(error).toBeInstanceOf(RuleContractError);
+      expect([(error as RuleContractError).ruleId, (error as RuleContractError).reason]).toEqual([
+        "core",
+        "invalid-fact",
+      ]);
+    });
+
+    it("copies Money and Decimal initial facts", () => {
+      const note = money(5n, "EUR");
+      let seen: unknown;
+      const reader = miniRule((state) => {
+        seen = state.facts.note;
+        return {};
+      });
+      computeInvoice(
+        miniPack([reader], { initialFacts: { flag: false, note: note as never } }),
+        {},
+        input,
+      );
+      expect(seen).toEqual(note);
+      expect(seen).not.toBe(note);
+    });
   });
 
   it("returns a deeply frozen result and never freezes the caller's values", () => {

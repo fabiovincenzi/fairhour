@@ -1852,6 +1852,54 @@ allocations, exportCodes?, sources`.
   `RuleExecutionError`). `basesByGroup` ignores listed components that do not exist (their rule
   did not apply). `proRata` requires `part` and `whole` in the same currency
   (`CurrencyMismatchError`) and returns `amount`'s currency.
+- **Input limits and reserved ids (4.5, after review).** Before zod parses an input (typed or
+  JSON form; `InvoiceInputJsonSchema` does it in a `z.preprocess` step), the engine bounds its
+  size without recursion: more than `MAX_INVOICE_LINES` lines is `too-many-lines`, `options`
+  deeper than `MAX_OPTIONS_DEPTH` (8, the options object being level 1) is `too-deep`, and more
+  than `MAX_OPTIONS_ENTRIES` (10,000) properties and array items in `options` is `too-large`.
+  When a limit is exceeded only these issues are reported, so a 20,000-level document is an
+  `InvalidInputError`, never a `RangeError`. The `lines` arrays of both schemas also carry
+  `.max(MAX_INVOICE_LINES)`, which puts `maxItems` in the generated JSON Schema. The line ids of
+  `RESERVED_LINE_IDS` (`"__proto__"`, `"constructor"`, `"prototype"`) match `LINE_ID_PATTERN` but
+  are rejected as `invalid-line-id`: a pack that writes `record[line.id] = ...` into an object
+  literal would hit the prototype setter. Packs must still build records keyed by any other
+  caller text (references, option keys) with `Object.fromEntries`, `Object.defineProperty` or a
+  `Map`. `RESERVED_LINE_IDS`, `MAX_OPTIONS_DEPTH` and `MAX_OPTIONS_ENTRIES` are exported.
+- **Pack hooks and initial facts (4.6, 4.9, after review).** An exception thrown by
+  `validateInput` or `roundingPolicy` becomes `RuleExecutionError` with ruleId `"core"` (its
+  message names the hook: the constructor takes an optional third argument for that label).
+  `validateInput` must return an array of `InputIssue` (a path of property names and
+  non-negative integer indexes, a non-empty code, a well-formed `MessageRef`), otherwise
+  `RuleContractError("core", "invalid-output")`; the issues are copied and deeply frozen into
+  `UnsupportedInputError`. `initialFacts` must be a plain object of `FactValue`s (Money in the
+  invoice currency), checked like the facts rules set, otherwise
+  `RuleContractError("core", "invalid-fact")`.
+- **One main tax per line (4.7, after review).** The merge enforces ADR-0004's "one main tax per
+  line": a group receives at most one tax allocation across all components (a second one, from
+  the same or a later rule, is `invalid-allocations`), and a tax component's `rate`, when
+  present, must equal by value the rate of every group it allocates to (`invalid-allocations`).
+  Before, a pack with two overlapping tax rules passed every check. A fact update whose value is
+  `undefined` is `invalid-fact` (it used to be ignored).
+- **Computation JSON (4.10, after review).** `InvoiceComputationJsonSchema` (and so
+  `computationFromJson`) first bounds the document's nesting at 32 containers (a legitimate
+  document needs at most 18), so that zod's recursive message schema cannot overflow the stack
+  (`too-deep`). After a successful decoding it checks what `computeInvoice` guarantees and
+  reports every problem as an issue: R1 to R8 (`reconciliation-failed`, path `[]`), unique line,
+  component and legal note ids and warning codes (`duplicate-id`), non-negative quantities, unit
+  prices and rates and positive exchange rates (`out-of-range`), messages valid for the document
+  currency and nested at most `MAX_MESSAGE_DEPTH` levels (`invalid-message`), and sources that
+  `sourceProblems` accepts, https URLs only (`invalid-source`).
+- **Formatting (4.4, after review).** `formatMessage` canonicalizes the locale with
+  `Intl.getCanonicalLocales` (`"it-it"` -> `"it-IT"`) before resolving the catalog and formatting
+  parameters; an invalid tag (`""`, `"en_US"`, a non-string) is a `MessageFormatError`, never a
+  silent fallback to `en`.
+- **Errors and serialization (4.9, 4.13, after review).** `RuleExecutionError` keeps at most 200
+  characters of the cause's message (and 64 of its name) in its own message, because a pack's
+  exception may quote user data; logs should record `code`, `ruleId` and `cause.name` only.
+  `toJsonValue` (and so `parametersToJson`) writes Price and Decimal values like Money: a value
+  with more than `MAX_DECIMAL_DIGITS` digits throws `InvalidAmountError("out-of-range")` instead
+  of a string no reader accepts. Calendar digits are read with an explicit loop (no `parseInt`,
+  `Number(...)` or unary `+`).
 
 ---
 
@@ -2011,6 +2059,18 @@ Checks registered (`ConformanceCheckId`), all mandatory; there is no option to s
 - The conformance entry point reads fixtures with `node:fs`/`node:path`; tsdown keeps `node:*`
   external, and `src/purity.test.ts` checks that the main entry point never imports them (nor
   vitest or fast-check) and uses no clock, randomness or environment.
+- After review, `property.rounding-bounds` also checks every taxable summary row with a positive
+  base: `tax(g)` against `base(g) × rate(g) / 100`, within the bound of the policy's tax mode,
+  times the number of items of the group (lines and non-tax allocations) for `per-line` taxes.
+  The allocation checks cannot see a tax counted twice for one group, or a taxable group left
+  without its tax; the row check can (the engine now also rejects the first, see 4.15).
+- `runConformanceChecks` has no committed vitest snapshot to compare the parameter timeline with:
+  there, `parameters.snapshot` only checks that the timeline converts to JSON and says so in its
+  `notes`. `defineConformanceSuite` compares the snapshot and adds no note.
+- After review, `src/purity.test.ts` also rejects `Date()` called without `new`,
+  `performance.now`, `crypto.getRandomValues`/`randomUUID`, `globalThis.process`,
+  `import.meta.env` and the host time zone (`resolvedOptions().timeZone`), in every source file,
+  the conformance entry included.
 
 ---
 
@@ -2215,6 +2275,10 @@ Example (`packages/tax-pack-it/fixtures/invoices/forfettario-rivalsa-bollo-charg
   compares as `{}`.
 - `expectedError.issueCodes` compares as a set with the distinct issue codes of the error.
 - `GoldenFixtureJson` (`z.input<typeof GoldenFixtureSchema>`) is exported for tooling.
+- After review, `expected` must pin `total` and `netPayable`: an expectation such as `{}` passed
+  anything. `netPayable` may be left out only when `components` is listed exhaustively and every
+  listed component states its `effect`: the deductions are then pinned, and with them
+  `netPayable = total − deductions` (R5).
 
 ---
 

@@ -97,10 +97,17 @@ export interface TaxPack<C, P, F extends PackFacts, O> {
   readonly parameters: readonly ParameterVersion<P>[];
   /** The pipeline, executed in this order. */
   readonly rules: readonly Rule<C, P, F, O>[];
+  /** Checked like the facts rules set: FactValues, Money in the invoice currency. */
   readonly initialFacts: F;
   readonly messages: MessageCatalogs;
+  /** Pure; an exception becomes RuleExecutionError with ruleId "core". */
   readonly roundingPolicy: (config: C) => RoundingPolicy;
-  /** Pack-specific refusals ("not supported by this pack"), after schema validation. */
+  /**
+   * Pack-specific refusals ("not supported by this pack"), after schema validation. Pure; returns
+   * the issues (empty when the input is supported) and never throws: an exception becomes
+   * RuleExecutionError with ruleId "core", a malformed issue RuleContractError("core",
+   * "invalid-output"). The engine copies the issues into UnsupportedInputError.
+   */
   readonly validateInput?: (input: InvoiceInput, config: C, options: O) => readonly InputIssue[];
   readonly capabilities: PackCapabilities<C>;
 }

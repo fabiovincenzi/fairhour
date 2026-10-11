@@ -2,12 +2,14 @@ import {
   add,
   compareDecimal,
   DECIMAL_HUNDRED,
+  decimalEquals,
   equals,
   isDecimal,
   isMoney,
   signDecimal,
   zero,
   type CurrencyCode,
+  type Decimal,
   type Money,
 } from "@fairhour/money";
 import type { Component, LegalNote, TraceStep, Warning } from "../computation/types";
@@ -155,14 +157,25 @@ class Merger {
     };
   }
 
+  /**
+   * Allocations of an adds-to-total component. A tax ("one main tax per line", ADR-0004) may only
+   * allocate to taxable groups, at most one tax allocation per group across all components
+   * (`taxed` holds the groups that already have one), and its rate, when given, is the rate of
+   * every group it allocates to.
+   */
   allocations(
     raw: unknown,
-    id: string,
-    kind: ComponentKind,
-    base: Money,
-    amount: Money,
+    component: {
+      readonly id: string;
+      readonly kind: ComponentKind;
+      readonly base: Money;
+      readonly amount: Money;
+      readonly rate: Decimal | undefined;
+    },
     groups: ReadonlyMap<string, TaxGroup>,
+    taxed: Set<string>,
   ): readonly Allocation[] {
+    const { id, kind, base, amount, rate } = component;
     if (!Array.isArray(raw) || raw.length === 0) {
       this.fail(
         "invalid-allocations",
@@ -192,11 +205,26 @@ class Merger {
           `component "${id}": allocation amounts must be non-negative ${this.currency} Money`,
         );
       }
-      if (kind === "tax" && group.treatment !== "taxable") {
-        this.fail(
-          "invalid-component",
-          `tax "${id}" is allocated to the non-taxable group "${groupId}"`,
-        );
+      if (kind === "tax") {
+        if (group.treatment !== "taxable") {
+          this.fail(
+            "invalid-component",
+            `tax "${id}" is allocated to the non-taxable group "${groupId}"`,
+          );
+        }
+        if (rate !== undefined && !(group.rate !== undefined && decimalEquals(group.rate, rate))) {
+          this.fail(
+            "invalid-allocations",
+            `tax "${id}" has a rate that differs from the rate of its group "${groupId}"`,
+          );
+        }
+        if (taxed.has(groupId)) {
+          this.fail(
+            "invalid-allocations",
+            `group "${groupId}" already has a tax allocation: one main tax per line (ADR-0004)`,
+          );
+        }
+        taxed.add(groupId);
       }
       baseSum = add(baseSum, allocation.base);
       amountSum = add(amountSum, allocation.amount);
@@ -217,7 +245,12 @@ class Merger {
     return result;
   }
 
-  component(raw: unknown, known: Set<string>, groups: ReadonlyMap<string, TaxGroup>): Component {
+  component(
+    raw: unknown,
+    known: Set<string>,
+    groups: ReadonlyMap<string, TaxGroup>,
+    taxed: Set<string>,
+  ): Component {
     const draft = this.object(raw, "invalid-component", "a component");
     const id = draft.id;
     if (typeof id !== "string" || id.length === 0)
@@ -250,11 +283,15 @@ class Merger {
     if (effect === "adds-to-total") {
       allocations = this.allocations(
         draft.allocations,
-        id,
-        kind as ComponentKind,
-        base,
-        amount,
+        {
+          id,
+          kind: kind as ComponentKind,
+          base,
+          amount,
+          rate: isDecimal(rate) ? rate : undefined,
+        },
         groups,
+        taxed,
       );
     } else if (
       draft.allocations !== undefined &&
@@ -344,18 +381,29 @@ class Merger {
   }
 
   factValue(key: string, value: unknown): FactValue {
-    const valid =
-      value === null ||
-      typeof value === "boolean" ||
-      typeof value === "string" ||
-      isDecimal(value) ||
-      (isMoney(value) && value.currency === this.currency);
-    if (!valid)
-      this.fail("invalid-fact", `fact "${key}" must be a boolean, string, Decimal, Money or null`);
-    if (isMoney(value)) return copyMoney(value);
-    if (isDecimal(value)) return copyDecimal(value);
-    return value;
+    return copyFactValue(this.rule.id, key, value, this.currency);
   }
+}
+
+/**
+ * A copy of a fact value (Money and Decimal are copied, never kept). Valid values are booleans,
+ * strings, Decimals, Money in the invoice currency and null; anything else, including an
+ * explicit `undefined`, is a RuleContractError("invalid-fact") of `ruleId`.
+ */
+export function copyFactValue(
+  ruleId: RuleId,
+  key: string,
+  value: unknown,
+  currency: CurrencyCode,
+): FactValue {
+  if (value === null || typeof value === "boolean" || typeof value === "string") return value;
+  if (isMoney(value) && value.currency === currency) return copyMoney(value);
+  if (isDecimal(value)) return copyDecimal(value);
+  throw new RuleContractError(
+    ruleId,
+    "invalid-fact",
+    `fact "${key}" must be a boolean, a string, a Decimal, Money in ${currency} or null`,
+  );
 }
 
 /** Checks a rule's own sources before it runs (design G10: every rule cites a source). */
@@ -414,9 +462,14 @@ export function mergeRuleOutput<F extends PackFacts>(
 
   // Components.
   const componentIds = new Set(state.components.map((component) => component.id));
+  const taxedGroups = new Set(
+    state.components
+      .filter((component) => component.kind === "tax")
+      .flatMap((component) => component.allocations.map((allocation) => allocation.groupId)),
+  );
   const newComponents = merger
     .array(raw.components, "components")
-    .map((component) => merger.component(component, componentIds, groupsById));
+    .map((component) => merger.component(component, componentIds, groupsById, taxedGroups));
 
   // Legal notes and warnings.
   const noteIds = new Set(state.legalNotes.map((note) => note.id));
@@ -433,7 +486,8 @@ export function mergeRuleOutput<F extends PackFacts>(
     .array(raw.trace, "trace")
     .map((step, index) => merger.traceStep(step, state.trace.length + index + 1, componentIds));
 
-  // Facts: only keys declared in the initial facts, rebuilt in their key order.
+  // Facts: only keys declared in the initial facts, rebuilt in their key order. A key that is
+  // present must carry a FactValue: an explicit undefined is rejected, not ignored.
   const factUpdates = merger.record(raw.facts, "facts");
   for (const key of Object.keys(factUpdates)) {
     if (!hasOwn(state.facts, key))
@@ -441,12 +495,7 @@ export function mergeRuleOutput<F extends PackFacts>(
   }
   const facts: Record<string, FactValue> = {};
   for (const [key, value] of Object.entries(state.facts)) {
-    const update = factUpdates[key];
-    setOwn(
-      facts,
-      key,
-      hasOwn(factUpdates, key) && update !== undefined ? merger.factValue(key, update) : value,
-    );
+    setOwn(facts, key, hasOwn(factUpdates, key) ? merger.factValue(key, factUpdates[key]) : value);
   }
 
   // Every component needs a trace step from the rule that emitted it.

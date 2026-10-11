@@ -1,5 +1,10 @@
 import { decimal, decimalToString } from "@fairhour/money";
-import { countryCode, type ClientInput, type LineTaxTreatment } from "@fairhour/tax-core";
+import {
+  countryCode,
+  InvalidInputError,
+  type ClientInput,
+  type LineTaxTreatment,
+} from "@fairhour/tax-core";
 import { describe, expect, it } from "vitest";
 import {
   CLIENTS,
@@ -190,9 +195,12 @@ describe("generic.classify-lines in the pipeline", () => {
     expect(noTax && format(noTax, "it")).toBe("Senza GST");
   });
 
-  it("assigns a line whose id is __proto__", () => {
-    const c = compute(VAT20, [line("10", undefined, { id: "__proto__" })]);
-    expect(c.lines[0]?.groupId).toBe("tax-20");
+  it("never sees a line whose id is __proto__: tax-core refuses reserved ids up front", () => {
+    // Since tax-core rejects ids that name special object properties (invalid-line-id), no rule
+    // can be handed one; the pack builds lineGroups with Object.fromEntries regardless.
+    expect(() => compute(VAT20, [line("10", undefined, { id: "__proto__" })])).toThrow(
+      InvalidInputError,
+    );
   });
 
   it("counts the lines in its first trace step, with the configuration as source", () => {

@@ -4,6 +4,7 @@ import {
   isCurrencyCode,
   parseMoney,
   price,
+  signDecimal,
   toDecimalString,
   zero,
   type CurrencyCode,
@@ -14,6 +15,8 @@ import {
 import * as z from "zod";
 import { InvalidInputError } from "../errors";
 import { deepFreeze } from "../engine/freeze";
+import { reconciliationFailures } from "../engine/reconcile";
+import { jsonLimitProblem } from "../internal/json";
 import { setOwn } from "../internal/records";
 import { toSchemaIssues } from "../internal/zod-issues";
 import {
@@ -24,6 +27,7 @@ import {
   type LineTaxTreatment,
 } from "../input/types";
 import type { MessageParam, MessageRef } from "../messages/types";
+import { messageRefProblem } from "../messages/validate";
 import {
   COMPONENT_EFFECTS,
   COMPONENT_KINDS,
@@ -37,7 +41,7 @@ import {
   type IsoDate,
   type JsonValue,
 } from "../primitives";
-import { SOURCE_KINDS, copySource, type SourceRef } from "../sources";
+import { SOURCE_KINDS, copySource, sourceProblems, type SourceRef } from "../sources";
 import {
   ENGINE_NAME,
   type Component,
@@ -429,11 +433,17 @@ const structuralSchema = z.strictObject({
 
 type Structural = z.output<typeof structuralSchema>;
 type Path = readonly (string | number)[];
+
+interface Issue {
+  readonly path: Path;
+  readonly message: string;
+  readonly code: string;
+}
 type SourceJson = z.output<typeof sourceSchema>;
 
 /** Converts strings to typed values, recording an issue (and a placeholder) on failure. */
 class Decoder {
-  readonly issues: { readonly path: Path; readonly message: string; readonly code: string }[] = [];
+  readonly issues: Issue[] = [];
 
   constructor(readonly currency: CurrencyCode) {}
 
@@ -649,11 +659,141 @@ function decode(json: Structural, decoder: Decoder): InvoiceComputation {
 }
 
 /**
- * JSON form -> InvoiceComputation (deeply frozen). Amounts are parsed in the document's
- * `currency`; semantic failures are custom issues whose `params.code` names them.
+ * What computeInvoice guarantees about a computation, re-checked on a decoded one (a stored
+ * snapshot may have been edited or produced elsewhere): R1 to R8 (`reconciliation-failed`),
+ * unique line, component and legal note ids and warning codes (`duplicate-id`), non-negative
+ * quantities, unit prices and rates and positive exchange rates (`out-of-range`), well-formed
+ * messages in the document currency, nested at most MAX_MESSAGE_DEPTH levels
+ * (`invalid-message`), and well-formed sources with https URLs (`invalid-source`).
  */
-export const InvoiceComputationJsonSchema: z.ZodType<InvoiceComputation, InvoiceComputationJson> =
-  structuralSchema.transform((json, ctx) => {
+function consistencyIssues(c: InvoiceComputation): readonly Issue[] {
+  const issues: Issue[] = [];
+  for (const failure of reconciliationFailures(c)) {
+    issues.push({
+      path: [],
+      code: "reconciliation-failed",
+      message: `${failure.check} ${failure.detail}: expected ${failure.expected}, got ${failure.actual}`,
+    });
+  }
+
+  const unique = <T>(
+    items: readonly T[],
+    field: string,
+    key: string,
+    idOf: (item: T) => string,
+  ) => {
+    const seen = new Set<string>();
+    items.forEach((item, index) => {
+      const id = idOf(item);
+      if (seen.has(id)) {
+        issues.push({
+          path: [field, index, key],
+          code: "duplicate-id",
+          message: `"${id}" repeats`,
+        });
+      }
+      seen.add(id);
+    });
+  };
+  unique(c.lines, "lines", "id", (line) => line.id);
+  unique(c.components, "components", "id", (component) => component.id);
+  unique(c.legalNotes, "legalNotes", "id", (note) => note.id);
+  unique(c.warnings, "warnings", "code", (warning) => warning.code);
+
+  const nonNegative = (value: Decimal | undefined, path: Path): void => {
+    if (value !== undefined && signDecimal(value) < 0)
+      issues.push({ path, code: "out-of-range", message: "Must not be negative" });
+  };
+  c.exchangeRates?.forEach((record, index) => {
+    if (signDecimal(record.rate) <= 0) {
+      issues.push({
+        path: ["exchangeRates", index, "rate"],
+        code: "out-of-range",
+        message: "An exchange rate must be positive",
+      });
+    }
+  });
+  c.lines.forEach((line, index) => {
+    nonNegative(line.quantity, ["lines", index, "quantity"]);
+    nonNegative(line.unitPrice.amount, ["lines", index, "unitPrice"]);
+    if (line.treatment.kind === "rate")
+      nonNegative(line.treatment.rate, ["lines", index, "treatment", "rate"]);
+  });
+  c.components.forEach((component, index) => {
+    nonNegative(component.rate, ["components", index, "rate"]);
+  });
+  c.vatSummary.forEach((entry, index) => {
+    nonNegative(entry.rate, ["vatSummary", index, "rate"]);
+  });
+
+  const checkMessage = (ref: MessageRef | undefined, path: Path): void => {
+    const problem = ref === undefined ? undefined : messageRefProblem(ref, c.currency);
+    if (problem !== undefined) issues.push({ path, code: "invalid-message", message: problem });
+  };
+  const checkSources = (sources: readonly SourceRef[], path: Path): void => {
+    sources.forEach((source, index) => {
+      const problems = sourceProblems(source);
+      if (problems.length > 0) {
+        issues.push({
+          path: [...path, index],
+          code: "invalid-source",
+          message: problems.join(", "),
+        });
+      }
+    });
+  };
+  c.components.forEach((component, index) => {
+    checkMessage(component.label, ["components", index, "label"]);
+    checkSources(component.sources, ["components", index, "sources"]);
+  });
+  c.vatSummary.forEach((entry, index) => {
+    checkMessage(entry.label, ["vatSummary", index, "label"]);
+    checkMessage(entry.reference, ["vatSummary", index, "reference"]);
+  });
+  c.legalNotes.forEach((note, index) => {
+    checkMessage(note.message, ["legalNotes", index, "message"]);
+    checkSources(note.sources, ["legalNotes", index, "sources"]);
+  });
+  c.warnings.forEach((warning, index) => {
+    checkMessage(warning.message, ["warnings", index, "message"]);
+  });
+  c.trace.forEach((step, index) => {
+    checkMessage(step.message, ["trace", index, "message"]);
+    checkMessage(step.formula, ["trace", index, "formula"]);
+    checkSources(step.sources, ["trace", index, "sources"]);
+  });
+  return issues;
+}
+
+/**
+ * Containers a computation document may nest. The deepest legitimate path is a trace step's
+ * message with MAX_MESSAGE_DEPTH nested messages: root, trace, step, message, then params,
+ * parameter and nested message three levels at a time (18 in all). Anything deeper is rejected
+ * before zod, whose message schema recurses, can overflow the stack.
+ */
+const MAX_COMPUTATION_JSON_DEPTH = 32;
+
+/**
+ * JSON form -> InvoiceComputation (deeply frozen). The document's nesting is bounded first
+ * (`too-deep`); then amounts are parsed in the document's `currency`, and the decoded computation
+ * must satisfy what computeInvoice guarantees (see `consistencyIssues`). Semantic failures are
+ * custom issues whose `params.code` names them.
+ */
+export const InvoiceComputationJsonSchema: z.ZodType<InvoiceComputation, InvoiceComputationJson> = z
+  .preprocess((value, ctx) => {
+    const problem = jsonLimitProblem(value, { maxDepth: MAX_COMPUTATION_JSON_DEPTH });
+    if (problem !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: [...problem.path],
+        message: problem.message,
+        params: { code: problem.code },
+        input: value,
+      });
+    }
+    return value;
+  }, structuralSchema)
+  .transform((json, ctx) => {
     if (!isCurrencyCode(json.currency)) {
       ctx.addIssue({
         code: "custom",
@@ -666,8 +806,10 @@ export const InvoiceComputationJsonSchema: z.ZodType<InvoiceComputation, Invoice
     }
     const decoder = new Decoder(json.currency);
     const computation = decode(json, decoder);
-    if (decoder.issues.length === 0) return deepFreeze(computation);
-    for (const found of decoder.issues) {
+    // Consistency is only checked on a fully decoded document (placeholders would add noise).
+    const issues = decoder.issues.length > 0 ? decoder.issues : consistencyIssues(computation);
+    if (issues.length === 0) return deepFreeze(computation);
+    for (const found of issues) {
       ctx.addIssue({
         code: "custom",
         path: [...found.path],

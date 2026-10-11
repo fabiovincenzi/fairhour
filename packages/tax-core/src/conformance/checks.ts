@@ -150,11 +150,20 @@ interface Prepared<C, P, F extends PackFacts, O> {
   readonly clientCountries: readonly CountryCode[];
   readonly dateRange: { readonly from: IsoDate; readonly to: IsoDate };
   readonly fc: { readonly numRuns: number; readonly seed?: number };
+  /** True when the caller (defineConformanceSuite) compares the parameter snapshot itself. */
+  readonly snapshotCompared: boolean;
+}
+
+/** How a check is run; internal to the conformance entry point. */
+export interface CheckContext {
+  /** defineConformanceSuite compares `parameters.snapshot` with the committed vitest snapshot. */
+  readonly snapshotCompared?: boolean;
 }
 
 function prepare<C, P, F extends PackFacts, O>(
   pack: TaxPack<C, P, F, O>,
   options: ConformanceOptions,
+  context: CheckContext,
 ): Prepared<C, P, F, O> {
   let catalogs: MessageCatalogs;
   try {
@@ -196,6 +205,7 @@ function prepare<C, P, F extends PackFacts, O>(
       numRuns: options.properties?.numRuns ?? DEFAULT_RUNS,
       ...(options.properties?.seed === undefined ? {} : { seed: options.properties.seed }),
     },
+    snapshotCompared: context.snapshotCompared ?? false,
   };
 }
 
@@ -430,13 +440,17 @@ function checkParametersTimeline<C, P, F extends PackFacts, O>(
   return { failures };
 }
 
+/** Note of `parameters.snapshot` when no snapshot is compared (runConformanceChecks). */
+export const SNAPSHOT_NOT_COMPARED =
+  "the parameter timeline converts to JSON; the comparison with the committed snapshot only runs in defineConformanceSuite (vitest)";
+
 function checkParametersSnapshot<C, P, F extends PackFacts, O>(
   prep: Prepared<C, P, F, O>,
 ): Outcome {
   // The comparison with the committed snapshot happens in defineConformanceSuite (vitest);
   // here the timeline must convert to JSON.
   JSON.stringify(parametersToJson(listParameters(prep.pack)));
-  return { failures: [] };
+  return { failures: [], notes: prep.snapshotCompared ? [] : [SNAPSHOT_NOT_COMPARED] };
 }
 
 function checkParametersResolution<C, P, F extends PackFacts, O>(
@@ -749,9 +763,28 @@ function withinBound(
   return half ? 2n * distance <= items * denominator : distance < items * denominator;
 }
 
+/**
+ * The rounding bounds of design section 5: each tax allocation and each component with a rate
+ * is within the bound of `base × rate / 100`, and so is every taxable summary row with a positive
+ * base (`tax(g)` against `base(g) × rate(g) / 100`). The row check catches what the allocation
+ * check cannot see: a tax counted twice for one group, or a taxable group left without its tax.
+ * For `per-line` taxes the bound is multiplied by the number of items of the group (lines and
+ * non-tax allocations), each rounded on its own.
+ */
 function roundingFailures(c: InvoiceComputation, policy: RoundingPolicy): readonly string[] {
   const failures: string[] = [];
   const entries = new Map(c.vatSummary.map((entry) => [entry.groupId, entry] as const));
+  const taxItems = (groupId: string): bigint => {
+    if (policy.taxes.scope !== "per-line") return 1n;
+    const lines = c.lines.filter((line) => line.groupId === groupId).length;
+    const others = c.components.filter(
+      (other) =>
+        other.kind !== "tax" &&
+        other.effect === "adds-to-total" &&
+        other.allocations.some((item) => item.groupId === groupId),
+    ).length;
+    return BigInt(Math.max(1, lines + others));
+  };
   const modeOf = (kind: string): RoundingMode | undefined => {
     switch (kind) {
       case "tax":
@@ -771,17 +804,7 @@ function roundingFailures(c: InvoiceComputation, policy: RoundingPolicy): readon
       for (const allocation of component.allocations) {
         const entry = entries.get(allocation.groupId);
         if (entry?.rate === undefined) continue;
-        let items = 1n;
-        if (policy.taxes.scope === "per-line") {
-          const lines = c.lines.filter((line) => line.groupId === allocation.groupId).length;
-          const others = c.components.filter(
-            (other) =>
-              other.kind !== "tax" &&
-              other.effect === "adds-to-total" &&
-              other.allocations.some((item) => item.groupId === allocation.groupId),
-          ).length;
-          items = BigInt(Math.max(1, lines + others));
-        }
+        const items = taxItems(allocation.groupId);
         if (!withinBound(allocation.amount, allocation.base, entry.rate, items, mode)) {
           failures.push(
             `tax "${component.id}" on "${allocation.groupId}": ${allocation.amount.amount} is too far from ${allocation.base.amount} × ${entry.rate.coefficient}e-${entry.rate.scale}%`,
@@ -802,6 +825,16 @@ function roundingFailures(c: InvoiceComputation, policy: RoundingPolicy): readon
           `"${component.id}" ${part.groupId}: ${part.amount.amount} is too far from ${part.base.amount} × ${rate.coefficient}e-${rate.scale}%`,
         );
       }
+    }
+  }
+  for (const entry of c.vatSummary) {
+    if (entry.treatment !== "taxable" || entry.rate === undefined || entry.base.amount <= 0n)
+      continue;
+    const items = taxItems(entry.groupId);
+    if (!withinBound(entry.tax, entry.base, entry.rate, items, policy.taxes.mode)) {
+      failures.push(
+        `vatSummary "${entry.groupId}": tax ${entry.tax.amount} is too far from ${entry.base.amount} × ${entry.rate.coefficient}e-${entry.rate.scale}% (a tax counted twice, or a taxable group without its tax?)`,
+      );
     }
   }
   return failures;
@@ -1085,10 +1118,11 @@ export function runConformanceCheck<C, P, F extends PackFacts, O>(
   pack: TaxPack<C, P, F, O>,
   options: ConformanceOptions,
   id: ConformanceCheckId,
+  context: CheckContext = {},
 ): ConformanceCheckResult {
   let outcome: Outcome;
   try {
-    outcome = CHECKS[id](prepare(pack, options));
+    outcome = CHECKS[id](prepare(pack, options, context));
   } catch (error) {
     outcome = { failures: [`the check threw: ${errorText(error)}`] };
   }
@@ -1100,7 +1134,12 @@ export function runConformanceCheck<C, P, F extends PackFacts, O>(
   };
 }
 
-/** The same checks as plain functions, for testing the suite itself. */
+/**
+ * The same checks as plain functions, for testing the suite itself. One difference with
+ * defineConformanceSuite: `parameters.snapshot` cannot compare the timeline with a committed
+ * vitest snapshot here, so it only checks that the timeline converts to JSON, and says so in its
+ * `notes`.
+ */
 export function runConformanceChecks<C, P, F extends PackFacts, O>(
   pack: TaxPack<C, P, F, O>,
   options: ConformanceOptions,

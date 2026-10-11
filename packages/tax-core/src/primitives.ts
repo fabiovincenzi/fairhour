@@ -1,5 +1,6 @@
 import { COUNTRY_CODES_DATA } from "./countries.data";
 import { InvalidInputError, InvalidIsoDateError } from "./errors";
+import { digitsToInteger } from "./internal/digits";
 
 /** "YYYY-MM-DD", a real Gregorian date between 1900-01-01 and 9999-12-31. */
 export type IsoDate = string & { readonly __brand: "IsoDate" };
@@ -17,20 +18,26 @@ function daysInMonth(year: number, month: number): number {
   return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
 }
 
-function dateParts(value: string): readonly [number, number, number] | undefined {
+/**
+ * Year, month and day of a valid ISO date (see {@link IsoDate}), or undefined. Internal: also
+ * used by message formatting; not exported from the package.
+ */
+export function dateParts(value: string): readonly [number, number, number] | undefined {
+  if (typeof value !== "string") return undefined;
   const match = ISO_DATE_PATTERN.exec(value);
   if (match === null) return undefined;
+  // The pattern guarantees 4, 2 and 2 ASCII digits.
   const [, y = "", m = "", d = ""] = match;
-  const year = Number.parseInt(y, 10);
-  const month = Number.parseInt(m, 10);
-  const day = Number.parseInt(d, 10);
+  const year = digitsToInteger(y);
+  const month = digitsToInteger(m);
+  const day = digitsToInteger(d);
   if (year < MIN_YEAR || month < 1 || month > 12 || day < 1) return undefined;
   if (day > daysInMonth(year, month)) return undefined;
   return [year, month, day];
 }
 
 export function isIsoDate(value: string): value is IsoDate {
-  return typeof value === "string" && dateParts(value) !== undefined;
+  return dateParts(value) !== undefined;
 }
 
 /** @throws InvalidIsoDateError */

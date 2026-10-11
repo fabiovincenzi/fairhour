@@ -1,7 +1,7 @@
 import { formatDecimal, formatMoney, formatPercent, formatPrice } from "@fairhour/money";
 import { MessageFormatError, MissingMessageError } from "../errors";
 import { hasOwn, ownValue } from "../internal/records";
-import { isIsoDate, type LocaleTag } from "../primitives";
+import { dateParts, type LocaleTag } from "../primitives";
 import type {
   MessageCatalog,
   MessageCatalogs,
@@ -111,15 +111,12 @@ export function resolveMessageText(
 }
 
 function formatDate(value: string, locale: LocaleTag, key: string): string {
-  if (!isIsoDate(value)) throw new MessageFormatError(key, "a date parameter is not an ISO date");
-  const [year = "", month = "", day = ""] = value.split("-");
-  const utc = Date.UTC(
-    Number.parseInt(year, 10),
-    Number.parseInt(month, 10) - 1,
-    Number.parseInt(day, 10),
-  );
+  const parts = dateParts(value);
+  if (parts === undefined) throw new MessageFormatError(key, "a date parameter is not an ISO date");
+  const [year, month, day] = parts;
+  // Date.UTC on the explicit date only (never the clock), formatted in UTC: no time-zone shift.
   return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
-    new Date(utc),
+    new Date(Date.UTC(year, month - 1, day)),
   );
 }
 
@@ -179,15 +176,38 @@ function formatAt(
 }
 
 /**
- * Formats with the ICU-compatible subset of design 4.4. Locale resolution: exact tag, then its
- * language subtag ("it-IT" -> "it"), then "en". Parameters are formatted for `locale` itself.
- * @throws MissingMessageError (key absent from "en"), MessageFormatError (missing parameter,
- *         malformed message, nesting deeper than 4)
+ * The canonical form of a BCP 47 tag (`"it-it"` -> `"it-IT"`, `"EN"` -> `"en"`).
+ * @throws MessageFormatError (labelled with `key`) when `locale` is not a valid tag
+ */
+function canonicalLocale(locale: unknown, key: string): LocaleTag {
+  let canonical: string | undefined;
+  try {
+    // A JavaScript caller may pass anything, and Intl reads undefined as "no locale" ([]).
+    canonical = typeof locale === "string" ? Intl.getCanonicalLocales(locale)[0] : undefined;
+  } catch {
+    canonical = undefined;
+  }
+  if (canonical === undefined) {
+    throw new MessageFormatError(
+      key,
+      `${JSON.stringify(String(locale).slice(0, 35))} is not a valid BCP 47 locale tag`,
+    );
+  }
+  return canonical;
+}
+
+/**
+ * Formats with the ICU-compatible subset of design 4.4. The locale is canonicalized first
+ * (`"it-it"` -> `"it-IT"`); an invalid tag is a MessageFormatError, never a silent fallback.
+ * Locale resolution: exact tag, then its language subtag ("it-IT" -> "it"), then "en".
+ * Parameters are formatted for the (canonical) `locale` itself.
+ * @throws MissingMessageError (key absent from "en"), MessageFormatError (invalid locale tag,
+ *         missing parameter, malformed message, nesting deeper than 4)
  */
 export function formatMessage(
   ref: MessageRef,
   catalogs: MessageCatalogs,
   locale: LocaleTag,
 ): string {
-  return formatAt(ref, catalogs, locale, 0);
+  return formatAt(ref, catalogs, canonicalLocale(locale, ref.key), 0);
 }

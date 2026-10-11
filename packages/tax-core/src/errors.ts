@@ -96,16 +96,38 @@ export class ParameterNotFoundError extends TaxEngineError {
   }
 }
 
-/** A rule threw: a bug in the pack. */
+/** Longest excerpt of a cause's name and message kept in a RuleExecutionError message. */
+const MAX_CAUSE_NAME = 64;
+const MAX_CAUSE_MESSAGE = 200;
+
+function excerpt(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * A rule (or a pack hook such as `validateInput` or `roundingPolicy`, with ruleId "core") threw:
+ * a bug in the pack. The original exception is `cause`.
+ *
+ * Logging: record `code`, `ruleId` and `cause.name`, not the message. A pack's exception message
+ * may quote user data (a line description, a client's VAT id), so this error's own message keeps
+ * only the first 200 characters of it, and the full `cause` must never be logged as is.
+ */
 export class RuleExecutionError extends TaxEngineError {
   override readonly name = "RuleExecutionError";
   readonly code = "rule-failed";
+  /** The rule that threw, or "core" when a pack hook called by the engine threw. */
   readonly ruleId: RuleId;
   override readonly cause: unknown;
-  constructor(ruleId: RuleId, cause: unknown) {
+  /**
+   * @param what  Who failed, for the message (default `Rule "<ruleId>"`), e.g. `The pack's
+   *              validateInput` for a hook.
+   */
+  constructor(ruleId: RuleId, cause: unknown, what?: string) {
     const detail =
-      cause instanceof Error ? `${cause.name}: ${cause.message}` : "a non-Error value was thrown";
-    super(`Rule "${ruleId}" failed: ${detail}`, { cause });
+      cause instanceof Error
+        ? `${excerpt(cause.name, MAX_CAUSE_NAME)}: ${excerpt(cause.message, MAX_CAUSE_MESSAGE)}`
+        : "a non-Error value was thrown";
+    super(`${what ?? `Rule "${ruleId}"`} failed: ${detail}`, { cause });
     this.ruleId = ruleId;
     this.cause = cause;
   }

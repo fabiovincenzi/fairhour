@@ -125,6 +125,25 @@ describe("errors", () => {
     expect(new MessageFormatError("k", "r").reason).toBe("r");
   });
 
+  it("keeps only an excerpt of a rule's exception in its message (it may quote user data)", () => {
+    const secret = `${"x".repeat(200)}SECRET-VAT-ID`;
+    const failed = new RuleExecutionError("it.vat", new TypeError(secret));
+    expect(failed.message).toBe(`Rule "it.vat" failed: TypeError: ${"x".repeat(200)}…`);
+    expect(failed.message).not.toContain("SECRET");
+    expect((failed.cause as Error).message).toBe(secret);
+    const named = new Error("short");
+    named.name = "N".repeat(100);
+    expect(new RuleExecutionError("it.vat", named).message).toBe(
+      `Rule "it.vat" failed: ${"N".repeat(64)}…: short`,
+    );
+  });
+
+  it("names a failing pack hook instead of a rule", () => {
+    const failed = new RuleExecutionError("core", new RangeError("x"), "The pack's roundingPolicy");
+    expect(failed.message).toBe("The pack's roundingPolicy failed: RangeError: x");
+    expect(failed.ruleId).toBe("core");
+  });
+
   it("summarizes at most five issues", () => {
     const many = Array.from({ length: 7 }, (_, index) => ({
       path: [index],

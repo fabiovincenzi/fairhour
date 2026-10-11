@@ -15,8 +15,8 @@ import {
 import * as z from "zod";
 import { InvalidInputError, type SchemaIssue } from "../errors";
 import { deepFreeze } from "../engine/freeze";
-import { cloneJson } from "../internal/json";
-import { mapRecord } from "../internal/records";
+import { cloneJson, jsonLimitProblem } from "../internal/json";
+import { mapRecord, ownValue } from "../internal/records";
 import { toSchemaIssues } from "../internal/zod-issues";
 import {
   isCountryCode,
@@ -38,11 +38,25 @@ import {
   type LineTaxTreatment,
 } from "./types";
 
-/** Line ids: unique within an invoice. */
+/** Line ids: unique within an invoice, and none of {@link RESERVED_LINE_IDS}. */
 export const LINE_ID_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/;
+/**
+ * Ids that match LINE_ID_PATTERN but are rejected (`invalid-line-id`): they name special
+ * properties of JavaScript objects, so a pack that writes `record[line.id] = ...` into a plain
+ * object would change its prototype instead of adding a key.
+ */
+export const RESERVED_LINE_IDS: readonly string[] = Object.freeze([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 /** VAT ids: 1..32 letters and digits, no separators. */
 export const VAT_ID_PATTERN = /^[A-Za-z0-9]{1,32}$/;
 export const MAX_INVOICE_LINES = 500;
+/** Nesting levels of `options` (the options object itself is level 1). */
+export const MAX_OPTIONS_DEPTH = 8;
+/** Object properties and array items in `options`, all levels together. */
+export const MAX_OPTIONS_ENTRIES = 10_000;
 /** Maximum fractional digits of quantities and unit prices. */
 export const MAX_INPUT_SCALE = 8;
 /** Maximum fractional digits of an explicit line rate. */
@@ -125,9 +139,6 @@ function semanticIssues(input: Checkable): readonly SchemaIssue[] {
       ),
     );
   }
-  if (input.lines.length > MAX_INVOICE_LINES) {
-    issues.push(issue(["lines"], "too-many-lines", `At most ${MAX_INVOICE_LINES} lines`));
-  }
   const seen = new Set<string>();
   input.lines.forEach((line, index) => {
     const path = ["lines", index] as const;
@@ -137,6 +148,14 @@ function semanticIssues(input: Checkable): readonly SchemaIssue[] {
           [...path, "id"],
           "invalid-line-id",
           "Expected 1 to 64 characters among A-Z a-z 0-9 . _ : -",
+        ),
+      );
+    } else if (RESERVED_LINE_IDS.includes(line.id)) {
+      issues.push(
+        issue(
+          [...path, "id"],
+          "invalid-line-id",
+          `"${line.id}" is reserved and cannot be a line id`,
         ),
       );
     } else if (seen.has(line.id)) {
@@ -208,6 +227,34 @@ function semanticIssues(input: Checkable): readonly SchemaIssue[] {
   return issues;
 }
 
+/**
+ * Size limits checked before zod looks at the input (typed and JSON form alike), so that a
+ * huge or deeply nested document is an InvalidInputError, never a stack overflow or a long
+ * parse: at most MAX_INVOICE_LINES lines (`too-many-lines`), and `options` at most
+ * MAX_OPTIONS_DEPTH levels deep (`too-deep`) with at most MAX_OPTIONS_ENTRIES properties and
+ * array items (`too-large`). Anything that is not the expected shape is left to the schema.
+ */
+function limitIssues(value: unknown): readonly SchemaIssue[] {
+  // Any object, not only plain ones: zod's z.object also accepts class instances.
+  if (typeof value !== "object" || value === null) return [];
+  const input = value as Readonly<Record<string, unknown>>;
+  const issues: SchemaIssue[] = [];
+  const lines = ownValue(input, "lines");
+  if (Array.isArray(lines) && lines.length > MAX_INVOICE_LINES) {
+    issues.push(issue(["lines"], "too-many-lines", `At most ${MAX_INVOICE_LINES} lines`));
+  }
+  const problem = jsonLimitProblem(ownValue(input, "options"), {
+    maxDepth: MAX_OPTIONS_DEPTH,
+    maxEntries: MAX_OPTIONS_ENTRIES,
+  });
+  if (problem !== undefined) {
+    issues.push(issue(["options", ...problem.path], problem.code, problem.message));
+  }
+  return issues;
+}
+
+const tooManyLines = { error: `At most ${MAX_INVOICE_LINES} lines` } as const;
+
 // ---------------------------------------------------------------------------------------------
 // Typed form
 
@@ -239,17 +286,20 @@ const typedInputSchema = z.object({
     isWithholdingAgent: z.boolean(),
     vatId: z.string().optional(),
   }),
-  lines: z.array(
-    z.object({
-      id: z.string(),
-      kind: z.enum(LINE_KINDS),
-      description: descriptionSchema,
-      quantity: decimalValue,
-      unit: z.enum(LINE_UNITS),
-      unitPrice: priceValue,
-      treatment: typedTreatmentSchema,
-    }),
-  ),
+  // limitIssues reports too many lines (as "too-many-lines") before this schema runs.
+  lines: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(LINE_KINDS),
+        description: descriptionSchema,
+        quantity: decimalValue,
+        unit: z.enum(LINE_UNITS),
+        unitPrice: priceValue,
+        treatment: typedTreatmentSchema,
+      }),
+    )
+    .max(MAX_INVOICE_LINES, tooManyLines),
   options: z.record(z.string(), z.json()).optional(),
   exchangeRates: z
     .array(
@@ -357,6 +407,8 @@ function checkableFromTyped(input: TypedStructural): Checkable {
  * @throws InvalidInputError with every issue found
  */
 export function validateInvoiceInput(input: InvoiceInput): InvoiceInput {
+  const limits = limitIssues(input);
+  if (limits.length > 0) throw new InvalidInputError(limits);
   const structural = typedInputSchema.safeParse(input);
   if (!structural.success) throw new InvalidInputError(toSchemaIssues(structural.error.issues));
   const data = structural.data;
@@ -404,17 +456,21 @@ const jsonStructuralSchema = z.strictObject({
     isWithholdingAgent: z.boolean(),
     vatId: z.string().optional(),
   }),
-  lines: z.array(
-    z.strictObject({
-      id: z.string(),
-      kind: z.enum(LINE_KINDS),
-      description: descriptionSchema,
-      quantity: z.string(),
-      unit: z.enum(LINE_UNITS),
-      unitPrice: z.string(),
-      treatment: jsonTreatmentSchema.optional(),
-    }),
-  ),
+  // The preprocess step of InvoiceInputJsonSchema reports too many lines ("too-many-lines")
+  // first; the maximum here also documents the limit in the generated JSON Schema.
+  lines: z
+    .array(
+      z.strictObject({
+        id: z.string(),
+        kind: z.enum(LINE_KINDS),
+        description: descriptionSchema,
+        quantity: z.string(),
+        unit: z.enum(LINE_UNITS),
+        unitPrice: z.string(),
+        treatment: jsonTreatmentSchema.optional(),
+      }),
+    )
+    .max(MAX_INVOICE_LINES, tooManyLines),
   options: z.record(z.string(), z.json()).optional(),
   exchangeRates: z
     .array(
@@ -517,10 +573,27 @@ function convertJson(json: JsonStructural): ConvertResult {
  * JSON form -> typed InvoiceInput. Amounts are decimal strings in the invoice currency;
  * `documentKind` defaults to "invoice" and a line's treatment to "excluded" for reimbursements
  * and "standard" otherwise. Semantic violations are custom issues whose `params.code` is the
- * issue code of design 4.5 (`parseInvoiceInput` reports that code).
+ * issue code of design 4.5 (`parseInvoiceInput` reports that code). The size limits of
+ * `limitIssues` (lines, depth and size of `options`) are checked first; when one is exceeded,
+ * only those issues are reported.
  */
-export const InvoiceInputJsonSchema: z.ZodType<InvoiceInput, InvoiceInputJson> =
-  jsonStructuralSchema.transform((json, ctx) => {
+export const InvoiceInputJsonSchema: z.ZodType<InvoiceInput, InvoiceInputJson> = z
+  .preprocess<unknown, typeof jsonStructuralSchema, z.input<typeof jsonStructuralSchema>>(
+    (value, ctx) => {
+      for (const found of limitIssues(value)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [...found.path],
+          message: found.message,
+          params: { code: found.code },
+          input: value,
+        });
+      }
+      return value;
+    },
+    jsonStructuralSchema,
+  )
+  .transform((json, ctx) => {
     const result = convertJson(json);
     if (result.ok) return result.input;
     for (const found of result.issues) {

@@ -1,4 +1,4 @@
-import { isDecimal, isMoney, zero } from "@fairhour/money";
+import { zero, type CurrencyCode } from "@fairhour/money";
 import {
   ENGINE_NAME,
   type ComputedLine,
@@ -13,32 +13,77 @@ import {
   UnsupportedInputError,
 } from "../errors";
 import { validateInvoiceInput } from "../input/schema";
-import { copyDecimal, copyMoney } from "../internal/copy";
-import { clonePlain, nullPrototypeRecord, ownValue, setOwn } from "../internal/records";
+import { copyMessage } from "../internal/copy";
+import {
+  clonePlain,
+  isPlainObject,
+  nullPrototypeRecord,
+  ownValue,
+  setOwn,
+} from "../internal/records";
 import { toSchemaIssues } from "../internal/zod-issues";
 import { message, p } from "../messages/params";
+import { messageRefProblem } from "../messages/validate";
 import type { InvoiceInput } from "../input/types";
 import { copyRoundingPolicy, roundingPolicyProblems } from "../pack/rounding";
 import type { ComputationState, RuleContext } from "../pack/rule";
-import type { FactValue, PackFacts, TaxPack } from "../pack/types";
+import type { FactValue, InputIssue, PackFacts, RoundingPolicy, TaxPack } from "../pack/types";
 import { ENGINE_VERSION } from "../version";
 import { deepFreeze } from "./freeze";
 import { coreStep, computeNetLines, lineSteps } from "./lines";
-import { checkRuleSources, mergeRuleOutput } from "./merge";
+import { checkRuleSources, copyFactValue, mergeRuleOutput } from "./merge";
 import { resolveParameters } from "./parameters";
 import { assertReconciled } from "./reconcile";
 import { deriveTotals } from "./summary";
 
-function copyFacts<F extends PackFacts>(facts: F): F {
+/**
+ * The pack's initial facts, checked like the facts a rule sets (a FactValue, Money in the
+ * invoice currency) and copied. @throws RuleContractError("core", "invalid-fact")
+ */
+function initialFacts<F extends PackFacts>(facts: F, currency: CurrencyCode): F {
+  if (!isPlainObject(facts)) {
+    throw new RuleContractError("core", "invalid-fact", "initialFacts must be a plain object");
+  }
   const result: Record<string, FactValue> = {};
   for (const [key, value] of Object.entries(facts)) {
-    setOwn(
-      result,
-      key,
-      isMoney(value) ? copyMoney(value) : isDecimal(value) ? copyDecimal(value) : value,
-    );
+    setOwn(result, key, copyFactValue("core", key, value, currency));
   }
   return result as F;
+}
+
+/** A path segment of an InputIssue: a property name or an array index. */
+function isPathSegment(value: unknown): value is string | number {
+  return typeof value === "string" || (Number.isSafeInteger(value) && (value as number) >= 0);
+}
+
+/**
+ * The issues returned by `pack.validateInput`, checked and copied (deeply frozen).
+ * @throws RuleContractError("core", "invalid-output") for anything that is not an InputIssue[]
+ */
+function inputIssues(value: unknown): readonly InputIssue[] {
+  const fail = (detail: string): never => {
+    throw new RuleContractError("core", "invalid-output", `validateInput: ${detail}`);
+  };
+  if (!Array.isArray(value)) return fail("must return an array of InputIssue");
+  return deepFreeze(
+    (value as readonly unknown[]).map((raw, index): InputIssue => {
+      if (!isPlainObject(raw)) return fail(`issue ${index} is not an object`);
+      const { path, code } = raw;
+      if (!Array.isArray(path) || !(path as readonly unknown[]).every(isPathSegment)) {
+        return fail(`issue ${index}: path must list property names and array indexes`);
+      }
+      if (typeof code !== "string" || code.length === 0) {
+        return fail(`issue ${index}: code is empty`);
+      }
+      const problem = messageRefProblem(raw.message);
+      if (problem !== undefined) return fail(`issue ${index} "${code}": message: ${problem}`);
+      return {
+        path: [...(path as readonly (string | number)[])],
+        code,
+        message: copyMessage(raw.message as InputIssue["message"]),
+      };
+    }),
+  );
 }
 
 /**
@@ -66,18 +111,29 @@ export function computeInvoice<C, P, F extends PackFacts, O>(
   // Copies: the engine freezes what rules can see, and must not freeze the caller's objects.
   const parsed: C = deepFreeze(clonePlain(parsedConfig.data));
   const options: O = deepFreeze(clonePlain(parsedOptions.data));
-  const refusals = pack.validateInput?.(valid, parsed, options) ?? [];
-  if (refusals.length > 0) throw new UnsupportedInputError(refusals);
+  if (pack.validateInput !== undefined) {
+    let returned: unknown;
+    try {
+      returned = pack.validateInput(valid, parsed, options);
+    } catch (error) {
+      throw new RuleExecutionError("core", error, "The pack's validateInput");
+    }
+    const refusals = inputIssues(returned);
+    if (refusals.length > 0) throw new UnsupportedInputError(refusals);
+  }
 
   // 5-6: parameters, rounding policy, context.
   const version = resolveParameters(pack.parameters, pack.meta.id, valid.issueDate);
-  const policy: unknown = pack.roundingPolicy(parsed);
+  let policy: unknown;
+  try {
+    policy = pack.roundingPolicy(parsed);
+  } catch (error) {
+    throw new RuleExecutionError("core", error, "The pack's roundingPolicy");
+  }
   const problems = roundingPolicyProblems(policy);
   if (problems.length > 0)
     throw new RuleContractError("core", "invalid-rounding-policy", problems.join("; "));
-  const rounding = deepFreeze(
-    copyRoundingPolicy(policy as ReturnType<TaxPack<C, P, F, O>["roundingPolicy"]>),
-  );
+  const rounding = deepFreeze(copyRoundingPolicy(policy as RoundingPolicy));
   const currency = valid.currency;
   const parameterVersion = deepFreeze({ id: version.id, effectiveFrom: version.effectiveFrom });
   const ctx: RuleContext<C, P, O> = Object.freeze({
@@ -113,7 +169,7 @@ export function computeInvoice<C, P, F extends PackFacts, O>(
     legalNotes: [],
     warnings,
     trace: steps,
-    facts: copyFacts(pack.initialFacts),
+    facts: initialFacts(pack.initialFacts, currency),
   });
 
   // 8: the rules, in order.

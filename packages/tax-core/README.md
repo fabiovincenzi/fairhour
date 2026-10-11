@@ -44,6 +44,14 @@ A rule returns what it **adds**: tax groups and the assignment of lines to them,
 (contributions, taxes, withholdings, stamp duties, ...) with their allocation to groups, legal
 notes, warnings, trace steps and facts. It never computes totals: the engine does.
 
+The engine checks everything a rule returns. Among the checks: one main tax per line (a group gets
+at most one tax allocation, across all components), and a tax component's `rate`, when given, is
+the rate of every group it allocates to. Build records keyed by caller text (line ids,
+references, option keys) with `Object.fromEntries`, `Object.defineProperty` or a `Map`, never with
+`record[key] = value` on an object literal, where `"__proto__"` would hit the prototype setter.
+Line ids `"__proto__"`, `"constructor"` and `"prototype"` are rejected as input
+(`RESERVED_LINE_IDS`), but other caller text is not.
+
 ### A minimal pack
 
 One VAT rate on every line, except disbursements:
@@ -250,8 +258,11 @@ locale and in the pack's document locale (the text to print on the invoice).
 The result is deeply frozen. `computationToJson` gives its canonical JSON (amounts as decimal
 strings, stable key order) for storage and APIs, and `computationFromJson` reads it back.
 Invalid input, configuration or options throw `InvalidInputError`, `InvalidConfigError` and
-`InvalidOptionsError` with every issue; a pack bug throws `RuleExecutionError`,
-`RuleContractError` or `ReconciliationError`, never a partial result.
+`InvalidOptionsError` with every issue (inputs are bounded before parsing: at most 500 lines,
+`options` at most 8 levels deep with 10,000 entries); a pack bug throws `RuleExecutionError`,
+`RuleContractError` or `ReconciliationError`, never a partial result. A `RuleExecutionError`
+wraps the pack's exception as `cause`, whose message may quote user data: log `code`, `ruleId`
+and `cause.name`, not the message.
 
 Other entry points: `validateInvoiceInput` (typed input), `resolveParameters`, `listParameters`,
 `parametersToJson`, `toPackHandle` (a type-erased registry entry with the configuration JSON
@@ -290,11 +301,14 @@ non-negative amounts, one currency, rounding bounds, immutability, a complete lo
 JSON round trip and the rejection of malformed input. Sources marked `to-be-verified` are listed
 as test annotations.
 
-`runConformanceChecks(pack, options)` runs the same checks as plain functions, and
-`invoiceInputArbitrary`, `decimalArbitrary` and `priceArbitrary` are available for a pack's own
-property tests.
+`runConformanceChecks(pack, options)` runs the same checks as plain functions (there,
+`parameters.snapshot` has no committed snapshot to compare with: it only converts the timeline and
+says so in its `notes`), and `invoiceInputArbitrary`, `decimalArbitrary` and `priceArbitrary` are
+available for a pack's own property tests.
 
-A golden fixture pins the legally relevant output of one real-world invoice:
+A golden fixture pins the legally relevant output of one real-world invoice. Its `expected`
+must at least pin `total` and `netPayable` (the latter may be left out only when `components` is
+listed exhaustively with every `effect`, which determines it):
 
 ```json
 {
