@@ -66,9 +66,9 @@ toolchain make a good pair.
 3. Implement each rule with its legal source, add golden fixtures and pass the conformance suite.
 4. Document the pack in `docs/tax-packs/<country>.md`.
 
-The step-by-step guide, `docs/contributing/tax-packs.md`, is coming soon (v0.2). Until then, the
-[contributing guides](/fairhour/contributing/) and the [tax engine design](/fairhour/design/tax-engine/)
-are the best starting points. Open requests for countries are listed under the
+The step-by-step guide, [Adding a tax pack for your country](/fairhour/contributing/tax-packs/),
+walks through each step, from the research to the pull request. Open requests for countries are
+listed under the
 [`tax-pack-request` label](https://github.com/fabiovincenzi/fairhour/issues?q=is%3Aissue+is%3Aopen+label%3Atax-pack-request).
 
 ## License

@@ -5,22 +5,22 @@ translations, documentation, design, bug reports and reviews. Start with
 [CONTRIBUTING.md](../../CONTRIBUTING.md) for the development setup, the workflow, the commit
 conventions and the DCO sign-off, then pick the guide for what you want to do.
 
-| I want to...                        | Read                                                                                        |
-| ----------------------------------- | ------------------------------------------------------------------------------------------- |
-| Set up my machine and send a change | [Contributing to Fairhour](../../CONTRIBUTING.md)                                           |
-| Add or improve a translation        | [Translating Fairhour](translations.md)                                                     |
-| Add a tax pack for my country       | The tax pack guide is coming soon (TAX-009, release v0.2). Until then, see the notes below. |
-| Understand how the tax engine fits  | [Tax engine design](../design/tax-engine.md) and the [ADR index](../adr/README.md)          |
-| Understand how decisions are made   | [Governance](../../GOVERNANCE.md)                                                           |
-| Report a security problem           | [Security policy](../../SECURITY.md), never in a public issue                               |
-| Help run the project                | [Maintainer handbook](../maintainers/README.md)                                             |
+| I want to...                        | Read                                                                               |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| Set up my machine and send a change | [Contributing to Fairhour](../../CONTRIBUTING.md)                                  |
+| Add or improve a translation        | [Translating Fairhour](translations.md)                                            |
+| Add a tax pack for my country       | [Adding a tax pack for your country](tax-packs.md)                                 |
+| Understand how the tax engine fits  | [Tax engine design](../design/tax-engine.md) and the [ADR index](../adr/README.md) |
+| Understand how decisions are made   | [Governance](../../GOVERNANCE.md)                                                  |
+| Report a security problem           | [Security policy](../../SECURITY.md), never in a public issue                      |
+| Help run the project                | [Maintainer handbook](../maintainers/README.md)                                    |
 
 Everyone who takes part follows the [Code of Conduct](../../CODE_OF_CONDUCT.md).
 
 ## Adding a tax pack
 
-The step-by-step guide (`docs/contributing/tax-packs.md`) is written together with the tax pack
-template in phase 2. The short version, which will not change: open a
+Follow the step-by-step guide, [Adding a tax pack for your country](tax-packs.md). The short
+version: open a
 [tax pack request](https://github.com/fabiovincenzi/fairhour/issues/new?template=tax_pack_request.yml)
 to agree on the scope, copy `packages/tax-pack-template`, implement each rule with its legal
 source, add golden fixtures, make the shared conformance suite pass, and document the pack in

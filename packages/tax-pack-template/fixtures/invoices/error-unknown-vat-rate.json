@@ -1,0 +1,42 @@
+{
+  "name": "error-unknown-vat-rate",
+  "description": "A line with the explicit rate 20% dated 2026-03-16: 20% was the standard rate until 2025-12-31, and from 2026-01-01 the rates are 21% and 10%, so the pack refuses the invoice instead of computing a rate that no longer exists.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Exampleland Value Added Tax Act (fictional)",
+      "citation": "art. 5 (rates)",
+      "url": "https://example.com/exampleland/vat-act#art-5"
+    },
+    {
+      "title": "Exampleland Budget Act 2025 (fictional)",
+      "citation": "art. 3 (standard VAT rate from 1 January 2026)"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2026-03-16",
+    "currency": "EUR",
+    "client": {
+      "country": "FR",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "FR12345678901"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Consulting",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "100",
+        "treatment": { "kind": "rate", "rate": "20" }
+      }
+    ]
+  },
+  "expectedError": {
+    "code": "unsupported-input",
+    "issueCodes": ["xx.unknown-vat-rate"]
+  }
+}

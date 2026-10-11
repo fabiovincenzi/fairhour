@@ -1,0 +1,78 @@
+{
+  "name": "vat-standard-rate-2025",
+  "description": "VAT-registered, invoice dated 2025-06-16 (parameters xx-2024-01-01, standard rate 20%). Design 12.5 h × €80.00 = €1,000.00 at the standard rate; courier disbursement 1 × €16.00 = €16.00, outside the taxable amount. VAT 20% × €1,000.00 = €200.00. Total €1,016.00 + €200.00 = €1,216.00. The client is not a withholding agent: net payable €1,216.00.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Exampleland Value Added Tax Act (fictional)",
+      "citation": "art. 5 (rates)",
+      "url": "https://example.com/exampleland/vat-act#art-5"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2025-06-16",
+    "currency": "EUR",
+    "client": {
+      "country": "FR",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "FR12345678901"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "12.5",
+        "unit": "hour",
+        "unitPrice": "80"
+      },
+      {
+        "id": "l2",
+        "kind": "reimbursement",
+        "description": "Courier",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "16"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2024-01-01",
+    "lines": [
+      { "id": "l1", "net": "1000.00", "groupId": "vat-20" },
+      { "id": "l2", "net": "16.00", "groupId": "excluded" }
+    ],
+    "subtotal": "1016.00",
+    "components": [
+      {
+        "id": "xx.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "20",
+        "amount": "200.00",
+        "allocations": [{ "groupId": "vat-20", "base": "1000.00", "amount": "200.00" }]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-20",
+        "treatment": "taxable",
+        "rate": "20",
+        "base": "1000.00",
+        "tax": "200.00"
+      },
+      { "groupId": "excluded", "treatment": "excluded", "base": "16.00", "tax": "0.00" }
+    ],
+    "taxableBase": "1000.00",
+    "taxTotal": "200.00",
+    "total": "1216.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1216.00",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "xx.classify-lines", "xx.vat", "xx.withholding", "core"]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "name": "reduced-rate-withholding-rounding",
+  "description": "A translator invoicing at the reduced rate (defaultVatRate \"reduced\", 10%) a client that is a withholding agent, on 2026-03-16. Translation 3 h × €111.11 = €333.33; printed copies (goods) 2 × €12.50 = €25.00; subtotal €358.33. VAT 10% × €358.33 = €35.833, rounded half up once per rate to €35.83. Withholding 15% of the fees only (goods are not fees): 15% × €333.33 = €49.9995, rounded half up to €50.00. Total €358.33 + €35.83 = €394.16; net payable €394.16 − €50.00 = €344.16.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Exampleland Value Added Tax Act (fictional)",
+      "citation": "art. 5 (rates)",
+      "url": "https://example.com/exampleland/vat-act#art-5"
+    },
+    {
+      "title": "Exampleland Income Tax Act (fictional)",
+      "citation": "art. 25 (withholding on professional fees)",
+      "url": "https://example.com/exampleland/income-tax-act#art-25"
+    }
+  ],
+  "config": { "defaultVatRate": "reduced" },
+  "input": {
+    "issueDate": "2026-03-16",
+    "currency": "EUR",
+    "client": {
+      "country": "DE",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "DE123456789"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Translation",
+        "quantity": "3",
+        "unit": "hour",
+        "unitPrice": "111.11"
+      },
+      {
+        "id": "l2",
+        "kind": "goods",
+        "description": "Printed copies",
+        "quantity": "2",
+        "unit": "item",
+        "unitPrice": "12.50"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2026-01-01",
+    "lines": [
+      { "id": "l1", "net": "333.33", "groupId": "vat-10" },
+      { "id": "l2", "net": "25.00", "groupId": "vat-10" }
+    ],
+    "subtotal": "358.33",
+    "components": [
+      {
+        "id": "xx.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "358.33",
+        "rate": "10",
+        "amount": "35.83",
+        "allocations": [{ "groupId": "vat-10", "base": "358.33", "amount": "35.83" }]
+      },
+      {
+        "id": "xx.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "333.33",
+        "rate": "15",
+        "amount": "50.00"
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-10",
+        "treatment": "taxable",
+        "rate": "10",
+        "base": "358.33",
+        "tax": "35.83"
+      }
+    ],
+    "taxableBase": "358.33",
+    "taxTotal": "35.83",
+    "total": "394.16",
+    "withholdingTotal": "50.00",
+    "netPayable": "344.16",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "xx.classify-lines", "xx.vat", "xx.withholding", "core"]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "small-business-exemption",
+  "description": "Small-business exemption (vatRegistered false) on 2026-03-16: no VAT, the statutory note, and the withholding still applies because the client is a withholding agent (income tax does not depend on VAT). Web design 20 h × €50.00 = €1,000.00 in the small-business group. Withholding 15% × €1,000.00 = €150.00. Total €1,000.00; net payable €1,000.00 − €150.00 = €850.00.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Exampleland Value Added Tax Act (fictional)",
+      "citation": "art. 30 (small-business exemption)",
+      "url": "https://example.com/exampleland/vat-act#art-30"
+    },
+    {
+      "title": "Exampleland Income Tax Act (fictional)",
+      "citation": "art. 25 (withholding on professional fees)",
+      "url": "https://example.com/exampleland/income-tax-act#art-25"
+    }
+  ],
+  "config": { "vatRegistered": false },
+  "input": {
+    "issueDate": "2026-03-16",
+    "currency": "EUR",
+    "client": {
+      "country": "IT",
+      "kind": "business",
+      "isWithholdingAgent": true,
+      "vatId": "IT01234567890"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Web design",
+        "quantity": "20",
+        "unit": "hour",
+        "unitPrice": "50"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2026-01-01",
+    "lines": [{ "id": "l1", "net": "1000.00", "groupId": "small-business" }],
+    "subtotal": "1000.00",
+    "components": [
+      {
+        "id": "xx.withholding",
+        "kind": "withholding",
+        "effect": "deducted-from-payable",
+        "base": "1000.00",
+        "rate": "15",
+        "amount": "150.00"
+      }
+    ],
+    "vatSummary": [
+      { "groupId": "small-business", "treatment": "out-of-scope", "base": "1000.00", "tax": "0.00" }
+    ],
+    "taxableBase": "1000.00",
+    "taxTotal": "0.00",
+    "total": "1000.00",
+    "withholdingTotal": "150.00",
+    "netPayable": "850.00",
+    "legalNotes": ["xx.note.small-business"],
+    "warnings": [],
+    "traceRuleIds": ["core", "xx.classify-lines", "xx.small-business", "xx.withholding", "core"]
+  }
+}

@@ -1,0 +1,77 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`conformance: xx > parameters.snapshot 1`] = `
+[
+  {
+    "changes": [
+      "Initial version: VAT 20% (standard) and 10% (reduced); withholding 15%, or 7% for new businesses.",
+    ],
+    "effectiveFrom": "2024-01-01",
+    "effectiveUntil": "2025-12-31",
+    "id": "xx-2024-01-01",
+    "params": {
+      "vat": {
+        "reducedRate": "10",
+        "standardRate": "20",
+      },
+      "withholding": {
+        "newBusinessRate": "7",
+        "standardRate": "15",
+      },
+    },
+    "sources": [
+      {
+        "citation": "art. 5 (rates)",
+        "id": "xx.vat-act.art-5",
+        "kind": "statute",
+        "title": "Exampleland Value Added Tax Act (fictional)",
+        "url": "https://example.com/exampleland/vat-act#art-5",
+        "verification": {
+          "reason": "Fictional provision of the Exampleland template pack: replace it with a real one and verify it",
+          "status": "to-be-verified",
+        },
+      },
+      {
+        "citation": "art. 25 (withholding on professional fees)",
+        "id": "xx.income-tax-act.art-25",
+        "kind": "statute",
+        "title": "Exampleland Income Tax Act (fictional)",
+        "url": "https://example.com/exampleland/income-tax-act#art-25",
+        "verification": {
+          "reason": "Fictional provision of the Exampleland template pack: replace it with a real one and verify it",
+          "status": "to-be-verified",
+        },
+      },
+    ],
+  },
+  {
+    "changes": [
+      "Standard VAT rate 21% (was 20%).",
+    ],
+    "effectiveFrom": "2026-01-01",
+    "id": "xx-2026-01-01",
+    "params": {
+      "vat": {
+        "reducedRate": "10",
+        "standardRate": "21",
+      },
+      "withholding": {
+        "newBusinessRate": "7",
+        "standardRate": "15",
+      },
+    },
+    "sources": [
+      {
+        "citation": "art. 3 (standard VAT rate from 1 January 2026)",
+        "id": "xx.budget-act-2025.art-3",
+        "kind": "statute",
+        "title": "Exampleland Budget Act 2025 (fictional)",
+        "verification": {
+          "reason": "Fictional provision of the Exampleland template pack: replace it with a real one and verify it",
+          "status": "to-be-verified",
+        },
+      },
+    ],
+  },
+]
+`;

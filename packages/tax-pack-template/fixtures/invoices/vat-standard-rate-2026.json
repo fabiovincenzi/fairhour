@@ -1,0 +1,82 @@
+{
+  "name": "vat-standard-rate-2026",
+  "description": "The invoice of vat-standard-rate-2025 dated 2026-01-01, the first day of parameters xx-2026-01-01 (standard rate 21%). Design 12.5 h × €80.00 = €1,000.00; courier disbursement €16.00 outside the taxable amount. VAT 21% × €1,000.00 = €210.00. Total €1,016.00 + €210.00 = €1,226.00; net payable €1,226.00.",
+  "pack": "xx",
+  "sources": [
+    {
+      "title": "Exampleland Value Added Tax Act (fictional)",
+      "citation": "art. 5 (rates)",
+      "url": "https://example.com/exampleland/vat-act#art-5"
+    },
+    {
+      "title": "Exampleland Budget Act 2025 (fictional)",
+      "citation": "art. 3 (standard VAT rate from 1 January 2026)"
+    }
+  ],
+  "config": {},
+  "input": {
+    "issueDate": "2026-01-01",
+    "currency": "EUR",
+    "client": {
+      "country": "FR",
+      "kind": "business",
+      "isWithholdingAgent": false,
+      "vatId": "FR12345678901"
+    },
+    "lines": [
+      {
+        "id": "l1",
+        "kind": "service",
+        "description": "Design",
+        "quantity": "12.5",
+        "unit": "hour",
+        "unitPrice": "80"
+      },
+      {
+        "id": "l2",
+        "kind": "reimbursement",
+        "description": "Courier",
+        "quantity": "1",
+        "unit": "item",
+        "unitPrice": "16"
+      }
+    ]
+  },
+  "expected": {
+    "parameters": "xx-2026-01-01",
+    "lines": [
+      { "id": "l1", "net": "1000.00", "groupId": "vat-21" },
+      { "id": "l2", "net": "16.00", "groupId": "excluded" }
+    ],
+    "subtotal": "1016.00",
+    "components": [
+      {
+        "id": "xx.vat",
+        "kind": "tax",
+        "effect": "adds-to-total",
+        "base": "1000.00",
+        "rate": "21",
+        "amount": "210.00",
+        "allocations": [{ "groupId": "vat-21", "base": "1000.00", "amount": "210.00" }]
+      }
+    ],
+    "vatSummary": [
+      {
+        "groupId": "vat-21",
+        "treatment": "taxable",
+        "rate": "21",
+        "base": "1000.00",
+        "tax": "210.00"
+      },
+      { "groupId": "excluded", "treatment": "excluded", "base": "16.00", "tax": "0.00" }
+    ],
+    "taxableBase": "1000.00",
+    "taxTotal": "210.00",
+    "total": "1226.00",
+    "withholdingTotal": "0.00",
+    "netPayable": "1226.00",
+    "legalNotes": [],
+    "warnings": [],
+    "traceRuleIds": ["core", "xx.classify-lines", "xx.vat", "xx.withholding", "core"]
+  }
+}
