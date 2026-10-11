@@ -12,6 +12,7 @@ import {
   InvalidTimeZoneError,
   MissingClockError,
 } from "./errors";
+import { DraftError } from "./invoice/errors";
 import {
   DuplicateExchangeRateError,
   MissingRateError,
@@ -32,6 +33,7 @@ const errors: CoreError[] = [
   new DuplicateExchangeRateError("USD"),
   new InvalidBillingModeError("non-positive-half-day"),
   new InvalidBudgetError("non-positive-budget"),
+  new DraftError("running-entry", "e1"),
 ];
 
 describe("CoreError", () => {

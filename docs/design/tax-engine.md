@@ -669,6 +669,20 @@ or where the fallback formatter differed from the exact path.
   The shared oracle `isCorrectRounding` now checks the tie direction too (it accepted either
   neighbour before).
 
+After-review fix (2026-10-11). No public signature changed and no export was added.
+
+- **zod encoders report an issue instead of throwing.** The previous fix made the codecs throw
+  `InvalidAmountError` from inside zod, so `z.safeEncode` threw too, against its contract. The
+  encoders of `decimalSchema`, `moneyJsonSchema`, `moneyStringSchema` and `priceJsonSchema` now
+  push a zod issue for a value of more than `MAX_DECIMAL_DIGITS` digits (code `"custom"`,
+  `params: { reason: "out-of-range" }`, path `["amount"]` for the object codecs and `[]` for the
+  others, the message of `moneyToJson` with the digit count and never the value, `input` only with
+  `reportInput`) and return `z.NEVER`: `z.encode` throws a `ZodError`, `z.safeEncode` returns
+  `{ success: false }`, and a codec nested in an object gets the prefixed path
+  (`["total", "amount"]`). `moneyToJson` and `priceToJson` keep throwing `InvalidAmountError`
+  (`out-of-range`). The check is shared through the internal, non-throwing `tryEncodeDigits`
+  (`encodeDigits` throws from its result), so both paths accept exactly the same values.
+
 ---
 
 ## 4. `@fairhour/tax-core`
@@ -2466,6 +2480,58 @@ Recorded with the CORE-005 review follow-up (2026-10-09). The types above are th
 - **Exchange rates are unambiguous.** Two entries for the same `from` currency throw
   `DuplicateExchangeRateError` (in `resolveRate`, and the bridge must validate
   `InvoiceDraftOptions.exchangeRates` the same way).
+
+Recorded with the CORE-009 implementation (2026-10-11), `packages/core/src/invoice/`. The algorithm
+above is implemented as written; these are the points it left open, and the few places where the
+code differs from the signatures:
+
+- **Types.** `DurationRounding` and `BillingMode` are the ones of `src/time` and `src/rates`, not
+  redeclared. `BillableEntry.end` is `string | null` (`null` is a running entry), `rate` is optional
+  (a fixed price needs none; a missing rate for an hourly or day-rate entry throws
+  `MissingRateError`) and `taskName?` describes a task line. `hoursRounding`, `exchangeRates` and
+  `extraLines` are optional (`halfUp`, none, none). `DraftError` is a `CoreError` with code
+  `invalid-invoice-draft` and a `reason`: `running-entry`, `missing-exchange-rate`,
+  `unknown-project`, `duplicate-id`, `invalid-id`, `invalid-period`, `too-many-lines`. Its message
+  never holds user text; `subject` carries the id or the currency.
+- **Selection.** Entries outside the period are ignored, whatever their state (so the "entry
+  outside the period" in the `@throws` list above is not an error); a running entry that starts
+  inside it is `running-entry`. A period that is not a real date is `InvalidDateError`, one that
+  ends before it starts `invalid-period`; an unknown time zone throws even without entries.
+- **Ids.** Entry, project and task ids must match `[A-Za-z0-9._-]{1,48}` (no `:`, so that
+  `p:<id>:2` cannot be read two ways and the id fits the 64 characters of a line id); extra lines
+  are `x:<id>` and so never collide with `p:`, `t:`, `e:` or `all`. A task line without a task is
+  `p:<projectId>`. Lines that share a base id are numbered `:1`, `:2`, ... in line order; a lone
+  line is not. Line order compares names in code-unit order (not `localeCompare`, which depends on
+  the runtime); the task only orders `task` lines. Extra lines come after the time lines, in the
+  order given. `provenance` has one item per line, in line order, with no entries for extra lines.
+- **What cannot be split.** A fixed price is always one lump-sum line per project (a line per entry
+  would bill it once per entry), whatever the grouping; it bills the amount once per draft that
+  holds at least one of its entries, and the caller chooses the entries (and the invoice) that
+  carry it. A day rate bills per local day, so `task` falls back to `project`, and `entry` to one
+  line per local day (id `e:<first entry of the day>`, text `<project> - <date>`); two rates on one
+  local day are two lines, each counting that day. Because every line is also split by project,
+  `single` groups the same entries as `project` and differs by id (`all`) only.
+- **Rounding.** A fixed price is not rounded (no hours are billed). With `roundingScope: "line"` the
+  line total is rounded and recorded as `line-duration-rounded { lineId, fromSeconds, toSeconds }`
+  (an addition to `DraftAdjustment`); for a day rate each local day's total is rounded and the line
+  records the sum. `duration-rounded` and `line-duration-rounded` are only recorded when the
+  duration changes. The adjustments are listed entry roundings first (chronological), then per
+  line, in line order: duration, quantity, price.
+- **`quantity-rounded.exact`** is the exact hours as a reduced fraction of hours (`"1/3"`, `"1/8"`),
+  because 1/3 h has no decimal form; it is recorded iff `quantity` differs from `seconds / 3600`.
+- **Descriptions** are the project name (`project`, `single`), `<project> - <task name>` (`task`),
+  the entry text (`entry`) or `<project> - <date>` (day); blank texts fall back to the project name,
+  then the project id; longer than 1000 characters they are cut without splitting a surrogate pair.
+- **Currency.** The rate of an entry, a fixed amount and the prices of extra lines are converted
+  once per line; the unit price is `convertPrice` rescaled to 8 decimals `halfUp` only when it has
+  more. `input.exchangeRates` holds only the records that were used, in the order given; a record
+  for the invoice currency is ignored.
+- **Validation.** The draft goes through `validateInvoiceInput`; an `InvalidInputError` is a bug in
+  the bridge, or a problem of what the caller supplied unchecked (`client`, extra lines,
+  `packOptions`), and carries the path of every issue. More than 500 lines is `too-many-lines`
+  instead, since that is the data, not the bridge.
+- **Tests.** `@fairhour/core` depends on no tax pack: the end-to-end tests run `computeInvoice` on
+  a fictional pack built with the tax-core API (`packages/core/test/vat-pack.ts`).
 
 ---
 

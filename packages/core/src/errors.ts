@@ -11,7 +11,8 @@ export type CoreErrorCode =
   | "duplicate-exchange-rate"
   | "invalid-date"
   | "invalid-billing-mode"
-  | "invalid-budget";
+  | "invalid-budget"
+  | "invalid-invoice-draft";
 
 /**
  * Base class of every error thrown by `@fairhour/core`. Narrow on `code` (a stable string) rather
