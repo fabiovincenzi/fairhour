@@ -29,7 +29,7 @@ import { validateInput } from "./validate-input";
 export const XX_PACK_META: PackMeta = deepFreeze({
   id: "xx",
   name: "Exampleland (template)",
-  version: "0.0.0",
+  version: "0.1.0",
   countries: "any",
   description:
     "Template pack for the fictional country of Exampleland: VAT at the standard or reduced rate, the small-business exemption and the income tax withholding. Copy it to start a pack for your country.",
