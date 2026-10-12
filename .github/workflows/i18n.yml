@@ -11,11 +11,17 @@ on:
       - "apps/*/messages/**"
       - "scripts/i18n/**"
       - ".github/workflows/i18n.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - ".github/actions/setup/**"
   pull_request:
     paths:
       - "apps/*/messages/**"
       - "scripts/i18n/**"
       - ".github/workflows/i18n.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - ".github/actions/setup/**"
   workflow_dispatch:
 
 permissions:

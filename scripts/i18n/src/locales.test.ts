@@ -188,6 +188,19 @@ describe("parseMessage: syntax errors", () => {
     expect(errorOf("first line\nsecond <b>line")).toBe("UNCLOSED_TAG (line 2, column 8)");
     expect(errorOf("Hi {name")).toBe("EXPECT_ARGUMENT_CLOSING_BRACE (line 1, column 4)");
   });
+
+  it.each([
+    [
+      "{d, date, ::YYYY}",
+      "RangeError: `Y/u/U/r` (year) patterns are not supported, use `y` instead",
+    ],
+    [
+      "{n, number, ::.00/w/x}",
+      "RangeError: Fraction-precision stems only accept a single optional option",
+    ],
+  ])("reports errors that carry no location: %s", (message, expected) => {
+    expect(errorOf(message)).toBe(expected);
+  });
 });
 
 describe("compareLocale", () => {

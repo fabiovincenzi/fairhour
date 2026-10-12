@@ -207,6 +207,7 @@ items:
     priority: P1
     size: S
     status: ready
+    state: done
     body: |
       `scripts/i18n/src/locales.ts` assumes every FormatJS parse error has a `location`, but number
       and date skeletons throw a plain RangeError (`{d, date, ::YYYY}`, `{n, number, ::.00/w/x}`),
