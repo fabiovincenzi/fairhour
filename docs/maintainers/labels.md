@@ -11,6 +11,7 @@ Labels are defined in [`.github/labels.yml`](../../.github/labels.yml) and synce
 | Status       | `status: triage`, `ready`, `blocked`, `in-progress`                                                                           | Exactly one while open   |
 | Size         | `size: S` (hours), `M` (1–3 days), `L` (a week), `XL` (split it)                                                              | Exactly one once triaged |
 | Community    | `good first issue`, `help wanted`, `tax-pack-request`, `translation`                                                          | Optional                 |
+| AI agents    | `agent: claude` (an AI agent works on it), `agent: human` (agents skip it)                                                    | Optional                 |
 | Housekeeping | `pinned`, `stale`, `dependencies`, `first-time contributor`, `needs-dco`, `duplicate`, `wontfix`, `question`                  | As needed                |
 
 ## Conventions
@@ -19,4 +20,6 @@ Labels are defined in [`.github/labels.yml`](../../.github/labels.yml) and synce
 - `type: security` is for hardening work. Vulnerabilities are reported privately, never as issues.
 - `type: epic` issues track sub-issues through a task list; they close when every sub-issue is done.
 - `status: in-progress` means someone is actively working on it; assign yourself too.
+- `status: ready` and `status: blocked` are derived from the backlog's `depends_on` by the sync;
+  do not set them by hand. See [AI agents](ai-agents.md) and [AGENTS.md](../../AGENTS.md).
 - `pinned` exempts an issue from the stale policy and the thread lock.

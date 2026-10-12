@@ -77,7 +77,8 @@ pnpm --filter @fairhour/<pkg> <script>   # run a script in one package
 2. `pnpm lint && pnpm typecheck && pnpm test` pass (plus `test:integration`/`test:e2e` when touched).
 3. Docs updated (`apps/docs`, `docs/`, ADR when a decision was made), i18n keys in `en` and `it`.
 4. `reviewer` subagent approved the diff.
-5. Backlog item marked `status: done` in `.github/backlog/*.yml`, `PROGRESS.md` updated.
+5. Backlog item marked `state: done` in `.github/backlog/*.yml` (dependents become ready on their
+   own). `PROGRESS.md` is updated when a phase closes. Parallel work follows `AGENTS.md`.
 
 ## Delegation policy (follow it without being asked)
 

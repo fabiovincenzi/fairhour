@@ -1,7 +1,8 @@
 # Progress
 
 This file is the hand-off between Claude Code sessions (and humans). Keep it current at the end
-of every phase. Resume with `/resume`.
+of every phase. Resume with `/resume`; to work in parallel with other agents, see
+[AGENTS.md](AGENTS.md) and [docs/maintainers/ai-agents.md](docs/maintainers/ai-agents.md).
 
 ## Environment notes (session of 2026-10-09)
 
@@ -22,23 +23,26 @@ of every phase. Resume with `/resume`.
   pushed before a turn ends, so verified work is committed first and the `reviewer` reviews the
   commit range afterwards; its findings land as follow-up commits, and a phase is only closed
   once the reviewer approves.
+- **Usage limits**: on 2026-10-12 the weekly limit for subagents was reached (reset 2026-10-14
+  01:00 UTC). To keep going meanwhile, the remaining work was split into small backlog items that
+  any agent can take in parallel (see "Next").
 
 ## Phase status
 
-| Phase                      | Status  |
-| -------------------------- | ------- |
-| 0. Project bootstrap       | ✅ done |
-| 1. Foundation              | ✅ done |
-| 2. Core + tax engine       | ⏳ next |
-| 3. Data & auth             | ⬜      |
-| 4. Web MVP                 | ⬜      |
-| 5. Reports                 | ⬜      |
-| 6. Hardening               | ⬜      |
-| 7. Public API & webhooks   | ⬜      |
-| 8. Self-hosting & releases | ⬜      |
-| 9. Desktop companion       | ⬜      |
-| 10. FatturaPA XML          | ⬜      |
-| 11. Launch polish          | ⬜      |
+| Phase                      | Status                               |
+| -------------------------- | ------------------------------------ |
+| 0. Project bootstrap       | ✅ done                              |
+| 1. Foundation              | ✅ done                              |
+| 2. Core + tax engine       | ✅ done (review follow-ups: REV-001) |
+| 3. Data & auth             | ⏳ next                              |
+| 4. Web MVP                 | ⬜                                   |
+| 5. Reports                 | ⬜                                   |
+| 6. Hardening               | ⬜                                   |
+| 7. Public API & webhooks   | ⬜                                   |
+| 8. Self-hosting & releases | ⬜                                   |
+| 9. Desktop companion       | ⬜                                   |
+| 10. FatturaPA XML          | ⬜                                   |
+| 11. Launch polish          | ⬜                                   |
 
 ## Done
 
@@ -77,21 +81,48 @@ of every phase. Resume with `/resume`.
   and, ahead of phase 2, ADR-0003 (money), ADR-0004 (tax engine) with
   `docs/design/tax-engine.md`, `docs/tax-packs/it.md` and `docs/tax-packs/generic.md`.
 
+### Phase 2: core + tax engine (CORE-001 … CORE-009, TAX-001 … TAX-011)
+
+- `@fairhour/money` (MIT): `bigint` minor units, exact `Decimal` and `Price`, ISO 4217
+  currencies, explicit rounding modes, allocation, locale formatting (ADR-0003).
+- `@fairhour/core`: DST-safe time math, rounding of durations, overlaps, rate resolution,
+  budgets, effective rate, the natural-language quick-add parser (en, it), and invoice drafts
+  built from time entries (CORE-009).
+- `@fairhour/tax-core` (MIT): the `TaxPack` contract, the rule pipeline with versioned
+  parameters, explanation trace, reconciliation identities, JSON snapshots and the shared
+  conformance suite (ADR-0004).
+- Packs (MIT): `tax-pack-it` (forfettario and ordinario: INPS/cassa contributions, VAT,
+  withholding, stamp duty, split payment, golden fixtures), `tax-pack-generic` (configurable
+  VAT/no-VAT for any country, EU reverse charge) and `tax-pack-template` with the contributor
+  guide `docs/contributing/tax-packs.md`.
+- Lint guards for purity and money safety in the MIT packages; the i18n check validates ICU
+  syntax with FormatJS.
+- Reviews: tax-pack-it and the money/generic follow-ups approved; the remaining findings (one
+  major in `computationFromJson`, one in the i18n check) and the reviews still to do (template,
+  CORE-009) are tracked as REV-002 … REV-013.
+
+### Parallel work setup
+
+- The backlog for phases 3–5 is split contract-first into small items, each with the files it
+  owns; `ready`/`blocked` are derived from dependencies (`pnpm backlog:status`).
+- `AGENTS.md` is the playbook for any agent (pick, claim, lanes, verify, deliver);
+  `.github/copilot-instructions.md`, `/next-issue` and `/implement-issue` follow it.
+- `claude.yml` (@claude, label `agent: claude`) and the opt-in `autopilot.yml`.
+
 ## Next
 
-Phase 2 (Core + tax engine), following the waves in `docs/design/tax-engine.md` §9:
+Merge this branch to `main` so `sync-backlog` creates the issues, then run agents in parallel
+as described in `docs/maintainers/ai-agents.md`. `pnpm backlog:status` lists what can start
+now; the first wave is:
 
-- Wave A: `@fairhour/money` (CORE-002) and `tax-core` types/schemas (TAX-002) — `architect`;
-  `@fairhour/core` time math, overlaps, quick-add (CORE-003, CORE-004, CORE-008) — `implementer`.
-- Wave B: `tax-core` engine, formatting, JSON, conformance suite (TAX-002, TAX-003, TAX-011);
-  rates, budgets, effective rate (CORE-005..007).
-- Wave C: `tax-pack-it` (TAX-004..007), `tax-pack-generic` (TAX-008), `tax-pack-template` and
-  `docs/contributing/tax-packs.md` (TAX-009), the core → engine bridge (CORE-009), tax docs
-  review (TAX-010).
+- Phase 3 foundations: DATA-011 data model design and ADR-0006 (`architect`), DATA-012
+  `packages/db` scaffold, DATA-017 `packages/api` scaffold.
+- Phase 4 foundation: UI-001 `packages/ui`.
+- Independent libraries: REP-004 PDF timesheet, REP-005 CSV, FPA-002 FatturaPA (`architect`).
+- Phase 2 follow-ups REV-002 … REV-012 (REV-002 first: it is the one major finding).
 
 ## Known issues
 
-- `docs/contributing/tax-packs.md` is linked from CONTRIBUTING.md and is written in phase 2 (TAX-009).
 - The Italian tax research could not fetch statutes directly (network policy): points are graded
   [O]fficial / [S]econdary / [TBV] in `docs/tax-packs/it.md` §14. A maintainer should read the
   statutes on Normattiva and upgrade the grades before a release.
