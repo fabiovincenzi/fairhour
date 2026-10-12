@@ -80,12 +80,19 @@ export function mapLinesOutsideFences(
 
 /** Reduces the inline Markdown of a heading to plain text (links, code, emphasis, HTML). */
 export function plainText(markdown: string): string {
-  return markdown
+  let text = markdown
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]*)\]\[[^\]]*\]/g, "$1")
-    .replace(/`+([^`]*)`+/g, "$1")
-    .replace(/<[^>]+>/g, "")
+    .replace(/`+([^`]*)`+/g, "$1");
+
+  let stripped: string;
+  do {
+    stripped = text;
+    text = text.replace(/<[^>]+>/g, "");
+  } while (text !== stripped);
+
+  return text
     .replace(/\*\*(\S(?:.*?\S)?)\*\*/g, "$1")
     .replace(/\*(\S(?:.*?\S)?)\*/g, "$1")
     .replace(/(?<![A-Za-z0-9])__(\S(?:.*?\S)?)__(?![A-Za-z0-9])/g, "$1")

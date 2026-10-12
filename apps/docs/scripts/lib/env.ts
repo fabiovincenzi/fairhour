@@ -111,11 +111,14 @@ export function availableFrom(usedFrom: readonly string[]): string {
 
 /** Escapes table cell text and keeps localhost URLs from becoming (invalid) links. */
 function cell(text: string): string {
-  return text.replace(/\|/g, "\\|").replace(/(?<!`)(https?:\/\/localhost[\w:/.-]*[\w/])/g, "`$1`");
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/(?<!`)(https?:\/\/localhost[\w:/.-]*[\w/])/g, "`$1`");
 }
 
 function code(text: string): string {
-  return text === "" ? "_empty_" : `\`${text.replace(/\|/g, "\\|")}\``;
+  return text === "" ? "_empty_" : `\`${text.replace(/\\/g, "\\\\").replace(/\|/g, "\\|")}\``;
 }
 
 function row(entry: EnvEntry): string {

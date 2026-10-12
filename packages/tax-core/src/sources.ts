@@ -52,7 +52,7 @@ export interface SourceRef {
 }
 
 /** An absolute https URL with a dotted host. */
-export const HTTPS_URL_PATTERN = /^https:\/\/[^\s/?#]+\.[^\s/?#]+(?:[/?#]\S*)?$/;
+export const HTTPS_URL_PATTERN = /^https:\/\/[^\s/?#.]+(?:\.[^\s/?#.]+)+(?:[/?#]\S*)?$/;
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

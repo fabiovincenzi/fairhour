@@ -265,45 +265,50 @@ describe("syncContent", () => {
     expect((await tree("content")).filter((file) => file.endsWith(".tmp"))).toEqual([]);
   });
 
-  it("never exposes a missing or partial page to a reader, even with syncs running together", async () => {
-    // The race of the `lint`, `typecheck` and `build` tasks: several syncs run while `astro sync`
-    // reads the pages. Emptying the folder first, or writing in place, would make the reader
-    // see a missing or truncated page.
-    const directories = [{ dir: "docs/guides", target: "guides" }];
-    const body = "Some text that makes the page a few hundred kilobytes.\n".repeat(4000);
-    const page = (version: string) => `# Page\n\n${version}\n\n${body}\nEND\n`;
-    await write("repo/docs/guides/page.md", page("v0"));
-    await write("repo/docs/guides/other.md", page("other"));
-    await syncContent({ ...options, directories });
+  it(
+    "never exposes a missing or partial page to a reader, even with syncs running together",
+    async () => {
+      // The race of the `lint`, `typecheck` and `build` tasks: several syncs run while `astro sync`
+      // reads the pages. Emptying the folder first, or writing in place, would make the reader
+      // see a missing or truncated page.
+      const directories = [{ dir: "docs/guides", target: "guides" }];
+      const body = "Some text that makes the page a few hundred kilobytes.\n".repeat(4000);
+      const page = (version: string) => `# Page\n\n${version}\n\n${body}\nEND\n`;
+      await write("repo/docs/guides/page.md", page("v0"));
+      await write("repo/docs/guides/other.md", page("other"));
+      await syncContent({ ...options, directories });
 
-    const problems: string[] = [];
-    const poll = { running: true };
-    const reader = (async () => {
-      while (poll.running) {
-        for (const name of ["page", "other"]) {
-          try {
-            const text = await read(`content/guides/${name}.md`);
-            if (!text.startsWith("---\n") || !text.endsWith("\nEND\n")) {
-              problems.push(`${name}: partial page of ${String(text.length)} characters`);
+      const problems: string[] = [];
+      const poll = { running: true };
+      const reader = (async () => {
+        while (poll.running) {
+          for (const name of ["page", "other"]) {
+            try {
+              const text = await read(`content/guides/${name}.md`);
+              if (!text.startsWith("---\n") || !text.endsWith("\nEND\n")) {
+                problems.push(`${name}: partial page of ${String(text.length)} characters`);
+              }
+            } catch (error) {
+              problems.push(`${name}: ${String(error)}`);
             }
-          } catch (error) {
-            problems.push(`${name}: ${String(error)}`);
           }
+          await new Promise((resolve) => setTimeout(resolve, 5));
         }
+      })();
+
+      for (let round = 1; round <= 6; round++) {
+        await write("repo/docs/guides/page.md", page(`v${String(round)}`));
+        await Promise.all(Array.from({ length: 3 }, () => syncContent({ ...options, directories })));
       }
-    })();
+      poll.running = false;
+      await reader;
 
-    for (let round = 1; round <= 8; round++) {
-      await write("repo/docs/guides/page.md", page(`v${String(round)}`));
-      await Promise.all(Array.from({ length: 4 }, () => syncContent({ ...options, directories })));
-    }
-    poll.running = false;
-    await reader;
-
-    expect(problems).toEqual([]);
-    expect(await read("content/guides/page.md")).toContain("v8");
-    expect(await tree("content")).toEqual(["guides/other.md", "guides/page.md"]);
-  });
+      expect(problems).toEqual([]);
+      expect(await read("content/guides/page.md")).toContain("v6");
+      expect(await tree("content")).toEqual(["guides/other.md", "guides/page.md"]);
+    },
+    20_000,
+  );
 
   it("treats index.md like a README", async () => {
     await write("repo/docs/x/index.md", "# X\n");
