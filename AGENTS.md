@@ -60,6 +60,7 @@ can claim it. To release a claim, undo the labels and comment why.
   | `.github/backlog/*.yml`                        | Only your item's `state: done` line, plus new follow-up items you file.      |
   | `packages/api/src/routers/index.ts`            | Add one line for your router; do not reorder.                                |
   | `apps/web/messages/{en,it}.json`               | Add keys under your feature's namespace only; both locales.                  |
+  | `docs/tax-packs/*.md`                          | Add or edit only the sections your item covers; never reorder sections.      |
   | `docs/adr/README.md`                           | One line per ADR. Take the next free number; renumber if someone merged it.  |
   | `packages/db/migrations/**`                    | Generated only (`pnpm db:generate`). On conflict: merge, delete, regenerate. |
   | `turbo.json`, `knip.json`, root `package.json` | Only scaffold items change them.                                             |

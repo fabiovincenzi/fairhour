@@ -49,7 +49,7 @@ Locally, use one git worktree per session (`git worktree add ../fairhour-<id> -b
 4. **Autopilot** (optional; it never takes epics, good first issues or `agent: human` issues),
    as repository variables:
    - `AUTOPILOT_ENABLED=true` turns it on (delete the variable to turn it off);
-   - `AUTOPILOT_MAX_IN_FLIGHT` (default `2`): how many agent issues and PRs may be open at once.
+   - `AUTOPILOT_MAX_IN_FLIGHT` (default `2`): how many agent tasks may be open at once (a claimed issue and its PR count once).
      Raise it only as fast as you can review.
 5. **Branch protection** on `main` (see [repo-settings.md](repo-settings.md)): required checks,
    one approving review, no direct pushes. Agents then cannot land anything without you.

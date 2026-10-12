@@ -91,6 +91,21 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         if: steps.auth.outputs.ok == 'true'
+      # Env scrubbing needs bubblewrap; the action only installs it for non-write users, so do it
+      # here (same commands as the action's own step).
+      - name: Install subprocess isolation dependencies
+        if: steps.auth.outputs.ok == 'true'
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends bubblewrap socat && break
+            echo "apt-get attempt $i failed, retrying..."
+            sleep 5
+          done
+          command -v bwrap
+          # Ubuntu 24.04+ restricts unprivileged user namespaces through AppArmor.
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
         if: steps.auth.outputs.ok == 'true'
         with:
@@ -103,5 +118,5 @@ jobs:
           additional_permissions: |
             actions: read
           claude_args: |
-            --append-system-prompt "Follow AGENTS.md and CLAUDE.md exactly. Work on one issue per branch, stay inside the files the issue lists, run the checks, sign off every commit (git commit -s) with a Conventional Commit message, and open a pull request with the label 'agent: claude' whose body says 'Closes #<issue>'. Add the labels 'status: in-progress' and 'agent: claude' to the issue when you start. Never merge, never push to main, never weaken a test."
-            --allowedTools "Edit,Write,Read,Glob,Grep,Task,Agent,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*)"
+            --append-system-prompt "Follow AGENTS.md and CLAUDE.md exactly. Work on one issue per branch, stay inside the files the issue lists, run the checks, sign off every commit (git commit -s) with a Conventional Commit message, and open a pull request with the label 'agent: claude' whose body says 'Closes #<issue>'. Never merge, never push to main, never weaken a test."
+            --allowedTools "Edit,Write,Read,Glob,Grep,Task,Agent,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*)"
