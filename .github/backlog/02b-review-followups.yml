@@ -132,7 +132,8 @@ items:
     areas: [tax-pack-it]
     priority: P2
     size: S
-    status: ready
+    status: blocked
+    depends_on: [REV-005]
     body: |
       The VAT and withholding properties reuse amounts from the computation and money's
       `percentage`. Add a property that recomputes every component and summary row from the input
@@ -262,8 +263,9 @@ items:
     areas: [tax-pack-it, tax-packs]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     labels: ["help wanted", "agent: human"]
+    depends_on: [REV-005, REV-007]
     body: |
       The automated research could not open Normattiva or EUR-Lex, so several sources of the Italian
       and generic packs are graded secondary or "to be verified" (see `docs/tax-packs/it.md` §14 and

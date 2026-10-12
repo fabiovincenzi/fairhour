@@ -107,7 +107,8 @@ secrets, disable a check, touch another claimed issue's files, or work on an iss
   `/implement-issue <n>` does it for a given one. The subagents in `.claude/agents/` follow the
   delegation policy in CLAUDE.md.
 - **Claude on GitHub**: mention `@claude` in an issue or PR, or label an issue `agent: claude`
-  (`.github/workflows/claude.yml`).
+  (`.github/workflows/claude.yml`). The action names its branch `claude/issue-<n>-<time>`
+  instead of the convention of §4; that is fine.
 - **Autopilot** (opt-in): `.github/workflows/autopilot.yml` claims the next ready issue on a
   schedule and opens a PR for it.
 - **Copilot coding agent, Codex and others**: read this file; Copilot also reads

@@ -123,7 +123,10 @@ export function planIssuePatch(
   }
 
   const closes = item.done && issue.state === "open";
-  const claimed = !closes && issue.labels.some((label) => label.toLowerCase() === IN_PROGRESS);
+  const claimed =
+    !item.done &&
+    issue.state === "open" &&
+    issue.labels.some((label) => label.toLowerCase() === IN_PROGRESS);
   const wanted = claimed ? item.labels.filter((label) => !isStatusLabel(label)) : item.labels;
   const wantedSet = new Set(wanted.map((label) => label.toLowerCase()));
   const current = new Set(issue.labels.map((label) => label.toLowerCase()));
@@ -274,7 +277,13 @@ export async function syncBacklog(
     if (!issue) continue;
     const milestone =
       item.milestone === undefined ? undefined : milestoneNumbers.get(item.milestone);
-    const plan = planIssuePatch(item, issue, renderIssueBody(item, context()), milestone);
+    const body = renderIssueBody(item, context());
+    let plan = planIssuePatch(item, issue, body, milestone);
+    // The labels were listed minutes ago; someone (or the autopilot) may have claimed the issue
+    // since. Re-read it so replacing the label set never drops a claim.
+    if (plan.patch?.labels && !dryRun) {
+      plan = planIssuePatch(item, await api.getIssue(issue.number), body, milestone);
+    }
     if (plan.bodySkipped) {
       report.bodiesSkipped.push(item.id);
       log(

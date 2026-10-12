@@ -19,11 +19,13 @@ items:
     areas: [tax-pack-it]
     priority: P2
     size: L
-    status: ready
-    depends_on: [TAX-005]
+    status: blocked
+    depends_on: [TAX-005, REV-005]
     body: |
       Map an `InvoiceComputation` plus supplier/customer data to FatturaPA 1.2.x: DatiRitenuta,
       DatiCassaPrevidenziale, DatiBollo, DatiRiepilogo with Natura codes (N2.2 for forfettario).
+
+      Files: `packages/tax-pack-it/src/fatturapa/**`, the `./fatturapa` export in `packages/tax-pack-it/package.json`, `packages/tax-pack-it/fixtures/fatturapa/**`, a section in `docs/tax-packs/it.md`. Owner: `architect`.
     acceptance:
       - "Pure function in `@fairhour/tax-pack-it/fatturapa`"
       - "Golden XML fixtures for forfettario and ordinario invoices"
@@ -38,6 +40,8 @@ items:
     depends_on: [FPA-002]
     body: |
       Validate every generated document against the official schema in tests.
+
+      Files: `packages/tax-pack-it/src/fatturapa/xsd/**` and its tests.
     acceptance:
       - "Official XSD vendored with its source and version"
       - "All golden fixtures validate; invalid documents are rejected"
@@ -52,5 +56,7 @@ items:
     depends_on: [FPA-002, WEB-007]
     body: |
       Button to download the XML with the SdI file naming convention.
+
+      Files: `apps/web/src/features/invoices/fatturapa/**`, keys under `invoices.fatturapa.*`.
     acceptance:
       - "Filename `IT<VAT>_<progressive>.xml`"

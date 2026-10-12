@@ -24,6 +24,8 @@ items:
     body: |
       `/api/v1` resources for clients, projects, tasks, time entries, reports and invoice
       computations, generated from zod schemas into OpenAPI 3.1.
+
+      Files: `packages/api/src/rest/**`, `apps/web/src/app/api/v1/**`.
     acceptance:
       - "`/api/v1/openapi.json` served and committed snapshot tested"
       - "Cursor pagination, consistent error format (RFC 9457 problem+json)"
@@ -38,6 +40,8 @@ items:
     depends_on: [API-002]
     body: |
       Users create scoped tokens; only a hash is stored; tokens are shown once.
+
+      Files: `packages/api/src/routers/api-tokens.ts`, `packages/db/src/repositories/api-tokens.ts`, `apps/web/src/app/(app)/settings/tokens/**`.
     acceptance:
       - "Prefix + random secret, SHA-256 hash at rest, last-used timestamp"
       - "Scopes (read, write) and expiry"
@@ -53,6 +57,8 @@ items:
     body: |
       `time_entry.created`, `time_entry.updated`, `invoice.computed`, … delivered with HMAC
       signatures and retries with backoff.
+
+      Files: `packages/api/src/webhooks/**`, `packages/db/src/repositories/webhooks.ts`, `apps/web/src/app/(app)/settings/webhooks/**`.
     acceptance:
       - "Signature header with timestamp, replay protection documented"
       - "Delivery log with retries; SSRF protections (no private IPs)"
@@ -67,5 +73,7 @@ items:
     depends_on: [API-002]
     body: |
       Render the OpenAPI spec on the docs site with authentication and webhook guides.
+
+      Files: `apps/docs/src/content/docs/api/**`, `apps/docs/scripts/openapi*.ts`.
     acceptance:
       - "Examples in curl and TypeScript"

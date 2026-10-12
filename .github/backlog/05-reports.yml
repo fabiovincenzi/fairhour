@@ -24,6 +24,8 @@ items:
     body: |
       Day/week/month/custom range; filter by client, project, task, tag and billable status;
       totals of hours and amounts.
+
+      Files: `apps/web/src/app/(app)/reports/**`, `apps/web/src/features/reports/**` (except `export/`), keys under `reports.*`.
     acceptance:
       - "Filters reflected in the URL (shareable)"
       - "Aggregation done in SQL, grouped in the user's time zone"
@@ -38,6 +40,8 @@ items:
     depends_on: [REP-002]
     body: |
       Recharts visualizations with accessible data tables as alternatives.
+
+      Files: `apps/web/src/features/reports/charts/**`, keys under `reports.charts.*`.
     acceptance:
       - "Each chart has a table view and readable colors in light/dark"
 
@@ -86,6 +90,8 @@ items:
     depends_on: [REP-002]
     body: |
       Share a report with a client through a link signed with HMAC and an expiry, revocable.
+
+      Files: `packages/api/src/routers/share-links.ts`, `packages/db/src/repositories/share-links.ts`, `apps/web/src/app/share/**`, keys under `share.*`.
     acceptance:
       - "Tampered or expired links are rejected"
       - "Revocation takes effect immediately"

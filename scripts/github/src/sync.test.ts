@@ -248,6 +248,34 @@ describe("syncBacklog", () => {
     expect(report.duplicates).toHaveLength(1);
   });
 
+  it("re-reads labels before replacing them, so a claim made during the sync survives", async () => {
+    const github = new FakeGitHub();
+    await syncBacklog(github, loadBacklog(), options);
+    const rounding = issueFor(github, "CORE-003");
+    const statusFree = rounding.labels.filter((l) => !l.startsWith("status:"));
+    // The sync lists a stale `blocked` label, but by the time it patches, someone has claimed it.
+    const stale = await github.listIssues();
+    github.listIssues = () =>
+      Promise.resolve(
+        stale.map((issue) =>
+          issue.number === rounding.number
+            ? { ...issue, labels: [...statusFree, "status: blocked"] }
+            : issue,
+        ),
+      );
+    await github.updateIssue(rounding.number, {
+      labels: [...statusFree, "status: in-progress", "agent: claude"],
+    });
+
+    await syncBacklog(github, loadBacklog(), options);
+
+    expect(issueFor(github, "CORE-003").labels).toEqual([
+      ...statusFree,
+      "status: in-progress",
+      "agent: claude",
+    ]);
+  });
+
   it("makes no writes in dry-run mode", async () => {
     const github = new FakeGitHub();
     const report = await syncBacklog(github, loadBacklog(), { ...options, dryRun: true });

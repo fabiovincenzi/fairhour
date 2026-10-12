@@ -49,12 +49,16 @@ if (result.kind === "none") {
     const server = process.env.GITHUB_SERVER_URL ?? "https://github.com";
     const runId = process.env.GITHUB_RUN_ID;
     await api.addLabels(number, [AGENT_LABEL, IN_PROGRESS_LABEL]);
+    // From here the issue is claimed: publish it first, so the workflow's hand-off job can
+    // release the claim even if a later call fails.
+    if (output) await appendFile(output, `issue=${String(number)}\n`);
     await api.removeLabel(number, READY_LABEL);
     await api.addComment(
       number,
       claimComment(runId ? `${server}/${repository}/actions/runs/${runId}` : undefined),
     );
     console.log("Claimed.");
+  } else if (output) {
+    await appendFile(output, `issue=${String(number)}\n`);
   }
-  if (output) await appendFile(output, `issue=${String(number)}\n`);
 }

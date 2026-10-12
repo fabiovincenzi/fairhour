@@ -24,6 +24,8 @@ items:
     body: |
       Sign up → client/project → track time → report → invoice computation → PDF, on desktop and
       mobile viewports, in CI against a real Postgres.
+
+      Files: `apps/web/e2e/critical-flow.spec.ts` and its fixtures under `apps/web/e2e/`.
     acceptance:
       - "Runs headless in CI with traces on failure"
       - "Deterministic: seeded data, frozen clock where needed"
@@ -38,6 +40,8 @@ items:
     depends_on: [HARD-002]
     body: |
       Automated axe scans on every page of the E2E flow plus manual keyboard review.
+
+      Files: `apps/web/e2e/a11y/**`; fixes in the pages it reports go in follow-up issues.
     acceptance:
       - "Zero serious/critical axe violations"
       - "Focus visible, skip link, landmarks, reduced motion respected"
@@ -52,6 +56,8 @@ items:
     depends_on: [WEB-002]
     body: |
       Nonce-based CSP, HSTS, frame-ancestors, referrer and permissions policy.
+
+      Files: `apps/web/src/middleware.ts` (headers only), `apps/web/next.config.ts` (headers), tests.
     acceptance:
       - "securityheaders.com grade A on a deployed instance"
       - "Tests assert the headers"
@@ -66,6 +72,8 @@ items:
     depends_on: [DATA-006]
     body: |
       Protect sign-in, magic link and token endpoints, plus per-token API limits.
+
+      Files: `packages/api/src/rate-limit/**`, `.env.example`.
     acceptance:
       - "Limits configurable via env; in-memory by default, Postgres-backed option for multi-instance"
       - "`429` with `Retry-After`"
@@ -81,6 +89,8 @@ items:
     body: |
       pino structured logs with redaction, OpenTelemetry hooks, Sentry-compatible error
       reporting (off without a DSN), `/api/health`, graceful shutdown.
+
+      Files: `packages/api/src/{logger,telemetry,health}.ts`, `apps/web/src/app/api/health/**`, `.env.example`.
     acceptance:
       - "No PII or secrets in logs (redaction tests)"
       - "Health endpoint checks the database"
@@ -95,5 +105,7 @@ items:
     depends_on: [WEB-002]
     body: |
       Keep the app fast: bundle size budget and server response times for the main pages.
+
+      Files: `.github/workflows/ci.yml` (one job), `apps/web/perf-budget.json`.
     acceptance:
       - "First-load JS under the documented budget, checked in CI"

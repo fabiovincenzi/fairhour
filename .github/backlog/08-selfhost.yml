@@ -24,6 +24,8 @@ items:
     depends_on: [WEB-002]
     body: |
       Next.js standalone output in a slim image running as a non-root user, with a health check.
+
+      Files: `Dockerfile`, `.dockerignore`, `.github/workflows/docker.yml`.
     acceptance:
       - "Image under the documented size budget; runs read-only root filesystem"
       - "`HEALTHCHECK` uses `/api/health`"
@@ -39,6 +41,8 @@ items:
     body: |
       `deploy/docker-compose.yml` with the app and Postgres, volumes, health checks and the
       migrate-on-boot option.
+
+      Files: `docker-compose.prod.yml`, `docs/self-hosting/environment.md`.
     acceptance:
       - "Every environment variable documented with default and example"
 
@@ -53,6 +57,8 @@ items:
     body: |
       Changesets version PRs, GitHub Releases, `ghcr.io/fabiovincenzi/fairhour` images for
       amd64/arm64, SBOM attached, npm publish disabled until packages are public.
+
+      Files: `.github/workflows/release.yml`, `.github/workflows/docker.yml` (publish steps).
     acceptance:
       - "Dry run documented and executed"
       - "npm publish runs only when `NPM_TOKEN` exists and the package is not private"
@@ -67,5 +73,7 @@ items:
     depends_on: [HOST-003]
     body: |
       Installation, reverse proxy (Caddy/Traefik/nginx), email, backups, upgrades, troubleshooting.
+
+      Files: `docs/self-hosting/**`.
     acceptance:
       - "Tested from a clean machine following only the guide"

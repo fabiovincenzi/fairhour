@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { claimComment, pickNextIssue, referencedIssues } from "./agent-queue.ts";
+import { claimComment, countInFlight, pickNextIssue, referencedIssues } from "./agent-queue.ts";
 import type { OpenWorkItem } from "./github.ts";
 
 function issue(number: number, labels: string[], overrides: Partial<OpenWorkItem> = {}) {
   return {
     number,
     title: `Issue ${String(number)}`,
-    body: null,
+    body: `Text.\n<!-- backlog-id: TEST-${String(number).padStart(3, "0")} -->`,
     labels,
     assignees: [],
     isPullRequest: false,
@@ -40,6 +40,9 @@ describe("pickNextIssue", () => {
     ["for humans", issue(1, ["status: ready", "agent: human"])],
     ["an epic", issue(1, ["status: ready", "type: epic"])],
     ["assigned", issue(1, ["status: ready"], { assignees: ["someone"] })],
+    ["a good first issue", issue(1, ["status: ready", "good first issue"])],
+    ["not from the backlog", issue(1, ["status: ready"], { body: "Please do this" })],
+    ["empty", issue(1, ["status: ready"], { body: null })],
   ])("skips an issue that is %s", (_name, skipped) => {
     expect(pickNextIssue([skipped], options)).toEqual({
       kind: "none",
@@ -65,6 +68,20 @@ describe("pickNextIssue", () => {
       options,
     );
     expect(result).toEqual({ kind: "none", reason: "2 agent task(s) in flight (limit 2)" });
+  });
+});
+
+describe("countInFlight", () => {
+  it("counts a claimed issue and its pull request once", () => {
+    expect(
+      countInFlight([
+        issue(3, ["agent: claude"]),
+        pr(10, "Closes #3", ["agent: claude"]),
+        pr(11, "Closes #8", ["agent: claude"]),
+        pr(12, "Closes #9"),
+        issue(4, ["status: ready"]),
+      ]),
+    ).toBe(2);
   });
 });
 

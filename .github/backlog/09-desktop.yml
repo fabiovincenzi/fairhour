@@ -24,6 +24,8 @@ items:
     body: |
       `apps/desktop` with Tauri 2, React and Vite, sharing `@fairhour/core` and `@fairhour/ui`,
       authenticating with a personal access token against any Fairhour server.
+
+      Files: `apps/desktop/**`.
     acceptance:
       - "TypeScript side builds and tests in CI without a Rust toolchain"
       - "`cargo check` runs in the desktop release workflow"
@@ -38,6 +40,8 @@ items:
     depends_on: [DESK-002, API-003]
     body: |
       Start/stop and switch projects from the tray; running time in the menubar title.
+
+      Files: `apps/desktop/src/tray/**`, `apps/desktop/src-tauri/src/tray.rs`.
     acceptance:
       - "Works on macOS, Windows and Linux"
 
@@ -51,6 +55,8 @@ items:
     depends_on: [DESK-003]
     body: |
       "Idle for 12 min: keep or discard?" when the user returns while a timer runs.
+
+      Files: `apps/desktop/src/idle/**`, `apps/desktop/src-tauri/src/idle.rs`.
     acceptance:
       - "Threshold configurable; discard trims the entry at the idle start"
 
@@ -65,6 +71,8 @@ items:
     body: |
       Detect the frontmost app (IDE, design tool, video editor) and propose time entries. Activity
       data stays on the device unless the user confirms an entry.
+
+      Files: `apps/desktop/src/activity/**`, `apps/desktop/src-tauri/src/activity.rs`.
     acceptance:
       - "Off by default; clear privacy explanation"
       - "Local storage only; one-click wipe"
@@ -79,6 +87,8 @@ items:
     depends_on: [DESK-002]
     body: |
       Build macOS/Windows/Linux bundles on release; signing optional through secrets.
+
+      Files: `.github/workflows/desktop-release.yml`, `docs/maintainers/desktop-signing.md`.
     acceptance:
       - "Unsigned builds attached when no signing secrets exist"
       - "Signing and notarization documented"

@@ -68,6 +68,12 @@ export class FakeGitHub implements GitHubApi {
     return Promise.resolve(this.issues.map((issue) => ({ ...issue })));
   }
 
+  getIssue(number: number): Promise<GitHubIssue> {
+    const issue = this.issues.find((candidate) => candidate.number === number);
+    if (!issue) throw new Error(`unknown issue ${String(number)}`);
+    return Promise.resolve({ ...issue, labels: [...issue.labels] });
+  }
+
   private milestoneTitle(number: number | null | undefined): string | null {
     if (number === null || number === undefined) return null;
     const milestone = this.milestones.find((m) => m.number === number);

@@ -14,6 +14,8 @@ items:
     body: |
       Add `apps/web/messages/de.json` translated from `en.json` and register the locale.
       Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+
+      Files: `apps/web/messages/de.json`, one line in the locale list of `apps/web`.
     acceptance:
       - "`de.json` has every key of `en.json`; `pnpm i18n:check` passes"
       - "ICU placeholders and plurals preserved"
@@ -31,6 +33,8 @@ items:
     body: |
       Add `apps/web/messages/fr.json` translated from `en.json` and register the locale.
       Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+
+      Files: `apps/web/messages/fr.json`, one line in the locale list of `apps/web`.
     acceptance:
       - "`fr.json` has every key of `en.json`; `pnpm i18n:check` passes"
       - "Typography follows French conventions (non-breaking space before `:` `?` `!`)"
@@ -47,6 +51,8 @@ items:
     body: |
       Add `apps/web/messages/es.json` translated from `en.json` and register the locale.
       Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+
+      Files: `apps/web/messages/es.json`, one line in the locale list of `apps/web`.
     acceptance:
       - "`es.json` has every key of `en.json`; `pnpm i18n:check` passes"
 
@@ -62,6 +68,8 @@ items:
     body: |
       Add `apps/web/messages/pt-BR.json` translated from `en.json` and register the locale.
       Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+
+      Files: `apps/web/messages/pt-BR.json`, one line in the locale list of `apps/web`.
     acceptance:
       - "`pt-BR.json` has every key of `en.json`; `pnpm i18n:check` passes"
 
@@ -77,6 +85,8 @@ items:
     body: |
       Add `apps/web/messages/nl.json` translated from `en.json` and register the locale.
       Guide: [docs/contributing/translations.md](../../docs/contributing/translations.md).
+
+      Files: `apps/web/messages/nl.json`, one line in the locale list of `apps/web`.
     acceptance:
       - "`nl.json` has every key of `en.json`; `pnpm i18n:check` passes"
 
@@ -91,6 +101,8 @@ items:
     depends_on: [HOST-005]
     body: |
       The docs site supports localized pages. Translate the self-hosting guide into Italian.
+
+      Files: `apps/docs/src/content/docs/it/self-hosting/**`.
     acceptance:
       - "`apps/docs/src/content/docs/it/self-hosting.mdx` mirrors the English page"
       - "Docs build passes"
@@ -103,13 +115,15 @@ items:
     priority: P3
     size: M
     status: ready
-    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    labels: ["good first issue", "help wanted", "tax-pack-request", "agent: human"]
     depends_on: [TAX-009]
     body: |
       German freelancers either apply VAT (19% standard, 7% reduced) or use the small-business
       exemption of § 19 UStG with the mandatory note on the invoice. Start from
       `packages/tax-pack-template` and follow [docs/contributing/tax-packs.md](../../docs/contributing/tax-packs.md),
       or run `/new-tax-pack de` with Claude Code.
+
+      Files: `packages/tax-pack-de/**`, `docs/tax-packs/de.md`.
     acceptance:
       - "Regimes: Regelbesteuerung (19%/7%) and Kleinunternehmer (§ 19 UStG note, no VAT)"
       - "Thresholds versioned by effective date with sources (they changed on 2025-01-01)"
@@ -122,12 +136,14 @@ items:
     priority: P3
     size: M
     status: ready
-    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    labels: ["good first issue", "help wanted", "tax-pack-request", "agent: human"]
     depends_on: [TAX-009]
     body: |
       Micro-entrepreneurs under the VAT franchise must print "TVA non applicable, art. 293 B du
       CGI". Others charge VAT (20% standard). Start from the template and follow
       [docs/contributing/tax-packs.md](../../docs/contributing/tax-packs.md).
+
+      Files: `packages/tax-pack-fr/**`, `docs/tax-packs/fr.md`.
     acceptance:
       - "Regimes: franchise en base (mention art. 293 B CGI) and TVA 20%/10%/5.5%"
       - "Sources for each rule; conformance suite passes; `docs/tax-packs/fr.md`"
@@ -139,11 +155,13 @@ items:
     priority: P3
     size: M
     status: ready
-    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    labels: ["good first issue", "help wanted", "tax-pack-request", "agent: human"]
     depends_on: [TAX-009]
     body: |
       Spanish professionals charge IVA (21% standard) and, when invoicing businesses, the client
       withholds IRPF (15%, or a reduced rate for new professionals). Start from the template.
+
+      Files: `packages/tax-pack-es/**`, `docs/tax-packs/es.md`.
     acceptance:
       - "IVA rate and IRPF withholding (standard and reduced) configurable, versioned by date"
       - "Sources for each rule; conformance suite passes; `docs/tax-packs/es.md`"
@@ -155,12 +173,14 @@ items:
     priority: P3
     size: M
     status: ready
-    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    labels: ["good first issue", "help wanted", "tax-pack-request", "agent: human"]
     depends_on: [TAX-009]
     body: |
       Independent workers charge IVA (23% on the mainland) or use the small-business exemption
       (art. 53 CIVA), and business clients may withhold IRS. Research the current rates and
       thresholds with sources. Start from the template.
+
+      Files: `packages/tax-pack-pt/**`, `docs/tax-packs/pt.md`.
     acceptance:
       - "Exemption wording, IVA rates by region (mainland, Madeira, Azores) and withholding configurable"
       - "Sources for each rule; conformance suite passes; `docs/tax-packs/pt.md`"
@@ -172,11 +192,13 @@ items:
     priority: P3
     size: M
     status: ready
-    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    labels: ["good first issue", "help wanted", "tax-pack-request", "agent: human"]
     depends_on: [TAX-009]
     body: |
       Sole traders above the VAT registration threshold charge VAT (20% standard); others do not.
       Track turnover against the threshold. Start from the template.
+
+      Files: `packages/tax-pack-gb/**`, `docs/tax-packs/gb.md`.
     acceptance:
       - "VAT registered / not registered; registration threshold versioned by date with sources"
       - "Conformance suite passes; `docs/tax-packs/gb.md`"
@@ -188,11 +210,13 @@ items:
     priority: P3
     size: M
     status: ready
-    labels: ["good first issue", "help wanted", "tax-pack-request"]
+    labels: ["good first issue", "help wanted", "tax-pack-request", "agent: human"]
     depends_on: [TAX-009]
     body: |
       Dutch freelancers charge BTW (21%/9%) or opt into the KOR exemption with the required
       invoice note. Start from the template.
+
+      Files: `packages/tax-pack-nl/**`, `docs/tax-packs/nl.md`.
     acceptance:
       - "Regimes: BTW and KOR, thresholds versioned with sources"
       - "Conformance suite passes; `docs/tax-packs/nl.md`"
@@ -210,6 +234,8 @@ items:
     body: |
       Pressing `?` opens a dialog listing every keyboard shortcut, generated from the shortcut
       registry so it never gets out of date.
+
+      Files: `apps/web/src/features/command-palette/help-dialog.tsx`, keys under `palette.help.*`.
     acceptance:
       - "Accessible dialog (focus trap, `Escape` closes, labelled)"
       - "Strings translated in `en` and `it`"
@@ -226,6 +252,8 @@ items:
     body: |
       When picking a client currency, preview how amounts will look (e.g. `CHF 1’234.50`) using
       `formatMoney` from `@fairhour/money` and the user's locale.
+
+      Files: `apps/web/src/features/clients/currency-preview.tsx`, keys under `clients.currency.*`.
     acceptance:
       - "Preview updates as the currency changes; covered by a component test"
 
@@ -241,6 +269,8 @@ items:
     body: |
       The currency table covers the most common currencies. Add the remaining active ISO 4217
       codes with their minor-unit exponents.
+
+      Files: `packages/money/src/currencies.data.ts` and its tests.
     acceptance:
       - "Table generated or checked against the ISO 4217 list, with a test for exponents 0, 2 and 3"
 
@@ -256,6 +286,8 @@ items:
     body: |
       Show each pack's country flag (emoji from the ISO code) next to its name, with an
       accessible label.
+
+      Files: `apps/web/src/features/tax-profile/pack-selector.tsx`.
     acceptance:
       - "Flags derived from `pack.meta.countries`; screen readers announce the country name"
 
@@ -270,6 +302,8 @@ items:
     depends_on: [WEB-007]
     body: |
       Each amount gets a small copy button so users can paste figures into their invoicing tool.
+
+      Files: `apps/web/src/features/invoices/copy-amount.tsx`, keys under `invoices.copy.*`.
     acceptance:
       - "Copies the plain decimal (e.g. `1268.80`), shows an accessible confirmation"
 
@@ -285,6 +319,8 @@ items:
     body: |
       Collect frequent questions (Is Fairhour free? Can I self-host? Is it tax advice? How do I
       add my country?) into a FAQ page on the docs site.
+
+      Files: `docs/faq.md`.
     acceptance:
       - "`apps/docs/src/content/docs/faq.md` linked from the sidebar"
 
@@ -299,6 +335,8 @@ items:
     body: |
       Explain terms like *regime forfettario*, *ritenuta d'acconto*, *rivalsa INPS*, *cassa
       previdenziale*, *imposta di bollo* and *fattura elettronica* for non-Italian readers.
+
+      Files: `docs/tax-packs/it-glossary.md`.
     acceptance:
       - "Glossary page linked from `docs/tax-packs/it.md`"
 
@@ -313,5 +351,7 @@ items:
     body: |
       Common setup problems (port 5432 in use, corepack not enabled, Mailpit URL, Playwright
       browsers) and their fixes.
+
+      Files: `docs/contributing/troubleshooting.md`.
     acceptance:
       - "Section added to the contributing docs and linked from `CONTRIBUTING.md`"

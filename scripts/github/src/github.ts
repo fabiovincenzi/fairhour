@@ -60,6 +60,8 @@ export interface GitHubApi {
   updateMilestone(number: number, milestone: MilestoneDef): Promise<void>;
   /** All issues (open and closed), pull requests excluded. */
   listIssues(): Promise<GitHubIssue[]>;
+  /** One issue, read fresh (used right before replacing its labels). */
+  getIssue(number: number): Promise<GitHubIssue>;
   createIssue(input: CreateIssueInput): Promise<GitHubIssue>;
   updateIssue(number: number, input: UpdateIssueInput): Promise<GitHubIssue>;
 }
@@ -245,6 +247,10 @@ export class RestGitHubClient implements GitHubApi {
   async listIssues(): Promise<GitHubIssue[]> {
     const raw = await this.paginate<RawIssue>(`${this.repoPath}/issues?state=all&per_page=100`);
     return raw.filter((issue) => issue.pull_request === undefined).map(toIssue);
+  }
+
+  async getIssue(number: number): Promise<GitHubIssue> {
+    return toIssue(await this.json<RawIssue>("GET", `${this.repoPath}/issues/${String(number)}`));
   }
 
   /** Open issues and pull requests (the issues endpoint returns both). */

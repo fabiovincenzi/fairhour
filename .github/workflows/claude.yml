@@ -2,7 +2,8 @@ name: Claude
 
 # Claude on GitHub: mention @claude in an issue or PR, or add the `agent: claude` label to an
 # issue, and Claude works on it following AGENTS.md (branch, checks, PR that closes the issue).
-# Only people with write access can trigger it. Does nothing until a maintainer adds the
+# Only owners, members and collaborators can trigger it, never on pull requests from forks, and
+# only their comments reach the prompt. Does nothing until a maintainer adds the
 # CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or ANTHROPIC_API_KEY secret and installs the
 # Claude GitHub App. See docs/maintainers/ai-agents.md.
 
@@ -18,19 +19,23 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: false
-
 jobs:
   claude:
     name: Claude
+    # Labels can only be added by people with triage access; every other trigger must come from
+    # an owner, member or collaborator, so strangers cannot burn runner time or reach the prompt.
     if: >-
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && github.event.action == 'opened' && contains(github.event.issue.body, '@claude')) ||
-      (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'agent: claude')
+      (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'agent: claude') ||
+      (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && github.event.action == 'opened' && contains(github.event.issue.body, '@claude'))
+      ))
+    # Job-level, so events the `if` filters out never replace a queued request.
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -55,19 +60,30 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://fairhour:fairhour@localhost:5432/fairhour_test
+      # Scrub Anthropic, cloud and GitHub secrets from the environment of commands Claude runs.
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
     steps:
-      - name: Check credentials
+      - name: Check credentials and refuse pull requests from forks
         id: auth
         env:
           OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || (github.event.issue.pull_request && github.event.issue.number) || '' }}
         run: |
-          if [ -n "$OAUTH_TOKEN" ] || [ -n "$API_KEY" ]; then
-            echo "ok=true" >> "$GITHUB_OUTPUT"
-          else
+          if [ -z "$OAUTH_TOKEN" ] && [ -z "$API_KEY" ]; then
             echo "::notice::Claude is not configured (no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret)."
             echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          # A fork's code (package scripts, AGENTS.md) must never run next to these credentials.
+          if [ -n "$PR_NUMBER" ] && [ "$(gh pr view "$PR_NUMBER" --json isCrossRepository --jq .isCrossRepository)" != "false" ]; then
+            echo "::notice::Claude does not run on pull requests from forks."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.auth.outputs.ok == 'true'
         with:
@@ -81,9 +97,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           label_trigger: "agent: claude"
+          # Only trusted people's comments reach the prompt (comma-separated logins).
+          include_comments_by_actor: ${{ vars.CLAUDE_TRUSTED_ACTORS || github.repository_owner }}
           track_progress: true
           additional_permissions: |
             actions: read
           claude_args: |
-            --append-system-prompt "Follow AGENTS.md and CLAUDE.md exactly. Work on one issue per branch, stay inside the files the issue lists, run the checks, sign off every commit (git commit -s) with a Conventional Commit message, and open a pull request with the label 'agent: claude' whose body says 'Closes #<issue>'. Never merge, never push to main, never weaken a test."
-            --allowedTools "Edit,Write,Read,Glob,Grep,Task,Agent,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*)"
+            --append-system-prompt "Follow AGENTS.md and CLAUDE.md exactly. Work on one issue per branch, stay inside the files the issue lists, run the checks, sign off every commit (git commit -s) with a Conventional Commit message, and open a pull request with the label 'agent: claude' whose body says 'Closes #<issue>'. Add the labels 'status: in-progress' and 'agent: claude' to the issue when you start. Never merge, never push to main, never weaken a test."
+            --allowedTools "Edit,Write,Read,Glob,Grep,Task,Agent,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*)"

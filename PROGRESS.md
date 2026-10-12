@@ -118,8 +118,9 @@ now; the first wave is:
 - Phase 3 foundations: DATA-011 data model design and ADR-0006 (`architect`), DATA-012
   `packages/db` scaffold, DATA-017 `packages/api` scaffold.
 - Phase 4 foundation: UI-001 `packages/ui`.
-- Independent libraries: REP-004 PDF timesheet, REP-005 CSV, FPA-002 FatturaPA (`architect`).
-- Phase 2 follow-ups REV-002 … REV-012 (REV-002 first: it is the one major finding).
+- Independent libraries: REP-004 PDF timesheet, REP-005 CSV.
+- Phase 2 follow-ups REV-002 … REV-012 (REV-002 first: it is the one major finding); FPA-002
+  FatturaPA (`architect`) follows REV-005 in `tax-pack-it`.
 
 ## Known issues
 

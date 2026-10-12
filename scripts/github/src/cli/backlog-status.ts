@@ -20,6 +20,7 @@ if (!result.ok) {
 
 const open = result.backlog.items.filter((item) => !item.done);
 const statuses = new Map<string, Status>(open.map((item) => [item.id, item.status]));
+const forHumans = (item: (typeof open)[number]): boolean => item.labels.includes("agent: human");
 const startable = open
   .filter((item) => item.status === "ready" && item.type !== "epic")
   .sort(
@@ -29,11 +30,18 @@ const startable = open
       a.id.localeCompare(b.id),
   );
 
-console.log(`Ready to start (${String(startable.length)}):`);
-for (const item of startable) {
-  const priority = item.labels.find((l) => /^P\d$/.test(l)) ?? "";
-  console.log(`  ${priority} ${item.id.padEnd(10)} ${item.title}  [${item.milestone ?? ""}]`);
-}
+const print = (heading: string, items: typeof open): void => {
+  console.log(`${heading} (${String(items.length)}):`);
+  for (const item of items) {
+    const priority = item.labels.find((l) => /^P\d$/.test(l)) ?? "";
+    console.log(`  ${priority} ${item.id.padEnd(10)} ${item.title}  [${item.milestone ?? ""}]`);
+  }
+};
+print(
+  "Ready to start",
+  startable.filter((item) => !forHumans(item)),
+);
+print("Ready, needs a person (agent: human)", startable.filter(forHumans));
 
 let changed = 0;
 for (const file of sources.backlog) {

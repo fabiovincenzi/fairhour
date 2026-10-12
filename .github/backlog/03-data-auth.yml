@@ -115,10 +115,12 @@ items:
     body: |
       Implement the tables specified in `docs/design/data-model.md`: workspaces, memberships,
       clients, projects, tasks, tags, time_entries (+ tags), rates, budgets, expenses, tax profiles,
-      invoices (+ lines, computation snapshot), audit_log, share_links, api_tokens, webhooks. Auth
-      tables belong to DATA-006. Generate the first migration.
+      invoices (+ lines, computation snapshot), audit_log, share_links, api_tokens, webhooks, and
+      the users, sessions, accounts and verifications tables Better Auth needs (in `auth.ts`, as
+      the design specifies), since memberships and the running timer reference users. Generate the
+      first migration.
 
-      Files: `packages/db/src/schema/*.ts` (except `auth.ts`), `packages/db/migrations/*`.
+      Files: `packages/db/src/schema/*.ts`, `packages/db/migrations/*`.
       Owner: `architect` (data model change).
     acceptance:
       - "Money stored as `bigint` minor units + currency; decimals as `numeric` strings"
@@ -263,13 +265,15 @@ items:
     priority: P1
     size: M
     status: blocked
-    depends_on: [DATA-017]
+    depends_on: [DATA-017, DATA-002]
     body: |
-      Better Auth with database sessions through the Drizzle adapter. Email magic links (Mailpit in
-      dev), OAuth with Google and GitHub when credentials are configured. Implements the
-      `SessionResolver` of DATA-017.
+      Better Auth with database sessions through the Drizzle adapter, on the auth tables created by
+      DATA-002. Email magic links (Mailpit in dev), OAuth with Google and GitHub when credentials
+      are configured. Implements the `SessionResolver` of DATA-017. If Better Auth needs a column
+      the design missed, change `packages/db/src/schema/auth.ts` and regenerate the migration after
+      merging the base branch.
 
-      Files: `packages/db/src/schema/auth.ts` (+ its migration), `packages/api/src/auth/**`.
+      Files: `packages/api/src/auth/**` (and `packages/db/src/schema/auth.ts` only as above).
       Owner: `implementer`.
     acceptance:
       - "Magic link sign-in works end to end in dev with Mailpit"
@@ -320,13 +324,14 @@ items:
     priority: P2
     size: S
     status: blocked
-    depends_on: [DATA-004]
+    depends_on: [DATA-013, DATA-014, DATA-015, DATA-016]
     body: |
       Who changed what and when, for time entries, rates, tax profiles and invoices. Provide a
-      helper the repositories call inside their transactions; wire it into the repositories that
-      already exist when this lands.
+      helper the repositories call inside their transactions and wire it into the repositories of
+      DATA-013..016 (it waits for them so no two PRs edit the same repository).
 
-      Files: `packages/db/src/repositories/audit.ts` and calls in the existing repositories.
+      Files: `packages/db/src/repositories/audit.ts` and the audit calls in the existing
+      repositories.
     acceptance:
       - "Append-only `audit_log` with actor, action, entity, diff (no PII beyond IDs)"
       - "Written in the same transaction as the change"

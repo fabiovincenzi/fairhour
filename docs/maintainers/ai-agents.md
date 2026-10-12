@@ -46,7 +46,8 @@ Locally, use one git worktree per session (`git worktree add ../fairhour-<id> -b
    - `CLAUDE_CODE_OAUTH_TOKEN`: run `claude setup-token` with your Claude subscription;
    - `ANTHROPIC_API_KEY`: an API key (billed per use).
      Without one, `claude.yml` and `autopilot.yml` do nothing.
-4. **Autopilot** (optional), as repository variables:
+4. **Autopilot** (optional; it never takes epics, good first issues or `agent: human` issues),
+   as repository variables:
    - `AUTOPILOT_ENABLED=true` turns it on (delete the variable to turn it off);
    - `AUTOPILOT_MAX_IN_FLIGHT` (default `2`): how many agent issues and PRs may be open at once.
      Raise it only as fast as you can review.
@@ -62,19 +63,21 @@ with the others:
 - **Phase 3 foundations**: DATA-011 data model design (`architect`), DATA-012 `packages/db`
   scaffold, DATA-017 `packages/api` scaffold.
 - **Phase 4 foundation**: UI-001 `packages/ui` design system.
-- **Independent libraries**: REP-004 PDF timesheet (`packages/pdf`), REP-005 CSV serializer,
-  FPA-002 FatturaPA generator (`architect`).
-- **Phase 2 follow-ups**: REV-002 + REV-003 (same files in `tax-core`: one agent, one after the
-  other), REV-004, REV-005, REV-006, REV-007, REV-008, REV-009, REV-010, REV-011, REV-012.
-  REV-013 needs a person (`agent: human`).
-- **Community**: country tax packs (GFI-007…012, one agent each), docs (GFI-018…020),
-  LAUNCH-004.
+- **Independent libraries**: REP-004 PDF timesheet (`packages/pdf`), REP-005 CSV serializer.
+- **Phase 2 follow-ups**: REV-002, REV-003, REV-004 (`tax-core`, disjoint files), REV-005
+  (`tax-pack-it`; REV-006, FPA-002 and REV-013 wait for it), REV-007, REV-008, REV-009, REV-010,
+  REV-011, REV-012.
+- **Docs and small libraries**: GFI-015, GFI-018…020, LAUNCH-004. Good first issues are left for
+  newcomers by the autopilot; a supervised session may take them.
+- **For people** (`agent: human`): country tax packs GFI-007…012 need someone who can read the
+  local law; REV-013 needs the Italian statutes read on Normattiva.
 
 What unlocks what next:
 
 ```text
-DATA-011 + DATA-012 → DATA-002 schema → DATA-004 tenancy kit → DATA-013/014/015/016 repositories (parallel)
-DATA-017 → DATA-006 auth → DATA-008 roles → WEB-014/015/016/017 routers (parallel, one per repository)
+DATA-011 + DATA-012 → DATA-002 schema (incl. auth tables) → DATA-004 tenancy kit → DATA-013/014/015/016 repositories (parallel) → DATA-009 audit
+DATA-017 + DATA-002 → DATA-006 auth → DATA-008 roles → WEB-014/015/016/017 routers (parallel, one per repository)
+REV-005 → REV-006, FPA-002 (FatturaPA), REV-013
 UI-001 → WEB-002 web scaffold → WEB-012 tRPC wiring → WEB-013 sign-in → pages (one per router)
 ```
 
@@ -86,6 +89,13 @@ UI-001 → WEB-002 web scaffold → WEB-012 tRPC wiring → WEB-013 sign-in → 
   migration conflicts are resolved by regenerating, never by hand.
 - **Stuck issues.** Autopilot labels an issue `agent: human` when a run ends without a PR. Read
   the run log, clarify the issue, then remove the label to retry.
+- **Closing an agent PR without merging** leaves its issue claimed: remove `agent: claude` and
+  `status: in-progress` from the issue too, or it counts against `AUTOPILOT_MAX_IN_FLIGHT` and is
+  never picked again.
+- **Pull requests from forks.** `claude.yml` never runs on them: their code would run next to the
+  credentials. Ask the contributor to make the change, or push it to a branch of this repository
+  first. Only comments by `CLAUDE_TRUSTED_ACTORS` (a repository variable, comma-separated
+  logins; default: the repository owner) reach Claude's prompt; add co-maintainers there.
 - **Scope creep.** A PR that edits files outside its issue's `Files:` list needs a reason in the
   PR body; otherwise ask for a follow-up issue instead.
 - **Tax and legal content** always gets a human review against the cited sources.

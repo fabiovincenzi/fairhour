@@ -206,6 +206,14 @@ describe("RestGitHubClient", () => {
       new Response("Label does not exist", { status: 404 }),
       new Response(null, { status: 201 }),
       new Response("boom", { status: 422 }),
+      json({
+        number: 1,
+        title: "t",
+        body: "",
+        state: "open",
+        labels: ["agent: claude"],
+        milestone: null,
+      }),
     ]);
     expect(await api.listOpenWork()).toEqual([
       {
@@ -223,6 +231,7 @@ describe("RestGitHubClient", () => {
     await api.removeLabel(1, "status: blocked");
     await api.addComment(1, "hi");
     await expect(api.removeLabel(1, "x")).rejects.toBeInstanceOf(GitHubRequestError);
+    expect((await api.getIssue(1)).labels).toEqual(["agent: claude"]);
     expect(calls[0]?.url).toContain("/issues?state=open&per_page=100");
     expect(calls[1]).toMatchObject({ method: "POST", body: { labels: ["agent: claude"] } });
     expect(calls[2]).toMatchObject({

@@ -89,7 +89,8 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://fairhour:fairhour@localhost:5432/fairhour_test
-      ISSUE: ${{ needs.pick.outputs.issue }}
+      # Scrub Anthropic, cloud and GitHub secrets from the environment of commands Claude runs.
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -100,6 +101,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          include_comments_by_actor: ${{ vars.CLAUDE_TRUSTED_ACTORS || github.repository_owner }}
           prompt: |
             REPO: ${{ github.repository }}
             ISSUE: #${{ needs.pick.outputs.issue }}
@@ -131,16 +133,29 @@ jobs:
             Never merge, never push to the default branch, never add secrets.
           claude_args: |
             --allowedTools "Edit,Write,Read,Glob,Grep,Task,Agent,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*)"
-      - name: Hand the issue to a human when no pull request was opened
-        if: always()
+
+  handoff:
+    name: Hand the issue to a human if no pull request was opened
+    needs: [pick, implement]
+    # Also runs when `implement` failed, timed out or was cancelled, so no claim is left behind.
+    if: always() && needs.pick.outputs.issue != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Check for an agent pull request and release the claim otherwise
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ needs.pick.outputs.issue }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if gh pr list --state open --json body,title --limit 100 \
-            | jq -e --arg ref "#$ISSUE" 'any(.[]; ((.title + "\n" + (.body // "")) | test($ref + "\\b")))' > /dev/null; then
-            echo "A pull request references #$ISSUE."
+          # Fails the job (instead of handing off) when GitHub cannot be read.
+          prs=$(gh pr list --state open --label "agent: claude" --json title,body --limit 100)
+          if jq -e --arg n "$ISSUE" 'any(.[]; (.title + "\n" + (.body // "")) | test("(^|[^\\w/])#" + $n + "\\b"))' <<< "$prs" > /dev/null; then
+            echo "An agent pull request references #$ISSUE."
             exit 0
           fi
           gh issue edit "$ISSUE" --remove-label "agent: claude" --remove-label "status: in-progress" --add-label "agent: human"
