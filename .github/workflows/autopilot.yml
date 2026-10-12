@@ -1,0 +1,147 @@
+name: Autopilot
+
+# Opt-in: an AI agent takes the next ready issue and opens a pull request for it, so work goes on
+# while nobody is at the keyboard. Every PR still needs a maintainer's review and green CI.
+# Enable it with the repository variable AUTOPILOT_ENABLED=true plus the CLAUDE_CODE_OAUTH_TOKEN
+# or ANTHROPIC_API_KEY secret. AUTOPILOT_MAX_IN_FLIGHT (default 2) caps open agent work so
+# reviewers are not flooded. See docs/maintainers/ai-agents.md.
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: autopilot
+  cancel-in-progress: false
+
+jobs:
+  pick:
+    name: Pick and claim the next issue
+    if: vars.AUTOPILOT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    outputs:
+      issue: ${{ steps.pick.outputs.issue }}
+    steps:
+      - name: Check credentials
+        id: auth
+        env:
+          OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$OAUTH_TOKEN" ] || [ -n "$API_KEY" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Autopilot needs the CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.auth.outputs.ok == 'true'
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        if: steps.auth.outputs.ok == 'true'
+        with:
+          install: "false"
+      - name: Install script dependencies
+        if: steps.auth.outputs.ok == 'true'
+        run: pnpm install --frozen-lockfile --filter @fairhour/github-scripts
+      - name: Pick and claim
+        id: pick
+        if: steps.auth.outputs.ok == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_IN_FLIGHT: ${{ vars.AUTOPILOT_MAX_IN_FLIGHT || '2' }}
+        run: pnpm --filter @fairhour/github-scripts agent:pick --claim --max-in-flight "$MAX_IN_FLIGHT"
+
+  implement:
+    name: Implement issue #${{ needs.pick.outputs.issue }}
+    needs: pick
+    if: needs.pick.outputs.issue != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fairhour
+          POSTGRES_PASSWORD: fairhour
+          POSTGRES_DB: fairhour_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fairhour"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://fairhour:fairhour@localhost:5432/fairhour_test
+      ISSUE: ${{ needs.pick.outputs.issue }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE: #${{ needs.pick.outputs.issue }}
+
+            You are an unattended agent working on Fairhour. The issue above is already claimed
+            for you. Implement it end to end by following AGENTS.md (the agent playbook) and
+            CLAUDE.md exactly:
+
+            1. Read the issue with `gh issue view ${{ needs.pick.outputs.issue }}`, then AGENTS.md,
+               CLAUDE.md, PROGRESS.md and, for anything under packages/tax-*,
+               packages/tax-core/CLAUDE.md. If a dependency in the issue's "Depends on" list is
+               still open, comment on the issue explaining it and stop.
+            2. Create a branch `<type>/<backlog-id-lowercase>-<short-slug>` from the default branch.
+            3. Change only the files the issue lists under "Files:" plus the shared hotspots that
+               AGENTS.md allows. Write tests with the code.
+            4. Run `pnpm lint && pnpm typecheck && pnpm test`, plus `pnpm test:integration` when
+               packages/db or packages/api change (DATABASE_URL is set). Fix failures; never skip,
+               weaken or delete a test.
+            5. Review your own diff with the `reviewer` subagent and address its findings.
+            6. Mark the backlog item `state: done` in .github/backlog/*.yml and add a changeset
+               when a package changed.
+            7. Commit with Conventional Commits and `git commit -s` (DCO), push the branch and open
+               a pull request with `gh pr create --label "agent: claude"`, a Conventional Commit
+               title, the sections of .github/pull_request_template.md and `Closes #${{ needs.pick.outputs.issue }}`.
+            8. If you cannot finish (unclear requirement, a decision for a human, failing checks
+               you cannot fix), open the pull request as a draft explaining what is left, or
+               comment on the issue, rather than guessing.
+
+            Never merge, never push to the default branch, never add secrets.
+          claude_args: |
+            --allowedTools "Edit,Write,Read,Glob,Grep,Task,Agent,TodoWrite,Bash(pnpm:*),Bash(node:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(ls:*),Bash(cat:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*)"
+      - name: Hand the issue to a human when no pull request was opened
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if gh pr list --state open --json body,title --limit 100 \
+            | jq -e --arg ref "#$ISSUE" 'any(.[]; ((.title + "\n" + (.body // "")) | test($ref + "\\b")))' > /dev/null; then
+            echo "A pull request references #$ISSUE."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --remove-label "agent: claude" --remove-label "status: in-progress" --add-label "agent: human"
+          gh issue comment "$ISSUE" --body "🤖 Autopilot stopped without opening a pull request ($RUN_URL). Labeled \`agent: human\` so it is not picked again automatically; remove the label to retry."
