@@ -74,6 +74,8 @@ export interface ResolvedItem {
   readonly labels: readonly string[];
   readonly milestone: string | undefined;
   readonly done: boolean;
+  /** Effective status: `ready`/`blocked` are derived from `dependsOn` (see status.ts). */
+  readonly status: BacklogItemDef["status"];
   readonly dependsOn: readonly string[];
   readonly children: readonly string[];
   readonly body: string;

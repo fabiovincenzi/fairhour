@@ -12,6 +12,7 @@ import {
   type MilestoneDef,
   type ResolvedItem,
 } from "./schema.ts";
+import { deriveStatuses } from "./status.ts";
 
 export interface SourceFile {
   /** Path relative to the repository root, e.g. `.github/backlog/02-core-tax.yml`. */
@@ -176,6 +177,7 @@ export function parseBacklog(sources: BacklogSources): LoadResult {
         labels: itemLabels,
         milestone,
         done: item.state === "done",
+        status: item.status,
         dependsOn: item.depends_on,
         children: item.children,
         body: item.body,
@@ -204,7 +206,16 @@ export function parseBacklog(sources: BacklogSources): LoadResult {
   if (cycle) errors.push(`dependency cycle: ${cycle.join(" → ")}`);
 
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, backlog: { labels, milestones, items: resolved } };
+
+  // `ready`/`blocked` come from the dependencies, whatever the YAML says (see status.ts).
+  const statuses = deriveStatuses(defs);
+  const items = resolved.map((item): ResolvedItem => {
+    const def = defs.get(item.id);
+    const status = statuses.get(item.id);
+    if (def === undefined || status === undefined || status === def.status) return item;
+    return { ...item, status, labels: resolveItemLabels({ ...def, status }) };
+  });
+  return { ok: true, backlog: { labels, milestones, items } };
 }
 
 /** Reads `.github/labels.yml`, `.github/milestones.yml` and `.github/backlog/*.yml`. */

@@ -82,9 +82,14 @@ export interface IssuePatch {
 
 const STATUS_PREFIX = "status: ";
 
+const IN_PROGRESS = "status: in-progress";
+
+const isStatusLabel = (label: string): boolean => label.toLowerCase().startsWith(STATUS_PREFIX);
+
 /**
- * Computes the update for an existing issue. Never reopens, never removes labels except the
- * `status: *` labels of an issue it closes as done.
+ * Computes the update for an existing issue. Never reopens and never removes labels, except
+ * `status: *` labels: the backlog owns them (a done item loses them, a stale `ready`/`blocked`
+ * is replaced), but an issue someone claimed on GitHub (`status: in-progress`) keeps its status.
  */
 export function planIssuePatch(
   item: ResolvedItem,
@@ -118,11 +123,14 @@ export function planIssuePatch(
   }
 
   const closes = item.done && issue.state === "open";
+  const claimed = !closes && issue.labels.some((label) => label.toLowerCase() === IN_PROGRESS);
+  const wanted = claimed ? item.labels.filter((label) => !isStatusLabel(label)) : item.labels;
+  const wantedSet = new Set(wanted.map((label) => label.toLowerCase()));
   const current = new Set(issue.labels.map((label) => label.toLowerCase()));
-  const missing = item.labels.filter((label) => !current.has(label.toLowerCase()));
-  const kept = closes
-    ? issue.labels.filter((label) => !label.toLowerCase().startsWith(STATUS_PREFIX))
-    : [...issue.labels];
+  const missing = wanted.filter((label) => !current.has(label.toLowerCase()));
+  const kept = claimed
+    ? [...issue.labels]
+    : issue.labels.filter((label) => !isStatusLabel(label) || wantedSet.has(label.toLowerCase()));
   if (missing.length > 0 || kept.length !== issue.labels.length) {
     patch.labels = [...kept, ...missing];
   }

@@ -158,6 +158,20 @@ describe("planIssuePatch", () => {
     expect(plan.patch?.labels).not.toContain("status: blocked");
   });
 
+  it("replaces a stale ready/blocked label with the derived status", () => {
+    const stale = rounding.labels.map((l) => (l === "status: ready" ? "status: blocked" : l));
+    const plan = planIssuePatch(rounding, { ...synced, labels: [...stale, "manual"] }, body, 2);
+    expect(plan.patch?.labels).toContain("status: ready");
+    expect(plan.patch?.labels).toContain("manual");
+    expect(plan.patch?.labels).not.toContain("status: blocked");
+  });
+
+  it("keeps the status of an issue claimed on GitHub", () => {
+    const claimed = rounding.labels.map((l) => (l === "status: ready" ? "status: in-progress" : l));
+    const plan = planIssuePatch(rounding, { ...synced, labels: claimed }, body, 2);
+    expect(plan.patch).toBeUndefined();
+  });
+
   it("never reopens a closed issue", () => {
     const plan = planIssuePatch(rounding, { ...synced, state: "closed" }, body, 2);
     expect(plan.patch).toBeUndefined();

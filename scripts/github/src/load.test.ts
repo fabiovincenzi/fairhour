@@ -22,6 +22,10 @@ describe("parseBacklog", () => {
     expect(money?.done).toBe(true);
     expect(money?.labels).not.toContain("status: ready");
     expect(rounding?.milestone).toBe("v0.2 Core");
+    // Written as blocked, but its only dependency is done: the status is derived.
+    expect(rounding?.status).toBe("ready");
+    expect(rounding?.labels).toContain("status: ready");
+    expect(rounding?.labels).not.toContain("status: blocked");
     expect(rounding?.labels).toContain("good first issue");
     expect(rounding?.sourceFile).toBe(".github/backlog/01-core.yml");
     expect(result.backlog.labels.find((l) => l.name === "type: epic")?.description).toBe("");
@@ -129,6 +133,16 @@ items:
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join("\n")).toMatch(/CORE-002: listed under two epics/);
+  });
+
+  it("marks an item blocked while a dependency is open", () => {
+    const yaml = replace("    state: done\n", "");
+    const result = parseBacklog(sources({ backlog: yaml }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const rounding = result.backlog.items.find((item) => item.id === "CORE-003");
+    expect(rounding?.status).toBe("blocked");
+    expect(rounding?.labels).toContain("status: blocked");
   });
 
   it("detects dependency cycles", () => {

@@ -8,6 +8,8 @@
   "scripts": {
     "backlog:validate": "node src/cli/validate-backlog.ts",
     "backlog:sync": "node src/cli/sync-backlog.ts",
+    "backlog:status": "node src/cli/backlog-status.ts",
+    "agent:pick": "node src/cli/pick-issue.ts",
     "dco:check": "node src/cli/check-dco.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",

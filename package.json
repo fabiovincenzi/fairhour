@@ -27,6 +27,7 @@
     "i18n:check": "node scripts/i18n/check-locales.ts",
     "license:check": "node scripts/github/src/cli/check-license-boundary.ts",
     "backlog:validate": "pnpm --filter @fairhour/github-scripts backlog:validate",
+    "backlog:status": "pnpm --filter @fairhour/github-scripts backlog:status",
     "db:migrate": "pnpm --filter @fairhour/db --if-present db:migrate",
     "db:seed": "pnpm --filter @fairhour/db --if-present db:seed",
     "db:generate": "pnpm --filter @fairhour/db --if-present db:generate",

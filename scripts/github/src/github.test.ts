@@ -179,4 +179,56 @@ describe("RestGitHubClient", () => {
     expect(calls[2]?.body).toEqual({ description: "f" });
     expect(calls[3]?.url).toBe("https://api.github.com/repos/acme/fairhour/issues/1");
   });
+  it("lists open issues and pull requests and manages labels and comments", async () => {
+    const { api, calls } = client([
+      json([
+        {
+          number: 1,
+          title: "Issue",
+          body: "b",
+          state: "open",
+          labels: [{ name: "status: ready" }],
+          milestone: null,
+          assignees: [{ login: "ada" }],
+        },
+        {
+          number: 2,
+          title: "PR",
+          body: null,
+          state: "open",
+          labels: [],
+          milestone: null,
+          pull_request: {},
+        },
+      ]),
+      new Response(null, { status: 200 }),
+      new Response(null, { status: 200 }),
+      new Response("Label does not exist", { status: 404 }),
+      new Response(null, { status: 201 }),
+      new Response("boom", { status: 422 }),
+    ]);
+    expect(await api.listOpenWork()).toEqual([
+      {
+        number: 1,
+        title: "Issue",
+        body: "b",
+        labels: ["status: ready"],
+        assignees: ["ada"],
+        isPullRequest: false,
+      },
+      { number: 2, title: "PR", body: null, labels: [], assignees: [], isPullRequest: true },
+    ]);
+    await api.addLabels(1, ["agent: claude"]);
+    await api.removeLabel(1, "status: ready");
+    await api.removeLabel(1, "status: blocked");
+    await api.addComment(1, "hi");
+    await expect(api.removeLabel(1, "x")).rejects.toBeInstanceOf(GitHubRequestError);
+    expect(calls[0]?.url).toContain("/issues?state=open&per_page=100");
+    expect(calls[1]).toMatchObject({ method: "POST", body: { labels: ["agent: claude"] } });
+    expect(calls[2]).toMatchObject({
+      method: "DELETE",
+      url: "https://api.github.com/repos/acme/fairhour/issues/1/labels/status%3A%20ready",
+    });
+    expect(calls[4]).toMatchObject({ method: "POST", body: { body: "hi" } });
+  });
 });

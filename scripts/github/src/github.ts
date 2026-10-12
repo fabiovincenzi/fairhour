@@ -24,6 +24,16 @@ export interface GitHubIssue {
   readonly milestone: string | null;
 }
 
+/** An open issue or pull request, as the agent queue sees it. */
+export interface OpenWorkItem {
+  readonly number: number;
+  readonly title: string;
+  readonly body: string | null;
+  readonly labels: readonly string[];
+  readonly assignees: readonly string[];
+  readonly isPullRequest: boolean;
+}
+
 export interface CreateIssueInput {
   readonly title: string;
   readonly body: string;
@@ -73,6 +83,7 @@ interface RawIssue {
   state: "open" | "closed";
   labels: (string | { name?: string })[];
   milestone: { title: string } | null;
+  assignees?: { login: string }[];
   pull_request?: unknown;
 }
 
@@ -234,6 +245,42 @@ export class RestGitHubClient implements GitHubApi {
   async listIssues(): Promise<GitHubIssue[]> {
     const raw = await this.paginate<RawIssue>(`${this.repoPath}/issues?state=all&per_page=100`);
     return raw.filter((issue) => issue.pull_request === undefined).map(toIssue);
+  }
+
+  /** Open issues and pull requests (the issues endpoint returns both). */
+  async listOpenWork(): Promise<OpenWorkItem[]> {
+    const raw = await this.paginate<RawIssue>(`${this.repoPath}/issues?state=open&per_page=100`);
+    return raw.map((issue) => {
+      const { number, title, body, labels } = toIssue(issue);
+      return {
+        number,
+        title,
+        body,
+        labels,
+        assignees: (issue.assignees ?? []).map((assignee) => assignee.login),
+        isPullRequest: issue.pull_request !== undefined,
+      };
+    });
+  }
+
+  async addLabels(number: number, labels: readonly string[]): Promise<void> {
+    await this.request("POST", `${this.repoPath}/issues/${String(number)}/labels`, { labels });
+  }
+
+  /** Removes a label; a label the issue does not have is not an error. */
+  async removeLabel(number: number, label: string): Promise<void> {
+    try {
+      await this.request(
+        "DELETE",
+        `${this.repoPath}/issues/${String(number)}/labels/${encodeURIComponent(label)}`,
+      );
+    } catch (error) {
+      if (!(error instanceof GitHubRequestError && error.status === 404)) throw error;
+    }
+  }
+
+  async addComment(number: number, body: string): Promise<void> {
+    await this.request("POST", `${this.repoPath}/issues/${String(number)}/comments`, { body });
   }
 
   async createIssue(input: CreateIssueInput): Promise<GitHubIssue> {
