@@ -17,7 +17,7 @@ jobs:
           persist-credentials: false
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
-          fail-on-severity: moderate
+          fail-on-severity: high
           # Strong copyleft or non-OSI licenses would conflict with the MIT libraries or with
           # self-hosters' expectations. Discuss exceptions in an ADR.
           # Only SPDX identifiers are accepted (Commons Clause has none; it is caught in review).
