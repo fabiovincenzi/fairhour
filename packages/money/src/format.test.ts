@@ -26,7 +26,11 @@ import { price } from "./price";
 
 /** Spaces normalized (ICU versions disagree on U+00A0/U+202F) and bidi marks removed. */
 function plain(text: string): string {
-  return normalizeSpaces(text).replace(/[\u200E\u200F\u061C]/g, "");
+  // Bidi marks and the Swiss grouping apostrophe (’ U+2019 or ' depending on the CLDR version
+  // shipped with Node's ICU) are presentation details, not digits: compare without them.
+  return normalizeSpaces(text)
+    .replace(/[\u200E\u200F\u061C]/g, "")
+    .replace(/\u2019/g, "'");
 }
 
 afterEach(() => {
@@ -43,8 +47,8 @@ const MONEY_CASES: readonly (readonly [string, CurrencyCode, bigint, string])[] 
   ["it-IT", "EUR", 1234567n, "12.345,67 €"],
   ["it-IT", "EUR", -50n, "-0,50 €"],
   ["it-IT", "EUR", 1234567890123456789015n, "12.345.678.901.234.567.890,15 €"],
-  ["de-CH", "CHF", 123456789n, "CHF 1’234’567.89"],
-  ["de-CH", "CHF", -123456789n, "CHF-1’234’567.89"],
+  ["de-CH", "CHF", 123456789n, "CHF 1'234'567.89"],
+  ["de-CH", "CHF", -123456789n, "CHF-1'234'567.89"],
   ["fr-FR", "EUR", 123456n, "1 234,56 €"],
   ["fr-FR", "EUR", -123456n, "-1 234,56 €"],
   ["fr-FR", "CHF", 5n, "0,05 CHF"],

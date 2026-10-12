@@ -20,6 +20,7 @@ jobs:
           fail-on-severity: moderate
           # Strong copyleft or non-OSI licenses would conflict with the MIT libraries or with
           # self-hosters' expectations. Discuss exceptions in an ADR.
-          deny-licenses: GPL-2.0-only, GPL-2.0-or-later, SSPL-1.0, BUSL-1.1, Commons-Clause
+          # Only SPDX identifiers are accepted (Commons Clause has none; it is caught in review).
+          deny-licenses: GPL-2.0-only, GPL-2.0-or-later, SSPL-1.0, BUSL-1.1
           show-openssf-scorecard: true
           warn-on-openssf-scorecard-level: 3

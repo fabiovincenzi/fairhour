@@ -44,6 +44,9 @@ jobs:
       - name: Sync to GitHub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+          DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: pnpm --filter @fairhour/github-scripts backlog:sync $DRY_RUN --branch "$DEFAULT_BRANCH"
+        run: |
+          args=(--branch "$DEFAULT_BRANCH")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          pnpm --filter @fairhour/github-scripts backlog:sync "${args[@]}"
