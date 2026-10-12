@@ -1,0 +1,277 @@
+# Findings from the Phase 2 reviews that are not fixed yet. Each item is self-contained and can be
+# picked up by any agent in parallel: the "Files" line lists the only files the work should touch.
+milestone: "v0.2 Core & Tax Engine"
+items:
+  - id: REV-001
+    title: "Epic: phase 2 review follow-ups"
+    type: epic
+    areas: [tax-core, tax-packs, core]
+    priority: P1
+    size: L
+    status: ready
+    children:
+      [
+        REV-002,
+        REV-003,
+        REV-004,
+        REV-005,
+        REV-006,
+        REV-007,
+        REV-008,
+        REV-009,
+        REV-010,
+        REV-011,
+        REV-012,
+        REV-013,
+      ]
+    body: |
+      Phase 2 (money, core, tax-core, the Italian, generic and template packs) is implemented and
+      merged. The reviewers approved it with these follow-ups, and two reviews still have to run.
+      Each child is independent unless it says otherwise.
+    acceptance:
+      - All sub-issues are done
+      - "`pnpm lint && pnpm typecheck && pnpm test` stay green"
+
+  - id: REV-002
+    title: "tax-core: computationFromJson must re-check one tax per group and matching rates"
+    type: bug
+    areas: [tax-core]
+    priority: P1
+    size: S
+    status: ready
+    body: |
+      Commit e554b33 made the engine reject a second tax allocation on a group and a tax component
+      whose rate differs from its group's rate, but `computationFromJson` (the DB snapshot →
+      domain boundary) does not re-check either rule: a stored snapshot with a doubled tax (44.00
+      on a 110.00 base at 20%) or a 99% tax on a 20% group decodes without error.
+
+      Files: `packages/tax-core/src/engine/reconcile.ts`, `packages/tax-core/src/computation/json.ts`,
+      their tests. Owner: `architect`.
+    acceptance:
+      - "Both rules live in `reconciliationFailures` so computeInvoice, property.reconciliation and computationFromJson share them"
+      - "Tests: a snapshot with two tax components on one group and one with rate 99 on a 20% group are rejected with InvalidInputError"
+      - "tax-pack-it, tax-pack-generic and tax-pack-template tests stay green"
+
+  - id: REV-003
+    title: "tax-core: bounded JSON walk for non-plain objects and sparse arrays"
+    type: bug
+    areas: [tax-core]
+    priority: P2
+    size: S
+    status: ready
+    body: |
+      `packages/tax-core/src/internal/json.ts` (`childrenOf`, `jsonLimitProblem`) treats only plain
+      objects as containers, while zod recurses into `Object.create({})` objects and objects with an
+      own `constructor`: a 20,000-level chain of those still overflows the stack (RangeError instead
+      of InvalidInputError) and a depth-21 chain passes `MAX_OPTIONS_DEPTH = 8`. Array holes are
+      skipped too. Also truncate long issue-path segments in error messages (`src/errors.ts`
+      `describeIssues`) and extend `src/purity.test.ts` to catch `globalThis.Date()` and an
+      argument-less `Intl.DateTimeFormat(...).format()`.
+
+      Files: `packages/tax-core/src/internal/json.ts`, `src/errors.ts`, `src/purity.test.ts` and tests.
+      Owner: `architect`.
+    acceptance:
+      - "Every non-null, non-array object counts as a container; arrays are walked by index"
+      - "Tests for a deep Object.create({}) chain, a constructor-override chain and sparse arrays"
+      - "Error messages truncate each path segment (e.g. 64 characters); `issues` keep the full path"
+
+  - id: REV-004
+    title: "tax-core conformance: check tax against base × rate on samples and fixtures; decide treatment overrides"
+    type: feature
+    areas: [tax-core]
+    priority: P2
+    size: S
+    status: ready
+    body: |
+      The tax(group) ≈ base × rate check runs only on generated inputs (`property.rounding-bounds`),
+      not on `samples.compute` or `fixtures.golden`. Separately, a pack that ignores a line's explicit
+      treatment (a `rate 10` line in a 22% group, an excluded line in a taxable group) passes every
+      check. Decide (design doc §5) whether to add a `property.treatments` check or to document the
+      overrides packs may make; prefer the check if all current packs pass it.
+
+      Files: `packages/tax-core/src/conformance/checks.ts` and tests, `docs/design/tax-engine.md` §5.
+      Owner: `architect`.
+    acceptance:
+      - "samples.compute and fixtures.golden run the summary-row tax check"
+      - "A test pack that skips its tax only for one sample's options fails the suite"
+      - "The treatment decision is recorded in docs/design/tax-engine.md §5"
+
+  - id: REV-005
+    title: "tax-pack-it: review follow-ups (0% withholding, split payment note, Italian wording, agents)"
+    type: bug
+    areas: [tax-pack-it]
+    priority: P2
+    size: M
+    status: ready
+    body: |
+      Approved review of commit 99fa844 with these findings:
+      1. `withholding.rate: "0"` is accepted, emits a 0.00 ritenuta with FatturaPA codes and blocks
+         split payment: refuse 0 in the schema (point to `withholding: { enabled: false }`).
+      2. `splitPayment: 'apply'` in forfettario is ignored silently: emit an info warning
+         `it.split-payment.not-applicable` with a trace line.
+      3. Italian elision errors in trace copy ("il 82,35%", "del 80%", "il 8%", "il 1 gennaio"):
+         rephrase without an article before numbers and dates; add formatting tests.
+      4. Revenue tracker: no pro-rating when the activity starts on 1 January; a capped ceiling uses
+         its own message instead of "85.000,00 € × 366 / 365 = 85.000,00 €".
+      5. Italian public administration with `isWithholdingAgent: false` and withholding enabled:
+         warn `it.client.pa-not-withholding-agent`.
+      6. Commercial agents (art. 25-bis) use CausalePagamento `R`/`Q`, not `A`: fix the README
+         example and both agent fixtures.
+      7. Nits: receipt currency message and path in the tracker; warn on `stampDuty: 'not-due'` only
+         when a duty would be due; document the credit-note stamp-duty gap; decide on the art. 15
+         note in forfettario.
+
+      Files: `packages/tax-pack-it/**`, `docs/tax-packs/it.md`. Owner: `architect`.
+    acceptance:
+      - "Each finding fixed or explicitly declined with a reason in docs/tax-packs/it.md"
+      - "Golden fixtures updated deliberately; coverage stays 100%"
+
+  - id: REV-006
+    title: "tax-pack-it: property test with a fully independent oracle"
+    type: chore
+    areas: [tax-pack-it]
+    priority: P2
+    size: S
+    status: ready
+    body: |
+      The VAT and withholding properties reuse amounts from the computation and money's
+      `percentage`. Add a property that recomputes every component and summary row from the input
+      and the configuration alone (fees, spese generali, cassa, rivalsa, VAT per group, ritenuta,
+      bollo) with a hand-written bigint half-up rounding.
+
+      Files: `packages/tax-pack-it/src/property.test.ts`. Owner: `architect` (or `test-writer` from
+      this description).
+    acceptance:
+      - "The oracle does not import @fairhour/money arithmetic"
+      - "Runs on forfettario and ordinario configurations, at least 200 runs each"
+
+  - id: REV-007
+    title: "tax-pack-generic: EU membership edge cases and source invariants"
+    type: chore
+    areas: [tax-packs]
+    priority: P3
+    size: S
+    status: ready
+    body: |
+      Approved review of commit 47c8eb4 with minor findings: document Monaco (treated as France,
+      art. 7) and the Isle of Man (UK until 2020); document and test Northern Ireland/`XI` (rejected
+      at the input boundary); assert that configuration-only reverse charges never cite `eu-law`
+      sources anywhere in the computation; rename `isEuMemberState` (it encodes the 2013 citation
+      cutoff) or move the cutoff; cover `generic.rate-not-allowed` in the verbatim-text test; check
+      membership exhaustively against the full country list; consider a shared EU membership table
+      with tax-pack-it (architect decision).
+
+      Files: `packages/tax-pack-generic/**`, `docs/tax-packs/generic.md`. Owner: `architect`.
+    acceptance:
+      - "Every finding fixed or declined with a reason in docs/tax-packs/generic.md §8"
+
+  - id: REV-008
+    title: "Review the tax pack template and contributor guide"
+    type: chore
+    areas: [tax-packs, docs]
+    priority: P2
+    size: S
+    status: ready
+    body: |
+      Commit 42ba6e4 (TAX-009) has not been reviewed yet. Run the `reviewer` on it: the template must
+      pass the latest tax-core contract, its `TEMPLATE:` markers must cover every place a contributor
+      changes, and every snippet and shell command of `docs/contributing/tax-packs.md` must work
+      (dry-run the copy steps). File the findings as new items or fix them in the same PR.
+
+      Files: `packages/tax-pack-template/**`, `docs/contributing/tax-packs.md`.
+    acceptance:
+      - "Reviewer verdict recorded in the PR; blocker/major findings fixed"
+
+  - id: REV-009
+    title: "Review the invoice draft builder (CORE-009)"
+    type: chore
+    areas: [core]
+    priority: P2
+    size: S
+    status: ready
+    body: |
+      Commit 7b418d6 has not been reviewed yet. Run the `reviewer` on `packages/core/src/invoice`
+      against `docs/design/tax-engine.md` §7 and §7.1: DST-safe selection, rounding scopes,
+      deterministic line ids, day-rate counting with a day rate, explicit-only currency conversion,
+      no tax decisions in the bridge, no floats.
+
+      Files: `packages/core/src/invoice/**`.
+    acceptance:
+      - "Reviewer verdict recorded in the PR; blocker/major findings fixed"
+
+  - id: REV-010
+    title: "i18n check: report parse errors that carry no position"
+    type: bug
+    areas: [i18n, infra]
+    priority: P1
+    size: S
+    status: ready
+    body: |
+      `scripts/i18n/src/locales.ts` assumes every FormatJS parse error has a `location`, but number
+      and date skeletons throw a plain RangeError (`{d, date, ::YYYY}`, `{n, number, ::.00/w/x}`),
+      which crashes the checker. Also add `pnpm-lock.yaml`, `package.json` and
+      `.github/actions/setup/**` to the `paths` of `.github/workflows/i18n.yml`, and describe
+      `pnpm i18n:check` everywhere as "every locale has every English key, every message is valid
+      ICU and placeholders/tags match".
+
+      Files: `scripts/i18n/**`, `.github/workflows/i18n.yml`, `CONTRIBUTING.md`,
+      `apps/docs/src/content/docs/getting-started/quickstart.md`. Owner: `implementer`.
+    acceptance:
+      - "Errors without a location are reported as `<name>: <message>`; table tests for both examples"
+      - "`actionlint` passes"
+
+  - id: REV-011
+    title: "Lint guards: close purity and money-safety gaps"
+    type: chore
+    areas: [infra]
+    priority: P2
+    size: S
+    status: ready
+    body: |
+      In MIT packages, `import process from "node:process"`, `import { randomUUID } from "node:crypto"`,
+      `import { performance } from "node:perf_hooks"`, `globalThis.Date.now()`, `new globalThis.Date()`,
+      `globalThis.Math.random()` and `globalThis.Number(x)` are lint-clean. Extend the `mitLibrary`
+      and `moneySafety` options of `packages/config/eslint.js` (keep the `@fairhour/*` import pattern:
+      `no-restricted-imports` options replace each other), add fixture tests, and correct the README
+      claim that every MIT package has a `purity.test.ts`.
+
+      Files: `packages/config/**`. Owner: `implementer`.
+    acceptance:
+      - "Fixture tests for each bypass; money, tax-core and every tax pack still lint clean"
+
+  - id: REV-012
+    title: "core: make the overlaps complexity test catch a realistic quadratic regression"
+    type: chore
+    areas: [core]
+    priority: P3
+    size: S
+    status: ready
+    body: |
+      At 2k vs 16k entries the per-entry ISO parsing dilutes the quadratic signal: a realistic O(n²)
+      implementation measured a ratio of 35–39 against a bound of 30. Widen the size ratio (e.g. 1k vs
+      16k with a bound ~40) or lower the bound, so a quadratic regression fails with ~2× headroom on
+      both sides, and correct the comments.
+
+      Files: `packages/core/src/entries/overlaps.test.ts`. Owner: `implementer` or `test-writer`.
+    acceptance:
+      - "Measured ratios for the real and a quadratic implementation are reported in the PR"
+
+  - id: REV-013
+    title: "Read the primary legal texts and upgrade source verification grades"
+    type: docs
+    areas: [tax-pack-it, tax-packs]
+    priority: P2
+    size: M
+    status: ready
+    labels: ["help wanted", "agent: human"]
+    body: |
+      The automated research could not open Normattiva or EUR-Lex, so several sources of the Italian
+      and generic packs are graded secondary or "to be verified" (see `docs/tax-packs/it.md` §14 and
+      `docs/tax-packs/generic.md` §2.5). A person (or an agent with web access) should read the
+      primary texts and upgrade each grade, or correct the rule when the text disagrees.
+
+      Files: `packages/tax-pack-it/src/sources.ts`, `packages/tax-pack-generic/src/sources.ts`,
+      the two docs. Owner: a maintainer with the `architect` agent.
+    acceptance:
+      - "Every [TBV]/secondary source either upgraded with the primary citation or explained"
+      - "Any rule change comes with updated golden fixtures"

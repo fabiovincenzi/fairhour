@@ -19,7 +19,7 @@ items:
     areas: [web]
     priority: P1
     size: L
-    status: ready
+    status: blocked
     depends_on: [WEB-007, REP-004]
     body: |
       Sign up → client/project → track time → report → invoice computation → PDF, on desktop and
@@ -34,7 +34,7 @@ items:
     areas: [web, ui]
     priority: P1
     size: M
-    status: ready
+    status: blocked
     depends_on: [HARD-002]
     body: |
       Automated axe scans on every page of the E2E flow plus manual keyboard review.
@@ -48,7 +48,8 @@ items:
     areas: [web]
     priority: P1
     size: S
-    status: ready
+    status: blocked
+    depends_on: [WEB-002]
     body: |
       Nonce-based CSP, HSTS, frame-ancestors, referrer and permissions policy.
     acceptance:
@@ -61,7 +62,8 @@ items:
     areas: [api]
     priority: P1
     size: S
-    status: ready
+    status: blocked
+    depends_on: [DATA-006]
     body: |
       Protect sign-in, magic link and token endpoints, plus per-token API limits.
     acceptance:
@@ -74,7 +76,8 @@ items:
     areas: [api, infra]
     priority: P2
     size: M
-    status: ready
+    status: blocked
+    depends_on: [DATA-017, DATA-012]
     body: |
       pino structured logs with redaction, OpenTelemetry hooks, Sentry-compatible error
       reporting (off without a DSN), `/api/health`, graceful shutdown.
@@ -88,7 +91,8 @@ items:
     areas: [web]
     priority: P3
     size: S
-    status: ready
+    status: blocked
+    depends_on: [WEB-002]
     body: |
       Keep the app fast: bundle size budget and server response times for the main pages.
     acceptance:

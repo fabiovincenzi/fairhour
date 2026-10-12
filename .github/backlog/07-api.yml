@@ -19,7 +19,7 @@ items:
     areas: [api]
     priority: P1
     size: L
-    status: ready
+    status: blocked
     depends_on: [DATA-008]
     body: |
       `/api/v1` resources for clients, projects, tasks, time entries, reports and invoice
@@ -34,7 +34,7 @@ items:
     areas: [api, web]
     priority: P1
     size: M
-    status: ready
+    status: blocked
     depends_on: [API-002]
     body: |
       Users create scoped tokens; only a hash is stored; tokens are shown once.
@@ -48,7 +48,7 @@ items:
     areas: [api]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [API-002]
     body: |
       `time_entry.created`, `time_entry.updated`, `invoice.computed`, … delivered with HMAC
@@ -63,7 +63,7 @@ items:
     areas: [api, docs]
     priority: P2
     size: S
-    status: ready
+    status: blocked
     depends_on: [API-002]
     body: |
       Render the OpenAPI spec on the docs site with authentication and webhook guides.

@@ -7,7 +7,7 @@ items:
     priority: P1
     size: XL
     status: ready
-    children: [REP-002, REP-003, REP-004, REP-005, REP-006]
+    children: [REP-007, REP-002, REP-003, REP-004, REP-005, REP-006, REP-008]
     body: |
       Phase 5. Understand where time and money go, and share it with clients.
     acceptance:
@@ -19,8 +19,8 @@ items:
     areas: [reports, web]
     priority: P1
     size: M
-    status: ready
-    depends_on: [WEB-005]
+    status: blocked
+    depends_on: [WEB-005, REP-007]
     body: |
       Day/week/month/custom range; filter by client, project, task, tag and billable status;
       totals of hours and amounts.
@@ -34,7 +34,7 @@ items:
     areas: [reports, web]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [REP-002]
     body: |
       Recharts visualizations with accessible data tables as alternatives.
@@ -48,9 +48,13 @@ items:
     priority: P1
     size: M
     status: ready
-    depends_on: [REP-002]
     body: |
-      `@fairhour/pdf` renders a timesheet for a client and period, attachable to an invoice.
+      Create `@fairhour/pdf` (AGPL): render a timesheet for a client and period from plain data
+      (entries, totals already computed, client, workspace name, locale and time zone) so it does
+      not wait for the database. Attaching it to an invoice and the download button come with
+      REP-008.
+
+      Files: `packages/pdf/**`. Owner: `implementer`.
     acceptance:
       - "Locale-aware dates and amounts; workspace branding (name, logo placeholder)"
       - "Snapshot test of the rendered document structure"
@@ -62,9 +66,12 @@ items:
     priority: P2
     size: S
     status: ready
-    depends_on: [REP-002]
     body: |
-      Export filtered entries as CSV (RFC 4180), safe against formula injection.
+      A pure serializer that exports entries as CSV (RFC 4180), safe against formula injection.
+      Wiring it to the reports page comes with REP-008.
+
+      Files: `packages/core/src/export/csv.ts` (+ tests), one export line in
+      `packages/core/src/index.ts`. Owner: `implementer`.
     acceptance:
       - "Cells starting with `=`, `+`, `-`, `@` are escaped"
       - "Columns documented"
@@ -75,7 +82,7 @@ items:
     areas: [reports, api]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [REP-002]
     body: |
       Share a report with a client through a link signed with HMAC and an expiry, revocable.
@@ -83,3 +90,41 @@ items:
       - "Tampered or expired links are rejected"
       - "Revocation takes effect immediately"
       - "Shared view exposes only the report data"
+
+  - id: REP-007
+    title: "Report aggregation queries and API router"
+    type: feature
+    areas: [reports, db, api]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [DATA-014, DATA-015, DATA-008]
+    body: |
+      SQL aggregations for reports (hours and billable amounts by day, week, client, project,
+      task, tag and member; effective rate; budget burn) in the user's time zone, exposed by a
+      `reports` tRPC router. Amounts stay exact: sums of `bigint` minor units per currency, never
+      converted implicitly.
+
+      Files: `packages/db/src/repositories/reports.ts`, `packages/api/src/routers/reports.ts`
+      (+ tests), one line in `packages/api/src/routers/index.ts`. Owner: `implementer`.
+    acceptance:
+      - "Integration tests with entries across a DST change and several currencies"
+      - "Tenant-isolation test for the router"
+
+  - id: REP-008
+    title: "Export buttons: PDF timesheet and CSV from the reports page"
+    type: feature
+    areas: [reports, web]
+    priority: P2
+    size: S
+    status: blocked
+    depends_on: [REP-002, REP-004, REP-005]
+    body: |
+      Download the current report as a PDF timesheet or CSV, and attach the timesheet to an
+      invoice from the invoice screen.
+
+      Files: `apps/web/src/features/reports/export/**`, an API route for downloads. Owner:
+      `implementer`.
+    acceptance:
+      - "Exports respect the active filters"
+      - "E2E downloads both files"

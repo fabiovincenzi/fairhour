@@ -1,3 +1,7 @@
+# Phase 3 is split contract-first so several agents can work in parallel:
+#   DATA-011 (design), DATA-012 (db scaffold) and DATA-017 (api scaffold) can start at once;
+#   DATA-002 (schema) follows the design; then each repository (DATA-013..016) is independent.
+# Every item lists the files it owns ("Files:") so parallel PRs do not collide.
 milestone: "v0.3 Data & Auth"
 items:
   - id: DATA-001
@@ -8,7 +12,24 @@ items:
     size: XL
     status: ready
     children:
-      [DATA-002, DATA-003, DATA-004, DATA-005, DATA-006, DATA-007, DATA-008, DATA-009, DATA-010]
+      [
+        DATA-011,
+        DATA-012,
+        DATA-017,
+        DATA-002,
+        DATA-003,
+        DATA-004,
+        DATA-013,
+        DATA-014,
+        DATA-015,
+        DATA-016,
+        DATA-005,
+        DATA-006,
+        DATA-007,
+        DATA-008,
+        DATA-009,
+        DATA-010,
+      ]
     body: |
       Phase 3. PostgreSQL schema, migrations, a realistic seed, authentication, workspaces with
       roles, and proof that one workspace can never see another's data.
@@ -16,22 +37,93 @@ items:
       - All sub-issues are done
       - "Integration tests run against a real Postgres in CI"
 
+  - id: DATA-011
+    title: "Data model design (docs/design/data-model.md) and ADR-0006"
+    type: docs
+    areas: [db]
+    priority: P0
+    size: M
+    status: ready
+    body: |
+      The contract every Phase 3 item implements. Write `docs/design/data-model.md` and
+      `docs/adr/0006-data-model-and-tenancy.md` covering: every table and column with types (ids,
+      money as `bigint` minor units + `char(3)` currency, decimals as `numeric` read as strings,
+      `timestamptz` in UTC), the tenancy model (`workspace_id` on every tenant table, composite
+      foreign keys `(workspace_id, id)` so rows cannot reference another workspace), archive vs
+      delete, audit columns, indexes (one running timer per user as a partial unique index),
+      where Better Auth's tables live, invoice numbering (per workspace and year, gapless), how an
+      invoice stores its immutable `computationToJson` snapshot, the forward-only migration policy,
+      and the repository API for each aggregate (method signatures) so DATA-013..016 can be built
+      in parallel. List the schema file per aggregate (`packages/db/src/schema/<aggregate>.ts`).
+
+      Files: `docs/design/data-model.md`, `docs/adr/0006-*.md`, `docs/adr/README.md`. Owner: `architect`.
+    acceptance:
+      - "Every table of DATA-002 is specified with columns, constraints and indexes"
+      - "Repository interfaces are written as TypeScript signatures"
+      - "ADR-0006 records ids, tenancy, money columns and numbering with alternatives"
+
+  - id: DATA-012
+    title: "packages/db scaffold: Drizzle client, env, migration runner, integration-test harness"
+    type: chore
+    areas: [db, infra]
+    priority: P1
+    size: M
+    status: ready
+    body: |
+      Create `@fairhour/db` (AGPL) without domain tables: Drizzle ORM + postgres.js client, a zod
+      env schema (`DATABASE_URL`, pool size), `drizzle.config.ts`, a `migrate` script (`pnpm
+      db:migrate`, `db:generate`), and an integration-test harness that gives each test file an
+      isolated database or schema with migrations applied (works with the local Postgres and the CI
+      service container). Wire `test:integration` (`*.int.test.ts`) into turbo and CI. Prove the
+      harness with a tiny self-test.
+
+      Files: `packages/db/{package.json,tsconfig.json,eslint.config.js,vitest*.config.ts,drizzle.config.ts}`,
+      `packages/db/src/{client,env,migrate,index}.ts`, `packages/db/test/harness.ts`. Owner: `implementer`.
+    acceptance:
+      - "`pnpm test:integration` runs against `DATABASE_URL` locally and in CI"
+      - "Each test file gets a clean, migrated database; tests can run in parallel"
+      - "No domain tables yet (they come from DATA-002)"
+
+  - id: DATA-017
+    title: "packages/api scaffold: tRPC, request context, error mapping, logger"
+    type: chore
+    areas: [api]
+    priority: P1
+    size: M
+    status: ready
+    body: |
+      Create `@fairhour/api` (AGPL): tRPC 11 init, a context factory that turns a request into
+      `{ session, workspace }` through an injected `SessionResolver` interface (implemented by
+      DATA-006), procedure builders (`publicProcedure`, `authedProcedure`, `workspaceProcedure`),
+      mapping of domain errors (zod, CoreError, tax-core errors) to tRPC errors, a pino logger with
+      redaction of secrets and PII, and an env schema. No domain routers yet.
+
+      Files: `packages/api/{package.json,tsconfig.json,eslint.config.js,vitest.config.ts}`,
+      `packages/api/src/{trpc,context,errors,logger,env,index}.ts`. Owner: `implementer`.
+    acceptance:
+      - "Unit tests for the context factory, error mapping and log redaction"
+      - "A sample `health` procedure is covered by a test"
+
   - id: DATA-002
     title: "Drizzle schema for the core domain"
     type: feature
     areas: [db]
     priority: P1
     size: L
-    status: ready
-    depends_on: [CORE-005]
+    status: blocked
+    depends_on: [DATA-011, DATA-012]
     body: |
-      Tables: users, sessions/accounts (auth), workspaces, memberships, clients, projects, tasks,
-      tags, time_entries (+ tags), rates, budgets, expenses, invoices (+ lines, computation
-      snapshot), tax profiles, audit_log, share_links, api_tokens, webhooks.
+      Implement the tables specified in `docs/design/data-model.md`: workspaces, memberships,
+      clients, projects, tasks, tags, time_entries (+ tags), rates, budgets, expenses, tax profiles,
+      invoices (+ lines, computation snapshot), audit_log, share_links, api_tokens, webhooks. Auth
+      tables belong to DATA-006. Generate the first migration.
+
+      Files: `packages/db/src/schema/*.ts` (except `auth.ts`), `packages/db/migrations/*`.
+      Owner: `architect` (data model change).
     acceptance:
       - "Money stored as `bigint` minor units + currency; decimals as `numeric` strings"
       - "Timestamps `timestamptz` in UTC"
-      - "Every tenant table has `workspace_id` (FK, indexed)"
+      - "Every tenant table has `workspace_id` (FK, indexed) and composite FKs per the design"
       - "Partial unique index guaranteeing one running timer per user"
 
   - id: DATA-003
@@ -40,30 +132,112 @@ items:
     areas: [db, infra]
     priority: P1
     size: S
-    status: ready
+    status: blocked
     depends_on: [DATA-002]
     body: |
-      drizzle-kit generated SQL migrations, a `pnpm db:migrate` command and an optional
-      `MIGRATE_ON_BOOT=true` for self-hosters.
+      Forward-only migration policy, `pnpm db:migrate`, an optional `MIGRATE_ON_BOOT=true` for
+      self-hosters, and a CI check that fails when the schema and the committed migrations drift.
+
+      Files: `packages/db/src/migrate.ts`, `packages/db/scripts/*`, `.github/workflows/ci.yml`
+      (integration job only). Owner: `implementer`.
     acceptance:
       - "Migrations are committed SQL, applied in order, idempotent to re-run"
       - "CI fails if the schema and the migrations drift"
 
   - id: DATA-004
-    title: "Workspace-scoped repositories and tenant isolation tests"
+    title: "Workspace-scoped repository foundation and tenant isolation test kit"
     type: security
     areas: [db]
     priority: P0
     size: M
-    status: ready
+    status: blocked
     depends_on: [DATA-002]
     body: |
-      All data access goes through repositories created for one workspace. Cross-tenant access
-      must be impossible by construction and proven by tests.
+      All data access goes through repositories created for one workspace. Build the foundation the
+      per-aggregate repositories (DATA-013..016) share: the `WorkspaceContext` type, a
+      `forWorkspace(db, ctx)` factory, transaction helpers, typed domain errors, and a reusable
+      isolation test kit (`describeTenantIsolation`) that proves reads, updates and deletes across
+      workspaces fail.
+
+      Files: `packages/db/src/repositories/{context,base,errors,index}.ts`,
+      `packages/db/test/tenant-isolation.ts`. Owner: `implementer`.
     acceptance:
       - "Repositories require a `WorkspaceContext`; raw table access is not exported"
-      - "Integration tests prove reads, updates and deletes across workspaces fail for every table"
+      - "The isolation kit is used by a sample repository test"
       - "Foreign keys cannot point to another workspace's rows (composite FKs or checks)"
+
+  - id: DATA-013
+    title: "Repositories: clients, projects, tasks and tags"
+    type: feature
+    areas: [db]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [DATA-004]
+    body: |
+      CRUD, archive and listing for clients, projects (billing mode, rounding, currency), tasks and
+      tags, following the interfaces in `docs/design/data-model.md`, with zod-validated inputs and
+      tenant isolation tests.
+
+      Files: `packages/db/src/repositories/{clients,projects,tasks,tags}.ts` and their tests.
+      Owner: `implementer`.
+    acceptance:
+      - "Integration tests including the isolation kit for every repository"
+      - "Archived rows are hidden from default listings"
+
+  - id: DATA-014
+    title: "Repositories: time entries and the running timer"
+    type: feature
+    areas: [db]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [DATA-004]
+    body: |
+      Start/stop with at most one running timer per user (starting stops the running one in the same
+      transaction), manual entries, edit, split and merge (using `@fairhour/core`), overlap queries,
+      and listing by range in the user's time zone.
+
+      Files: `packages/db/src/repositories/time-entries.ts` and tests. Owner: `implementer`.
+    acceptance:
+      - "Concurrent starts never leave two running timers (test with parallel transactions)"
+      - "Tenant isolation tests"
+
+  - id: DATA-015
+    title: "Repositories: rates, budgets, expenses and mileage"
+    type: feature
+    areas: [db]
+    priority: P2
+    size: M
+    status: blocked
+    depends_on: [DATA-004]
+    body: |
+      Hourly and daily rates at workspace, client, project and task level (as resolved by
+      `resolveRate` in `@fairhour/core`), budgets, expenses and mileage lines.
+
+      Files: `packages/db/src/repositories/{rates,budgets,expenses}.ts` and tests. Owner: `implementer`.
+    acceptance:
+      - "Rates round-trip as exact decimals; money as bigint minor units"
+      - "Tenant isolation tests"
+
+  - id: DATA-016
+    title: "Repositories: tax profiles and invoices with immutable computation snapshots"
+    type: feature
+    areas: [db, tax-core]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [DATA-004]
+    body: |
+      Workspace tax profiles (pack id + validated config), invoice drafts, issued invoices with
+      gapless numbering per workspace and year, and the immutable snapshot of the computation
+      (`computationToJson` in, `computationFromJson` out).
+
+      Files: `packages/db/src/repositories/{tax-profiles,invoices}.ts` and tests. Owner: `implementer`.
+    acceptance:
+      - "Issued invoices and their snapshots cannot be modified"
+      - "Numbering is gapless under concurrency (test)"
+      - "Tenant isolation tests"
 
   - id: DATA-005
     title: "Realistic multi-country demo seed"
@@ -71,11 +245,13 @@ items:
     areas: [db]
     priority: P2
     size: M
-    status: ready
-    depends_on: [DATA-002]
+    status: blocked
+    depends_on: [DATA-013, DATA-014, DATA-015, DATA-016]
     body: |
       Demo workspaces for an Italian forfettario designer, an Italian ordinario developer and a
       UK/US freelancer using the generic pack, with months of time entries.
+
+      Files: `packages/db/src/seed/**`. Owner: `implementer`.
     acceptance:
       - "`pnpm db:seed` is deterministic (seeded RNG) and idempotent"
       - "Covers clients in several currencies, budgets near alerts, fixed-price projects"
@@ -86,11 +262,15 @@ items:
     areas: [api, web]
     priority: P1
     size: M
-    status: ready
-    depends_on: [DATA-002]
+    status: blocked
+    depends_on: [DATA-017]
     body: |
-      Better Auth with database sessions. Email magic links (Mailpit in dev), OAuth with Google
-      and GitHub when credentials are configured.
+      Better Auth with database sessions through the Drizzle adapter. Email magic links (Mailpit in
+      dev), OAuth with Google and GitHub when credentials are configured. Implements the
+      `SessionResolver` of DATA-017.
+
+      Files: `packages/db/src/schema/auth.ts` (+ its migration), `packages/api/src/auth/**`.
+      Owner: `implementer`.
     acceptance:
       - "Magic link sign-in works end to end in dev with Mailpit"
       - "OAuth providers enabled only when their env vars are set"
@@ -103,10 +283,12 @@ items:
     areas: [api, web]
     priority: P3
     size: M
-    status: ready
+    status: blocked
     depends_on: [DATA-006]
     body: |
-      Let users register a passkey and sign in without email.
+      Let users register a passkey and sign in without email (Better Auth passkey plugin).
+
+      Files: `packages/api/src/auth/passkeys.ts`, account settings UI once WEB-013 exists.
     acceptance:
       - "Register, list and remove passkeys in account settings"
       - "Sign in with a passkey on supported browsers"
@@ -117,11 +299,15 @@ items:
     areas: [api, db]
     priority: P1
     size: M
-    status: ready
+    status: blocked
     depends_on: [DATA-004, DATA-006]
     body: |
       Roles: owner, admin, member, viewer. Owners manage billing-relevant settings, admins manage
-      members and projects, members track time, viewers read reports.
+      members and projects, members track time, viewers read reports. One permission matrix,
+      enforced by `workspaceProcedure` middleware in `@fairhour/api`.
+
+      Files: `packages/db/src/repositories/{workspaces,memberships}.ts`,
+      `packages/api/src/permissions.ts`, tests. Owner: `implementer`.
     acceptance:
       - "Permission matrix documented and enforced in one place"
       - "Invitations by email with expiry"
@@ -133,10 +319,14 @@ items:
     areas: [db, api]
     priority: P2
     size: S
-    status: ready
+    status: blocked
     depends_on: [DATA-004]
     body: |
-      Who changed what and when, for time entries, rates, tax profiles and invoices.
+      Who changed what and when, for time entries, rates, tax profiles and invoices. Provide a
+      helper the repositories call inside their transactions; wire it into the repositories that
+      already exist when this lands.
+
+      Files: `packages/db/src/repositories/audit.ts` and calls in the existing repositories.
     acceptance:
       - "Append-only `audit_log` with actor, action, entity, diff (no PII beyond IDs)"
       - "Written in the same transaction as the change"
@@ -147,10 +337,12 @@ items:
     areas: [api, docs]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [DATA-008]
     body: |
       Users can export everything as JSON and delete their account; retention is documented.
+
+      Files: `packages/api/src/gdpr/**`, `apps/docs/src/content/docs/guides/data-retention.md`.
     acceptance:
       - "Export endpoint produces a versioned JSON document of the user's data"
       - "Account deletion removes or anonymizes personal data, keeps invoice records the law requires"

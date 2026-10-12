@@ -8,7 +8,7 @@ items:
     areas: [i18n]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue", "help wanted", "translation"]
     depends_on: [WEB-002]
     body: |
@@ -25,7 +25,7 @@ items:
     areas: [i18n]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue", "help wanted", "translation"]
     depends_on: [WEB-002]
     body: |
@@ -41,7 +41,7 @@ items:
     areas: [i18n]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue", "help wanted", "translation"]
     depends_on: [WEB-002]
     body: |
@@ -56,7 +56,7 @@ items:
     areas: [i18n]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue", "help wanted", "translation"]
     depends_on: [WEB-002]
     body: |
@@ -71,7 +71,7 @@ items:
     areas: [i18n]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue", "help wanted", "translation"]
     depends_on: [WEB-002]
     body: |
@@ -86,7 +86,7 @@ items:
     areas: [docs, i18n]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue", "translation"]
     depends_on: [HOST-005]
     body: |
@@ -204,7 +204,7 @@ items:
     areas: [web, ui]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue"]
     depends_on: [WEB-006]
     body: |
@@ -220,7 +220,7 @@ items:
     areas: [web]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue"]
     depends_on: [WEB-003]
     body: |
@@ -250,7 +250,7 @@ items:
     areas: [web, ui]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue"]
     depends_on: [WEB-008]
     body: |
@@ -265,7 +265,7 @@ items:
     areas: [web]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     labels: ["good first issue"]
     depends_on: [WEB-007]
     body: |

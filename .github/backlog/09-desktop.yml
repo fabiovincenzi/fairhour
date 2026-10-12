@@ -19,7 +19,8 @@ items:
     areas: [desktop]
     priority: P2
     size: M
-    status: ready
+    status: blocked
+    depends_on: [UI-001]
     body: |
       `apps/desktop` with Tauri 2, React and Vite, sharing `@fairhour/core` and `@fairhour/ui`,
       authenticating with a personal access token against any Fairhour server.
@@ -33,8 +34,8 @@ items:
     areas: [desktop]
     priority: P2
     size: M
-    status: ready
-    depends_on: [DESK-002]
+    status: blocked
+    depends_on: [DESK-002, API-003]
     body: |
       Start/stop and switch projects from the tray; running time in the menubar title.
     acceptance:
@@ -46,7 +47,7 @@ items:
     areas: [desktop]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [DESK-003]
     body: |
       "Idle for 12 min: keep or discard?" when the user returns while a timer runs.
@@ -59,7 +60,7 @@ items:
     areas: [desktop]
     priority: P3
     size: L
-    status: ready
+    status: blocked
     depends_on: [DESK-002]
     body: |
       Detect the frontmost app (IDE, design tool, video editor) and propose time entries. Activity
@@ -74,7 +75,7 @@ items:
     areas: [desktop, infra]
     priority: P2
     size: S
-    status: ready
+    status: blocked
     depends_on: [DESK-002]
     body: |
       Build macOS/Windows/Linux bundles on release; signing optional through secrets.

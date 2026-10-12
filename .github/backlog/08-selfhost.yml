@@ -20,7 +20,8 @@ items:
     areas: [infra]
     priority: P1
     size: M
-    status: ready
+    status: blocked
+    depends_on: [WEB-002]
     body: |
       Next.js standalone output in a slim image running as a non-root user, with a health check.
     acceptance:
@@ -33,7 +34,7 @@ items:
     areas: [infra, docs]
     priority: P1
     size: S
-    status: ready
+    status: blocked
     depends_on: [HOST-002]
     body: |
       `deploy/docker-compose.yml` with the app and Postgres, volumes, health checks and the
@@ -47,7 +48,7 @@ items:
     areas: [infra]
     priority: P1
     size: M
-    status: ready
+    status: blocked
     depends_on: [HOST-002]
     body: |
       Changesets version PRs, GitHub Releases, `ghcr.io/fabiovincenzi/fairhour` images for
@@ -62,7 +63,7 @@ items:
     areas: [docs]
     priority: P1
     size: S
-    status: ready
+    status: blocked
     depends_on: [HOST-003]
     body: |
       Installation, reverse proxy (Caddy/Traefik/nginx), email, backups, upgrades, troubleshooting.

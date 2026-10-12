@@ -8,6 +8,7 @@ items:
     priority: P1
     size: XL
     status: ready
+    state: done
     children: [CORE-002, CORE-003, CORE-004, CORE-005, CORE-006, CORE-007, CORE-008, CORE-009]
     body: |
       Pure, I/O-free domain logic shared by the web app, the API and the desktop companion:
@@ -23,6 +24,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     body: |
       Money is integer minor units (`bigint`) with an ISO 4217 currency; rates, quantities and
       exchange rates are exact decimals parsed from strings. Floats are never used.
@@ -42,6 +44,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [CORE-002]
     body: |
       Timestamps are stored in UTC; reports group by the user's local day/week/month in their
@@ -59,6 +62,7 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     depends_on: [CORE-003]
     body: |
       Users must be warned about overlapping entries and be able to split or merge entries
@@ -75,6 +79,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [CORE-002]
     body: |
       The hourly rate is resolved by priority task > project > client > workspace default.
@@ -94,6 +99,7 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     depends_on: [CORE-005]
     body: |
       Projects can have an hours or amount budget. Users are alerted at 80% and 100%.
@@ -109,6 +115,7 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     depends_on: [CORE-005]
     body: |
       "This fixed-price project paid you €X/h": revenue divided by tracked hours, per project and per client.
@@ -123,6 +130,7 @@ items:
     priority: P2
     size: M
     status: ready
+    state: done
     depends_on: [CORE-003]
     body: |
       `2h design Acme yesterday`, `1h30m call with Bob @Website #meeting`, `9:00-10:15 standup` …
@@ -140,6 +148,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [CORE-005, TAX-002]
     body: |
       Aggregate billable entries for a client and period into invoice lines (by project, task or
@@ -158,6 +167,7 @@ items:
     priority: P1
     size: XL
     status: ready
+    state: done
     children:
       [TAX-002, TAX-003, TAX-004, TAX-005, TAX-006, TAX-007, TAX-008, TAX-009, TAX-010, TAX-011]
     body: |
@@ -174,6 +184,7 @@ items:
     priority: P0
     size: L
     status: ready
+    state: done
     depends_on: [CORE-002]
     body: |
       A pure, I/O-free engine. A pack declares its configuration schema (zod), its rule
@@ -194,6 +205,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [TAX-002]
     body: |
       Every pack must pass the same checks so contributors get fast, objective feedback.
@@ -211,6 +223,7 @@ items:
     priority: P0
     size: M
     status: ready
+    state: done
     depends_on: [TAX-002]
     body: |
       No VAT (with configurable exemption wording), no withholding, optional 4% INPS rivalsa
@@ -227,6 +240,7 @@ items:
     priority: P0
     size: L
     status: ready
+    state: done
     depends_on: [TAX-002]
     body: |
       VAT 22% (other rates configurable), 20% ritenuta d'acconto when the client is a
@@ -246,11 +260,12 @@ items:
     priority: P1
     size: S
     status: ready
+    state: done
     depends_on: [TAX-004]
     body: |
       €2 stamp duty applies to invoice amounts not subject to VAT above €77.47, in both regimes.
     acceptance:
-      - "Threshold and amount versioned by date and configurable"
+      - "Threshold and amount are parameters versioned by effective date (not workspace configuration)"
       - "Charged to the client (added to the total) or absorbed (informational note)"
       - "Applies in ordinario only to the VAT-excluded/exempt part above the threshold"
 
@@ -261,12 +276,13 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     depends_on: [TAX-004]
     body: |
       Warn when the yearly revenue approaches the forfettario ceiling (€85,000 since 2023) and
       when it exceeds the €100,000 immediate-exit threshold.
     acceptance:
-      - "Ceiling and warning ratio configurable; parameters versioned by year"
+      - "Ceiling versioned by year as a parameter; warning ratio configurable"
       - "Status: ok, approaching, exceeded, immediate-exit with explanation and sources"
 
   - id: TAX-008
@@ -276,6 +292,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [TAX-002]
     body: |
       Make Fairhour useful worldwide from day one: a pack where the user sets the tax label
@@ -291,6 +308,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [TAX-003]
     body: |
       Adding a country must be a well-scoped community contribution.
@@ -305,6 +323,7 @@ items:
     priority: P1
     size: S
     status: ready
+    state: done
     depends_on: [TAX-004, TAX-005]
     body: |
       Every rule and its source documented for humans, matching the code.
@@ -320,6 +339,7 @@ items:
     priority: P1
     size: M
     status: ready
+    state: done
     depends_on: [TAX-002]
     body: |
       Golden fixtures pin the exact output of real-world invoices; fast-check guards the

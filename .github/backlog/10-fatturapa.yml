@@ -34,7 +34,7 @@ items:
     areas: [tax-pack-it]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [FPA-002]
     body: |
       Validate every generated document against the official schema in tests.
@@ -48,7 +48,7 @@ items:
     areas: [web]
     priority: P3
     size: S
-    status: ready
+    status: blocked
     depends_on: [FPA-002, WEB-007]
     body: |
       Button to download the XML with the SdI file naming convention.

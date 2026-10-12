@@ -1,3 +1,7 @@
+# Phase 4 is split contract-first so several agents can work in parallel:
+#   UI-001 (design system) and WEB-002 (app scaffold) start the UI side; the API routers
+#   (WEB-014..018) only need their repository and roles; each page then needs one router.
+# Every item lists the files it owns ("Files:") so parallel PRs do not collide.
 milestone: "v0.4 Web MVP"
 items:
   - id: WEB-001
@@ -8,7 +12,27 @@ items:
     size: XL
     status: ready
     children:
-      [WEB-002, WEB-003, WEB-004, WEB-005, WEB-006, WEB-007, WEB-008, WEB-009, WEB-010, WEB-011]
+      [
+        UI-001,
+        WEB-002,
+        WEB-012,
+        WEB-013,
+        WEB-014,
+        WEB-015,
+        WEB-016,
+        WEB-017,
+        WEB-018,
+        WEB-003,
+        WEB-019,
+        WEB-004,
+        WEB-005,
+        WEB-006,
+        WEB-007,
+        WEB-008,
+        WEB-009,
+        WEB-010,
+        WEB-011,
+      ]
     body: |
       Phase 4. The first usable version of the web app: manage clients and projects, track time,
       review entries and compute an invoice, in English and Italian.
@@ -16,48 +40,237 @@ items:
       - All sub-issues are done
       - "The critical flow works on desktop and mobile widths"
 
+  - id: UI-001
+    title: "packages/ui: accessible design system (shadcn/ui based, light/dark)"
+    type: feature
+    areas: [ui]
+    priority: P1
+    size: L
+    status: ready
+    body: |
+      Create `@fairhour/ui` (AGPL): Tailwind preset from `packages/config`, design tokens as CSS
+      variables for light and dark, and the primitives the MVP needs, built on Radix through
+      shadcn/ui: Button, Input, Textarea, Select, Combobox, Checkbox, Switch, Dialog, Sheet,
+      DropdownMenu, Popover, Tooltip, Tabs, Table, Badge, Card, Skeleton, Toast, FormField (label,
+      description, error wired with `aria-*`), EmptyState and a MoneyText/DurationText that only
+      format values they receive (no arithmetic). Components take every user-facing string as a
+      prop or child: the package has no copy of its own. Storybook is not required; a
+      `src/gallery.tsx` page used by the web app's dev route is enough.
+
+      Files: `packages/ui/**`. Owner: `implementer`.
+    acceptance:
+      - "Every component has a unit test (Testing Library) and an axe check with no violations"
+      - "Light and dark themes meet WCAG 2.2 AA contrast; focus is always visible"
+      - "Exports are tree-shakeable; no hard-coded user-facing strings"
+
   - id: WEB-002
-    title: "App shell, navigation, theming, i18n (en + it) and PWA"
+    title: "apps/web scaffold: Next.js shell, navigation, theming, i18n (en + it) and PWA"
     type: feature
     areas: [web, ui, i18n]
     priority: P1
     size: M
-    status: ready
-    depends_on: [DATA-006]
+    status: blocked
+    depends_on: [UI-001]
     body: |
-      Next.js App Router shell with sidebar navigation, light/dark theme, next-intl with English
-      (source) and Italian, locale-aware formatting and an installable PWA manifest.
+      Create `apps/web` (AGPL): Next.js App Router, the app shell (sidebar on desktop, bottom bar
+      on mobile), light/dark/system theme, next-intl with English (source) and Italian messages in
+      `apps/web/messages/{en,it}.json`, locale-aware number/date formatting, an installable PWA
+      manifest with icons and an offline fallback page, and Playwright set up in `apps/web/e2e`
+      (desktop + mobile projects, axe). Pages are placeholders; data comes from later items.
+
+      Files: `apps/web/**` except `apps/web/src/app/(app)/<feature>/**` and
+      `apps/web/src/features/**`, which later items own. Owner: `implementer`.
     acceptance:
-      - "Locale switcher; user locale and time zone stored in profile"
+      - "Locale switcher; the chosen locale and time zone are remembered"
       - "No hard-coded UI strings; `pnpm i18n:check` passes"
       - "Manifest, icons and offline fallback page"
+      - "A Playwright smoke test with axe passes on desktop and mobile"
 
-  - id: WEB-003
-    title: "Clients, projects and tasks CRUD with rates and budgets"
+  - id: WEB-012
+    title: "Wire tRPC into apps/web: server handler, React Query client, auth-aware context"
     type: feature
     areas: [web, api]
     priority: P1
-    size: L
-    status: ready
-    depends_on: [WEB-002, DATA-008]
+    size: S
+    status: blocked
+    depends_on: [WEB-002, DATA-017]
     body: |
-      Forms validated with the same zod schemas as the API. Rates at every level, billing mode,
-      rounding, budgets and client currency.
+      Mount the `@fairhour/api` app router at `/api/trpc`, create the typed client with React
+      Query, server-side callers for React Server Components, and the error toast mapping
+      (tRPC error codes → localized messages). Health check page proves the round trip.
+
+      Files: `apps/web/src/app/api/trpc/**`, `apps/web/src/lib/trpc/**`. Owner: `implementer`.
     acceptance:
-      - "Create, edit, archive and delete (with undo) for clients, projects and tasks"
+      - "A server component and a client component both call `health` with full types"
+      - "Errors are shown as localized toasts, never raw messages"
+
+  - id: WEB-013
+    title: "Sign-in, sign-up and account pages"
+    type: feature
+    areas: [web]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [WEB-012, DATA-006]
+    body: |
+      Magic link and OAuth sign-in screens, the check-your-inbox page, sign-out, an account page
+      (name, locale, time zone) and route protection for the `(app)` group. The first sign-in
+      creates a personal workspace (through the workspace service of DATA-008 once it exists; a
+      single default workspace until then).
+
+      Files: `apps/web/src/app/(auth)/**`, `apps/web/src/app/(app)/account/**`,
+      `apps/web/src/middleware.ts`. Owner: `implementer`.
+    acceptance:
+      - "E2E: sign in with a magic link through Mailpit and land on the dashboard"
+      - "Signed-out users are redirected to sign-in; signed-in users never see auth pages"
+
+  - id: WEB-014
+    title: "API routers: clients, projects, tasks and tags"
+    type: feature
+    areas: [api]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [DATA-013, DATA-008]
+    body: |
+      tRPC routers over the DATA-013 repositories: list (with archived filter), get, create,
+      update, archive, restore, delete. Input and output are zod schemas exported from
+      `@fairhour/api` so forms reuse them. Every procedure is a `workspaceProcedure` with a role
+      check.
+
+      Files: `packages/api/src/routers/{clients,projects,tasks,tags}.ts` (+ tests),
+      one line each in `packages/api/src/routers/index.ts`. Owner: `implementer`.
+    acceptance:
+      - "Integration tests for every procedure, including a tenant-isolation test per router"
+      - "Viewers cannot mutate; members cannot delete clients"
+
+  - id: WEB-015
+    title: "API routers: time entries and the running timer"
+    type: feature
+    areas: [api]
+    priority: P0
+    size: M
+    status: blocked
+    depends_on: [DATA-014, DATA-008]
+    body: |
+      tRPC routers over DATA-014: list by range (in the user's time zone, DST-safe), create,
+      update, delete, split, merge, bulk update, `timer.current`, `timer.start` (atomically stops
+      the running timer), `timer.stop`. Overlaps are returned as warnings from `findOverlaps`.
+
+      Files: `packages/api/src/routers/{entries,timer}.ts` (+ tests), one line each in
+      `packages/api/src/routers/index.ts`. Owner: `implementer`.
+    acceptance:
+      - "Two concurrent `timer.start` calls leave exactly one running timer"
+      - "Integration tests including tenant isolation"
+
+  - id: WEB-016
+    title: "API routers: rates, budgets and expenses"
+    type: feature
+    areas: [api]
+    priority: P1
+    size: S
+    status: blocked
+    depends_on: [DATA-015, DATA-008]
+    body: |
+      tRPC routers over DATA-015, plus `rates.resolve` (which rate applies to an entry and where
+      it comes from, via `@fairhour/core`) and `budgets.status` (burn and thresholds).
+
+      Files: `packages/api/src/routers/{rates,budgets,expenses}.ts` (+ tests), one line each in
+      `packages/api/src/routers/index.ts`. Owner: `implementer`.
+    acceptance:
+      - "`rates.resolve` reports the level the rate was inherited from"
+      - "Integration tests including tenant isolation"
+
+  - id: WEB-017
+    title: "API routers: tax profiles, invoice drafts, computation and snapshots"
+    type: feature
+    areas: [api, tax-core]
+    priority: P0
+    size: M
+    status: blocked
+    depends_on: [DATA-016, DATA-008, WEB-018]
+    body: |
+      tRPC routers over DATA-016: tax profile get/update (config validated by the pack's zod
+      schema), `invoices.preview` (builds the draft with `buildInvoiceDraft` from CORE-009 and
+      computes it with the workspace's pack), `invoices.save` (stores `computationToJson` as an
+      immutable snapshot with the next gapless number) and `invoices.get` (re-reads the snapshot
+      with `computationFromJson`, never recomputes).
+
+      Files: `packages/api/src/routers/{tax-profiles,invoices}.ts` (+ tests), one line each in
+      `packages/api/src/routers/index.ts`. Owner: `implementer` (tax questions go to `architect`).
+    acceptance:
+      - "A saved invoice reads back identical even after the pack's parameters change"
+      - "Integration tests including tenant isolation"
+
+  - id: WEB-018
+    title: "Tax pack registry in the API"
+    type: feature
+    areas: [api, tax-core]
+    priority: P1
+    size: S
+    status: blocked
+    depends_on: [DATA-017]
+    body: |
+      A registry of the installed packs (`it`, `generic`; never `template`) with id, country,
+      localized name and description, config schema and its JSON Schema for form generation, and
+      `taxPacks.list` / `taxPacks.describe` procedures.
+
+      Files: `packages/api/src/tax-packs/**`, `packages/api/src/routers/tax-packs.ts`, one line in
+      `packages/api/src/routers/index.ts`. Owner: `implementer`.
+    acceptance:
+      - "The template pack can never be registered (test)"
+      - "`describe` returns a JSON Schema that the settings form can render"
+
+  - id: WEB-003
+    title: "Clients pages: list, create, edit, archive with rates and currency"
+    type: feature
+    areas: [web]
+    priority: P1
+    size: M
+    status: blocked
+    depends_on: [WEB-013, WEB-014, WEB-016]
+    body: |
+      Forms validated with the same zod schemas as the API. Client currency, default rate,
+      billing mode and rounding; archive and delete with undo.
+
+      Files: `apps/web/src/app/(app)/clients/**`, `apps/web/src/features/clients/**`, keys under
+      `clients.*` in `apps/web/messages/{en,it}.json`. Owner: `implementer`.
+    acceptance:
+      - "Create, edit, archive and delete (with undo) for clients"
+      - "E2E for the create → edit → archive flow with axe checks"
+
+  - id: WEB-019
+    title: "Projects and tasks pages with rate inheritance and budgets"
+    type: feature
+    areas: [web]
+    priority: P1
+    size: L
+    status: blocked
+    depends_on: [WEB-013, WEB-014, WEB-016]
+    body: |
+      Projects grouped by client, tasks inside a project, rates at every level, fixed-price
+      projects and budgets.
+
+      Files: `apps/web/src/app/(app)/projects/**`, `apps/web/src/features/projects/**`, keys under
+      `projects.*` in `apps/web/messages/{en,it}.json`. Owner: `implementer`.
+    acceptance:
+      - "Create, edit, archive and delete (with undo) for projects and tasks"
       - 'Rate inheritance is visible ("inherited from client: €60/h")'
 
   - id: WEB-004
     title: "Timer: optimistic start/stop, cross-tab and cross-device sync"
     type: feature
-    areas: [web, api]
+    areas: [web]
     priority: P0
     size: M
-    status: ready
-    depends_on: [WEB-002]
+    status: blocked
+    depends_on: [WEB-013, WEB-015]
     body: |
       One running timer per user. It survives reloads, updates optimistically, syncs across tabs
-      (BroadcastChannel) and devices (polling/refetch on focus).
+      (BroadcastChannel) and devices (refetch on focus and polling).
+
+      Files: `apps/web/src/features/timer/**`, the timer slot of the app shell, keys under
+      `timer.*`. Owner: `implementer`.
     acceptance:
       - "Starting a timer stops the running one atomically"
       - "Title shows the running time; works after reload"
@@ -69,11 +282,14 @@ items:
     areas: [web]
     priority: P1
     size: L
-    status: ready
+    status: blocked
     depends_on: [WEB-004]
     body: |
       Entries grouped by day in the user's time zone, inline edit, split, merge, bulk actions and
       overlap warnings; a week calendar with drag to create/resize.
+
+      Files: `apps/web/src/app/(app)/entries/**`, `apps/web/src/features/entries/**`, keys under
+      `entries.*`. Owner: `implementer`.
     acceptance:
       - "Overlaps highlighted using `findOverlaps`"
       - "Split and merge with undo"
@@ -85,11 +301,14 @@ items:
     areas: [web]
     priority: P2
     size: M
-    status: ready
+    status: blocked
     depends_on: [WEB-004, CORE-008]
     body: |
       `⌘K`/`Ctrl+K` palette for navigation and actions; `s` to start/stop, `n` for a new entry;
       quick add box that uses the natural-language parser with a live preview.
+
+      Files: `apps/web/src/features/command-palette/**`, `apps/web/src/features/quick-add/**`,
+      keys under `palette.*` and `quickAdd.*`. Owner: `implementer`.
     acceptance:
       - "Shortcuts listed in a help dialog (`?`)"
       - "Quick add preview shows the parsed project, duration and date before saving"
@@ -100,11 +319,14 @@ items:
     areas: [web, tax-core]
     priority: P0
     size: L
-    status: ready
-    depends_on: [WEB-003, CORE-009, TAX-005]
+    status: blocked
+    depends_on: [WEB-003, WEB-017]
     body: |
       Pick a client and a period, preview the lines built from billable time, then see every
       amount computed by the workspace's tax pack with the step-by-step explanation and sources.
+
+      Files: `apps/web/src/app/(app)/invoices/**`, `apps/web/src/features/invoices/**`, keys under
+      `invoices.*`. Owner: `implementer`.
     acceptance:
       - "Shows taxable base, contributions, VAT, withholding, stamp duty, total, net payable"
       - "Explanation trace with links to sources; informational disclaimer"
@@ -117,10 +339,14 @@ items:
     areas: [web, tax-core]
     priority: P1
     size: M
-    status: ready
-    depends_on: [WEB-002, TAX-005]
+    status: blocked
+    depends_on: [WEB-013, WEB-017]
     body: |
-      Choose a tax pack and configure it with a form generated from the pack's zod schema.
+      Choose a tax pack and configure it with a form generated from the pack's JSON Schema
+      (WEB-018).
+
+      Files: `apps/web/src/app/(app)/settings/tax/**`, `apps/web/src/features/tax-profile/**`, keys
+      under `taxProfile.*`. Owner: `implementer`.
     acceptance:
       - "Pack selector with country flag and description"
       - "Validation errors from the pack schema shown inline"
@@ -131,11 +357,14 @@ items:
     areas: [web, ui]
     priority: P2
     size: M
-    status: ready
-    depends_on: [WEB-003]
+    status: blocked
+    depends_on: [WEB-003, WEB-019]
     body: |
       Polish: every list has a helpful empty state, loading uses skeletons, errors are caught by
       boundaries with a retry, destructive actions offer undo.
+
+      Files: `error.tsx`/`loading.tsx` across `apps/web/src/app/(app)/**`; touch feature folders
+      only for empty states. Owner: `implementer`.
     acceptance:
       - "No layout shift when data loads"
       - "Undo toast for delete/archive"
@@ -146,10 +375,12 @@ items:
     areas: [web]
     priority: P2
     size: S
-    status: ready
-    depends_on: [WEB-003, CORE-006]
+    status: blocked
+    depends_on: [WEB-019, CORE-006]
     body: |
       Show budget burn on project pages and alert at 80% and 100%.
+
+      Files: `apps/web/src/features/budgets/**`, keys under `budgets.*`. Owner: `implementer`.
     acceptance:
       - "Progress bar with accessible text alternative"
       - "Toast when a new entry crosses a threshold"
@@ -160,13 +391,15 @@ items:
     areas: [web]
     priority: P2
     size: S
-    status: ready
+    status: blocked
     depends_on: [WEB-002]
     body: |
       Operators who modify and host Fairhour must offer their users the corresponding source
       (AGPL-3.0 §13). The app shows a "Source code" link in the footer and the about dialog,
       pointing to a configurable URL (`SOURCE_CODE_URL`) that defaults to the upstream repository
       plus the running version or commit. See docs/adr/0002-licensing.md.
+
+      Files: `apps/web/src/features/source-link/**`, `.env.example`. Owner: `implementer`.
     acceptance:
       - 'The "Source code" link is visible to every signed-in user and on public pages'
       - "`SOURCE_CODE_URL` overrides the link and is documented in `.env.example`"

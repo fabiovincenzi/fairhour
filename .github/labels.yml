@@ -122,6 +122,14 @@
   color: "f9d0c4"
   description: "Translation of the UI or docs into a new language"
 
+# --- AI agents (see AGENTS.md) ------------------------------------------------
+- name: "agent: claude"
+  color: "d97757"
+  description: "Being worked on by an AI agent; a human reviews the PR"
+- name: "agent: human"
+  color: "6f42c1"
+  description: "Needs a person (legal reading, credentials, product call); agents skip it"
+
 # --- Housekeeping -----------------------------------------------------------
 - name: "pinned"
   color: "000000"
