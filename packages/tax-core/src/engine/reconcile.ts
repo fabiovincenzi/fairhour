@@ -1,5 +1,7 @@
 import {
   add,
+  decimalEquals,
+  decimalToString,
   equals,
   greaterThan,
   isMoney,
@@ -226,10 +228,20 @@ export function reconciliationFailures(c: InvoiceComputation): readonly Reconcil
     }
   }
 
-  // R3: a tax allocation's base is the final base of its group.
+  // R3: a tax allocation's base is the final base of its group, at most one tax per group, and matching rates.
+  const taxed = new Set<string>();
   for (const component of c.components) {
     if (component.kind !== "tax") continue;
     for (const allocation of component.allocations) {
+      if (taxed.has(allocation.groupId)) {
+        failures.push({
+          check: "R3",
+          expected: "at most one tax allocation per group",
+          actual: `second tax from "${component.id}"`,
+          detail: `group "${allocation.groupId}"`,
+        });
+      }
+      taxed.add(allocation.groupId);
       const entry = entries.get(allocation.groupId);
       if (entry !== undefined) {
         compareAmounts(
@@ -239,6 +251,17 @@ export function reconciliationFailures(c: InvoiceComputation): readonly Reconcil
           allocation.base,
           `tax "${component.id}" on group "${allocation.groupId}"`,
         );
+        if (
+          component.rate !== undefined &&
+          !(entry.rate !== undefined && decimalEquals(entry.rate, component.rate))
+        ) {
+          failures.push({
+            check: "R3",
+            expected: entry.rate !== undefined ? decimalToString(entry.rate) : "none",
+            actual: decimalToString(component.rate),
+            detail: `rate of tax "${component.id}" on group "${allocation.groupId}"`,
+          });
+        }
       }
     }
   }

@@ -1,4 +1,4 @@
-import { money, price, type Money } from "@fairhour/money";
+import { decimal, money, price, type Money } from "@fairhour/money";
 import { describe, expect, it } from "vitest";
 import type { InvoiceComputation } from "../computation/types";
 import { ReconciliationError } from "../errors";
@@ -131,6 +131,30 @@ describe("reconciliation identities R1 to R8", () => {
             ...allocation,
             base: eur(10000n),
           })),
+        })),
+      }),
+      ["R3"],
+    ],
+    [
+      "R3: a second tax on a group",
+      () => ({
+        ...valid,
+        components: [
+          ...valid.components,
+          {
+            ...valid.components.find((component) => component.id === "xx.tax")!,
+            id: "xx.tax-doubled",
+          },
+        ],
+      }),
+      ["R2", "R3", "R4", "R8"],
+    ],
+    [
+      "R3: a tax rate that differs from its group",
+      () => ({
+        ...valid,
+        components: replaceComponent("xx.tax", () => ({
+          rate: decimal("99"),
         })),
       }),
       ["R3"],

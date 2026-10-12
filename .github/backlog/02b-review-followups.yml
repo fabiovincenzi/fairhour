@@ -39,6 +39,7 @@ items:
     priority: P1
     size: S
     status: ready
+    state: done
     body: |
       Commit e554b33 made the engine reject a second tax allocation on a group and a tax component
       whose rate differs from its group's rate, but `computationFromJson` (the DB snapshot →

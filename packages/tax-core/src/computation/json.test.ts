@@ -237,6 +237,29 @@ describe("computation JSON", () => {
       [],
     ],
     [
+      "two tax components on one group (doubled tax)",
+      (json) => {
+        const components = json.components as Json[];
+        const tax = components.find((c) => c.kind === "tax")!;
+        components.push({
+          ...tax,
+          id: "another-tax",
+        });
+      },
+      "reconciliation-failed",
+      [],
+    ],
+    [
+      "a tax component rate differing from its 20% group",
+      (json) => {
+        const components = json.components as Json[];
+        const tax = components.find((c) => c.kind === "tax")!;
+        tax.rate = "99";
+      },
+      "reconciliation-failed",
+      [],
+    ],
+    [
       "a duplicate line id",
       (json) => {
         (json.lines as Json[])[1]!.id = "l1";
