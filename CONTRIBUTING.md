@@ -23,6 +23,9 @@ pnpm db:migrate && pnpm db:seed
 pnpm dev
 ```
 
+If setup stops with a common local-environment error, see the
+[local-development troubleshooting guide](docs/contributing/troubleshooting.md).
+
 Useful commands:
 
 | Command                     | What it does                                                                               |
