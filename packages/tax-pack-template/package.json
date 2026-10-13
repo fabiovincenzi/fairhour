@@ -1,6 +1,6 @@
 {
   "name": "@fairhour/tax-pack-template",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Template for new Fairhour country tax packs: copy it, replace the TEMPLATE markers, pass the conformance suite.",
   "keywords": [

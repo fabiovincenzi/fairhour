@@ -1,5 +1,11 @@
 # @fairhour/tax-core
 
+## 0.1.1
+
+### Patch Changes
+
+- [#151](https://github.com/fabiovincenzi/fairhour/pull/151) [`5add22c`](https://github.com/fabiovincenzi/fairhour/commit/5add22c920e8c833d9362d7c853fed9328a1dc56) Thanks [@fabiovincenzi](https://github.com/fabiovincenzi)! - re-check one tax allocation per group and matching rates in reconciliationFailures (R3)
+
 ## 0.1.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@fairhour/tax-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Pure, I/O-free tax engine: TaxPack interface, rule pipeline, versioned parameters and explanation trace.",
   "license": "MIT",

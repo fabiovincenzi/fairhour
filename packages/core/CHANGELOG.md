@@ -1,5 +1,12 @@
 # @fairhour/core
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`5add22c`](https://github.com/fabiovincenzi/fairhour/commit/5add22c920e8c833d9362d7c853fed9328a1dc56)]:
+  - @fairhour/tax-core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

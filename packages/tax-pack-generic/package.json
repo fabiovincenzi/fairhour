@@ -1,6 +1,6 @@
 {
   "name": "@fairhour/tax-pack-generic",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Configurable VAT/GST/sales-tax or no-tax pack for Fairhour, usable in any country.",
   "keywords": [
