@@ -106,10 +106,22 @@ export function parseMessage(message: string): ParsedMessage {
     collectNames(parse(message, { ignoreTag: false }), names);
     return { ok: true, names: [...names].sort() };
   } catch (error) {
-    // `parse` only throws its own errors, and they always carry the position.
-    const { message: kind, location } = error as ParserError;
-    const { line, column } = location.start;
-    return { ok: false, error: `${kind} (line ${String(line)}, column ${String(column)})` };
+    if (
+      error !== null &&
+      typeof error === "object" &&
+      "location" in error &&
+      typeof error.location === "object" &&
+      error.location !== null &&
+      "start" in error.location
+    ) {
+      const { message: kind, location } = error as ParserError;
+      const { line, column } = location.start;
+      return { ok: false, error: `${kind} (line ${String(line)}, column ${String(column)})` };
+    }
+    if (error instanceof Error) {
+      return { ok: false, error: `${error.name}: ${error.message}` };
+    }
+    return { ok: false, error: `Error: ${String(error)}` };
   }
 }
 
