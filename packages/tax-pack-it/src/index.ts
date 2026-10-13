@@ -29,7 +29,7 @@ import type { ItFacts } from "./types";
 import { validateInput } from "./validate-input";
 
 /** Equals the package.json version (the conformance suite checks it). */
-export const IT_PACK_VERSION = "0.0.0";
+export const IT_PACK_VERSION = "0.1.0";
 
 export type ItPack = TaxPack<ItConfig, ItParams, ItFacts, ItOptions>;
 

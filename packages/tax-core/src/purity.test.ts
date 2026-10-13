@@ -48,6 +48,11 @@ describe("purity (design G5, section 1)", () => {
     ["new Date() without an input", /\bnew\s+Date\s*\(\s*\)/],
     // `Date(...)` called without `new` returns the current time as a string, whatever its arguments.
     ["Date() without new", /(?<![\w$.]|\bnew\s+)Date\s*\(/],
+    ["globalThis.Date()", /\bglobalThis\s*(?:\.\s*|\[\s*["'`])Date(?:["'`]\s*\])?\s*\(/],
+    [
+      "an argument-less Intl.DateTimeFormat(...).format()",
+      /\bDateTimeFormat\b[^;]*?\.\s*format\s*\(\s*\)/,
+    ],
     ["Math.random()", /\bMath\s*\.\s*random\b/],
     ["performance.now()", /\bperformance\s*\.\s*now\b/],
     ["crypto.getRandomValues()", /\bgetRandomValues\b/],
@@ -71,6 +76,17 @@ describe("purity (design G5, section 1)", () => {
     ["new Date() without an input", "const d = new Date();"],
     ["Date() without new", "const text = Date();"],
     ["Date() without new", "const text = Date(2024, 1, 1);"],
+    ["globalThis.Date()", "const text = globalThis.Date();"],
+    ["globalThis.Date()", "const text = globalThis.Date(2024, 1, 1);"],
+    ["globalThis.Date()", 'const text = globalThis["Date"]();'],
+    [
+      "an argument-less Intl.DateTimeFormat(...).format()",
+      "const text = new Intl.DateTimeFormat().format();",
+    ],
+    [
+      "an argument-less Intl.DateTimeFormat(...).format()",
+      'const text = new Intl.DateTimeFormat("en-US").format();',
+    ],
     ["Math.random()", "const r = Math.random();"],
     ["performance.now()", "const t = performance.now();"],
     ["crypto.getRandomValues()", "crypto.getRandomValues(buffer);"],
@@ -95,6 +111,7 @@ describe("purity (design G5, section 1)", () => {
     "export function isIsoDate(value: string): value is IsoDate {}",
     "return formatDate(param.value, locale, key);",
     'new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" })',
+    'new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, day)))',
   ])("the patterns allow %j", (code) => {
     expect(IMPURE.filter(([, pattern]) => pattern.test(code)).map(([label]) => label)).toEqual([]);
   });

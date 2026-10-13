@@ -11,7 +11,7 @@ import {
   priceToJson,
   type Decimal,
 } from "@fairhour/money";
-import { isPlainObject, setOwn } from "./records";
+import { setOwn } from "./records";
 import type { JsonValue } from "../primitives";
 
 /** A deep copy of plain JSON data (fresh arrays and objects, same key order). */
@@ -101,19 +101,27 @@ export interface JsonLimits {
   readonly maxEntries?: number;
 }
 
-/** The entries of an array or a plain object; undefined for anything else (a leaf). */
+/** The entries of an array or an object; undefined for anything else (a leaf). */
 function childrenOf(value: unknown): readonly (readonly [string | number, unknown])[] | undefined {
-  if (Array.isArray(value)) return value.map((item: unknown, index) => [index, item] as const);
-  if (isPlainObject(value)) return Object.entries(value);
+  if (Array.isArray(value)) {
+    const entries: (readonly [number, unknown])[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      entries.push([index, value[index]]);
+    }
+    return entries;
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value);
+  }
   return undefined;
 }
 
 /**
  * Checks the depth and the size of a JSON-like value with an explicit stack, without recursion,
  * so that zod (whose schemas for recursive data recurse) only ever sees bounded values: a
- * 20,000-level document is an issue, not a stack overflow. Arrays and plain objects are
- * containers; everything else is a leaf whose type the schema checks afterwards. A cyclic value
- * nests forever, so it is reported as too deep. Returns the first problem found, or undefined.
+ * 20,000-level document is an issue, not a stack overflow. Arrays and objects are containers;
+ * everything else is a leaf whose type the schema checks afterwards. A cyclic value nests
+ * forever, so it is reported as too deep. Returns the first problem found, or undefined.
  */
 export function jsonLimitProblem(value: unknown, limits: JsonLimits): JsonLimitProblem | undefined {
   const stack: { readonly value: unknown; readonly depth: number; readonly path: JsonPath }[] = [

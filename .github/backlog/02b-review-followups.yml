@@ -59,6 +59,7 @@ items:
     priority: P2
     size: S
     status: ready
+    state: done
     body: |
       `packages/tax-core/src/internal/json.ts` (`childrenOf`, `jsonLimitProblem`) treats only plain
       objects as containers, while zod recurses into `Object.create({})` objects and objects with an

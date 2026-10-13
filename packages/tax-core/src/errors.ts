@@ -26,12 +26,21 @@ export abstract class TaxEngineError extends Error {
   abstract readonly code: TaxEngineErrorCode;
 }
 
+/** Longest issue path segment kept in an error message. */
+const MAX_PATH_SEGMENT = 64;
+
+function formatSegment(segment: string | number): string {
+  const text = String(segment);
+  return text.length > MAX_PATH_SEGMENT ? `${text.slice(0, MAX_PATH_SEGMENT)}…` : text;
+}
+
 function describeIssues(
   issues: readonly { readonly path: readonly (string | number)[]; readonly code: string }[],
 ): string {
-  const shown = issues
-    .slice(0, 5)
-    .map((issue) => `${issue.code} at ${issue.path.length > 0 ? issue.path.join(".") : "(root)"}`);
+  const shown = issues.slice(0, 5).map((issue) => {
+    const pathText = issue.path.length > 0 ? issue.path.map(formatSegment).join(".") : "(root)";
+    return `${issue.code} at ${pathText}`;
+  });
   const more = issues.length > 5 ? `, and ${issues.length - 5} more` : "";
   return `${shown.join("; ")}${more}`;
 }

@@ -152,4 +152,13 @@ describe("errors", () => {
     }));
     expect(new InvalidInputError(many).message).toMatch(/c4 at 4, and 2 more$/);
   });
+
+  it("truncates each path segment in error messages while keeping the full path in issues", () => {
+    const longKey = "k".repeat(100);
+    const detailed = [{ path: ["options", longKey, 0], code: "invalid", message: "detail" }];
+    const error = new InvalidInputError(detailed);
+    expect(error.message).toContain(`options.${"k".repeat(64)}….0`);
+    expect(error.message).not.toContain("k".repeat(65));
+    expect(error.issues[0]?.path).toEqual(["options", longKey, 0]);
+  });
 });

@@ -44,12 +44,62 @@ describe("jsonLimitProblem", () => {
     });
   });
 
-  it("treats objects that are not plain as leaves", () => {
+  it("treats every non-null non-array object as a container", () => {
     class Box {
       readonly inner = nested(50);
     }
-    expect(jsonLimitProblem({ box: new Box() }, { maxDepth: 2 })).toBeUndefined();
+    expect(jsonLimitProblem({ box: new Box() }, { maxDepth: 2 })?.code).toBe("too-deep");
     const bare = Object.assign(Object.create(null) as object, { k: nested(3) });
     expect(jsonLimitProblem(bare, { maxDepth: 3 })?.path).toEqual(["k", "a", "a"]);
+  });
+
+  it("detects deep Object.create({}) chains without stack overflow", () => {
+    let value: unknown = 1;
+    for (let i = 0; i < 20; i += 1) {
+      value = Object.assign(Object.create({}), { child: value });
+    }
+    expect(jsonLimitProblem(value, { maxDepth: 8 })).toEqual({
+      path: Array.from({ length: 8 }, () => "child"),
+      code: "too-deep",
+      message: "Nested deeper than 8 levels",
+    });
+
+    let huge: unknown = 1;
+    for (let i = 0; i < 20_000; i += 1) {
+      huge = Object.assign(Object.create({}), { a: huge });
+    }
+    expect(jsonLimitProblem(huge, { maxDepth: 32 })?.code).toBe("too-deep");
+  });
+
+  it("detects constructor-override chains without stack overflow", () => {
+    let value: unknown = 1;
+    for (let i = 0; i < 20; i += 1) {
+      value = { constructor: "override", child: value };
+    }
+    expect(jsonLimitProblem(value, { maxDepth: 8 })).toEqual({
+      path: Array.from({ length: 8 }, () => "child"),
+      code: "too-deep",
+      message: "Nested deeper than 8 levels",
+    });
+
+    let huge: unknown = 1;
+    for (let i = 0; i < 20_000; i += 1) {
+      huge = { constructor: "override", a: huge };
+    }
+    expect(jsonLimitProblem(huge, { maxDepth: 32 })?.code).toBe("too-deep");
+  });
+
+  it("walks sparse arrays by index", () => {
+    const sparse: unknown[] = [];
+    sparse[3] = nested(5);
+    expect(jsonLimitProblem(sparse, { maxDepth: 4 })?.code).toBe("too-deep");
+
+    const sparseEntries: unknown[] = [];
+    sparseEntries[10] = "val";
+    expect(jsonLimitProblem(sparseEntries, { maxDepth: 8, maxEntries: 5 })).toEqual({
+      path: [],
+      code: "too-large",
+      message: "More than 5 properties and array items in total",
+    });
   });
 });
